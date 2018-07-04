@@ -1,5 +1,5 @@
-#### FORECAST ####
-
+#### Anomaly ####
+rm(list=ls())
 source("../Source/package_manage.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 source("../Source/ui_func.R", local = T, encoding = "utf-8")
@@ -11,7 +11,7 @@ HOST_METRICS <- metrics_list('host')
 
 TASK_METRICS <- metrics_list('task')
 
-forecast_result <- NULL
+anomaly_result <- NULL
 
 ui <- fluidPage(
   
@@ -79,12 +79,9 @@ ui <- fluidPage(
     
     mainPanel(
       
-      dygraphOutput(
-        'predicted_plot',
-        width = "100%",
-        height = "500px"),
+      plotlyOutput('anomalized_plot'),
       
-      plotOutput('component_plot')
+      plotOutput('decomposed_plot', height = '800px')
 
     ) # mainPanel
     
@@ -121,7 +118,7 @@ server <- function(input, output, session) {
   })
   
 
-  output$predicted_plot <- renderDygraph({
+  output$anomalized_plot <- renderPlotly({
     
     resource <- input$resource
   
@@ -133,25 +130,19 @@ server <- function(input, output, session) {
     
     tb_ <- load_single_metric(resource, metric, period, groupby)
     
-    forecast_result <<- forecasting(tb_, groupby, 48)
+    anomaly_result <<- anomalization(tb_)
     
-    fcst <- forecast_result$forecast
+    anomalized_plot <- plot_anomalies(anomaly_result, T)
     
-    draw_forecast_dygraph(tb_,
-                          fcst,
-                          max(tb_$ds))
+    ggplotly(anomalized_plot)
     
   })
 
-  output$component_plot <- renderPlot({
-    
-    model <- forecast_result$model
-    
-    fcst <- forecast_result$forecast
-    
-    prophet_plot_components(model, fcst)
-
-  })
+  # output$decomposed_plot <- renderPlotly({
+    # print(class(anomaly_result))
+  #   plot_anomaly_decomposition(anomaly_result) %>% ggplotly()
+  #   
+  # })
 
   observeEvent(input$execute, {
 
@@ -163,13 +154,24 @@ server <- function(input, output, session) {
 
     groupby <- input$groupby
 
-    render_result <- render_forecast(resource, metric, period, groupby)
-
-    forecast_result <<- render_result$forecast_result
-
-    output$predicted_plot <- render_result$rendered
-
-    output$component_plot <- render_forecast_component(forecast_result)
+    tb_ <- load_single_metric(resource, metric, period, groupby)
+    
+    anomaly_result <- anomalization(tb_)
+    
+    anomalized_plot <- plot_anomalies(anomaly_result, T)
+    
+    output$anomalized_plot <- renderPlotly({
+      
+      ggplotly(anomalized_plot)
+      
+    })
+    
+    output$decomposed_plot <- renderPlot({
+      
+      plot_anomaly_decomposition(anomaly_result)
+      
+    })
+    
 
   })
   

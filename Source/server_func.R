@@ -1,4 +1,6 @@
 
+#### COMMON FUNCTION ####
+
 posixt_helper_func <- function(x) {
     switch(x,
            's' = 'sec',
@@ -6,6 +8,7 @@ posixt_helper_func <- function(x) {
            'h' = 'hour',
            stop('incorrect group time'))
 }
+
 
 connect <- function() {
     con <- influx_connection(host = '192.168.0.162', port = 10091)
@@ -16,6 +19,7 @@ connect <- function() {
     
     return(conn)
 }
+
 
 extract_field <- function(df) {
     
@@ -33,6 +37,7 @@ extract_field <- function(df) {
     return(extracted_df)
 }
 
+
 standardization <- function(mtx) {
     col_min <- as.vector(apply(mtx, 2, min))
     col_max <- as.vector(apply(mtx, 2, max))
@@ -41,6 +46,7 @@ standardization <- function(mtx) {
                        function(x) (x - col_min) / (col_max - col_min + 1e-6)))
     return(new_mtx)
 }
+
 
 multiple_join <- function(period = 5, group_by = '1h',
                           worker_list = c(), metric_list=c()) {
@@ -133,6 +139,252 @@ multiple_join <- function(period = 5, group_by = '1h',
     
 }
 
+
+load_single_metric <- function(measurement, metric, period, group_by) {
+  # For forecasting, anomaly detection, read only one metric
+  
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  period <- paste0(period, 'd')
+  
+  query = "select mean(${metric}) as metric \
+           from ${measurement} \
+           where time > now() - ${period} \
+           group by time(${group_by}) \
+           fill(none)"
+  
+  query <- str_interp(query)
+  
+  raw_data <- influx_query(connector,
+                           db = dbname,
+                           query = query,
+                           simplifyList = T,
+                           return_xts = F)[[1]]
+  
+  tb <- subset(raw_data, select = c(time, metric))
+  
+  ts <- seq.POSIXt(min(tb$time),
+                   max(tb$time),
+                   by = posixt_helper_func(str_sub(group_by, -1)))
+  
+  df <- tibble(time = ts)
+  
+  tb <- full_join(df, tb)
+  
+  tb$metric <- na.approx(tb$metric)
+  
+  names(tb) <- c("ds", "y")
+  
+  return(tb)
+  
+}
+
+
+load_metric_list <- function(measurement) {
+  
+  connector <- connect()
+  
+  con <- connector$connector
+  
+  dbname <- connector$dbname
+  
+  query <- 'show field keys from %s' %>% sprintf(measurement)
+  
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F)[[1]] %>%
+    as.data.frame() %>% 
+    select(fieldKey) %>% 
+    t() %>% 
+    as.vector() %>% 
+    setdiff('timestamp')
+  
+  return(res)
+}
+
+
+load_metric_value <- function(measurement) {
+  
+  connector <- connect()
+  
+  con <- connector$con
+  
+  dbname <- connector$dbname
+  
+  tag <- switch(
+    measurement,
+    'cluster' = 'master',
+    'host' = 'host_ip',
+    'task' = 'task',
+    stop('incorrect measurement'))
+  
+  query <- 'SHOW TAG VALUES from %s WITH KEY = %s' %>% sprintf(measurement, tag)
+  
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F)[[1]] %>%
+    as.data.frame() %>% 
+    select(value) %>% 
+    t() %>% 
+    as.vector()
+  
+  return(res)
+  
+}
+
+
+
+#### FORECAST ####
+
+forecasting <- function(tb_, group_by, pred_period, changepoint.prior.scale = 0.01) {
+  # pred_period : how long predict
+  
+  model <- prophet(tb_,
+                   changepoint.prior.scale = changepoint.prior.scale)
+  
+  if (str_sub(group_by, -1) == 's') {
+    
+    freq <- as.integer(str_sub(group_by, end = -2))
+    
+  } else if (str_sub(group_by, -1) == 'm') {
+    
+    freq <- as.integer(str_sub(group_by, end = -2)) * 60
+    
+  } else {
+    
+    freq <- as.integer(str_sub(group_by, end = -2)) * 60 * 60
+    
+  }
+  
+  future <- make_future_dataframe(model,
+                                  periods = pred_period,
+                                  freq = freq)
+  
+  fcst <- predict(model, future)
+  
+  res <- list('model' = model,
+              'forecast' = fcst)
+  
+  return(res)
+  
+}
+
+
+draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
+  
+  fcst[fcst$ds <= maxDate,]$yhat_lower <- NA
+  
+  fcst[fcst$ds <= maxDate,]$yhat_upper <- NA
+  
+  fcst[fcst$ds <= maxDate,]$yhat <- NA
+  
+  series0 <- xts(tb_$y,
+                 order.by = tb_$ds,
+                 tzone = Sys.getenv("TZ"))
+  
+  series1 <- xts(fcst$yhat,
+                 order.by = fcst$ds,
+                 tzone = Sys.getenv("TZ"))
+  
+  series2 <- xts(fcst$yhat_lower,
+                 order.by = fcst$ds,
+                 tzone = Sys.getenv("TZ"))
+  
+  series3 <- xts(fcst$yhat_upper,
+                 order.by = fcst$ds,
+                 tzone = Sys.getenv("TZ"))
+  
+  series <- cbind(series0, series1, series2, series3)
+  
+  names(series) <- c("hist", "yhat", "yhat_lower", "yhat_upper")
+  
+  dygraph(series, main = "Forecasting Result") %>%
+    dySeries(c( "hist"), label = "Actual") %>%
+    dySeries(c( "yhat_lower", "yhat", "yhat_upper"), label = "Predictd") %>%
+    dyRangeSelector(height = 50)
+  
+}
+
+
+render_forecast <- function(resource, metric, period, groupby) {
+  
+  tb_ <- load_single_metric(resource, metric, period, groupby)
+  
+  forecast_result <- forecasting(tb_, groupby, 48)
+  
+  fcst <- forecast_result$forecast
+  
+  rendered <- renderDygraph({
+    
+    draw_forecast_dygraph(tb_,
+                          fcst,
+                          max(tb_$ds))
+    
+    })
+  
+  res <- list('forecast_result' = forecast_result,
+              'rendered' = rendered)
+  
+  return(res)
+  
+}
+
+
+render_forecast_component <- function(result) {
+  
+  model <- result$model
+  
+  fcst <- result$forecast
+  
+  rendered <- renderPlot({
+    
+    prophet_plot_components(model, fcst)
+    
+  })
+  
+  return(rendered)
+  
+}
+
+
+
+#### ANOMALY ####
+
+anomalization <- function(tb_,
+                          frequency = 'auto',
+                          method = 'stl',
+                          trend = 'auto') {
+  
+  decomposed <- time_decompose(tb_,
+                               y,
+                               method = method,
+                               frequency = frequency,
+                               trend = trend)
+  
+  anomalized <- anomalize(decomposed,
+                          remainder,
+                          method = 'gesd',
+                          alpha = 0.05,
+                          max_anoms = 0.2,
+                          verbose = F)
+  
+  recomposed <- time_recompose(anomalized)
+  
+  return(recomposed)
+  
+}
+
+
+
+
+
+
 correlation_D3 <- function(mtx, lag = 5) {
     
     node_df <- data.frame('node' = colnames(mtx),
@@ -194,210 +446,4 @@ correlation_D3 <- function(mtx, lag = 5) {
     
     return(net)
     
-}
-
-load_single_metric <- function(measurement, metric, period, group_by) {
-  # For forecasting, anomaly detection, read only one metric
-  
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
-  period <- paste0(period, 'd')
-  
-  query = "select mean(${metric}) as metric \
-           from ${measurement} \
-           where time > now() - ${period} \
-           group by time(${group_by}) \
-           fill(none)"
-  
-  query <- str_interp(query)
-  
-  raw_data <- influx_query(connector,
-                           db = dbname,
-                           query = query,
-                           simplifyList = T,
-                           return_xts = F)[[1]]
-  
-  tb <- subset(raw_data, select = c(time, metric))
-  
-  ts <- seq.POSIXt(min(tb$time),
-                   max(tb$time),
-                   by = posixt_helper_func(str_sub(group_by, -1)))
-  
-  df <- tibble(time = ts)
-  
-  tb <- full_join(df, tb)
-  
-  tb$metric <- na.approx(tb$metric)
-  
-  names(tb) <- c("ds", "y")
-  
-  return(tb)
-  
-}
-
-forecasting <- function(tb_, group_by, pred_period, changepoint.prior.scale = 0.01) {
-  # pred_period : how long predict
-  
-  model <- prophet(tb_,
-                   changepoint.prior.scale = changepoint.prior.scale)
-  
-  if (str_sub(group_by, -1) == 's') {
-    
-    freq <- as.integer(str_sub(group_by, end = -2))
-    
-  } else if (str_sub(group_by, -1) == 'm') {
-    
-    freq <- as.integer(str_sub(group_by, end = -2)) * 60
-    
-  } else {
-    
-    freq <- as.integer(str_sub(group_by, end = -2)) * 60 * 60
-    
-  }
-  
-  future <- make_future_dataframe(model,
-                                  periods = pred_period,
-                                  freq = freq)
-  
-  fcst <- predict(model, future)
-  
-  res <- list('model' = model,
-              'forecast' = fcst)
-  
-  return(res)
-  
-}
-
-load_metric_list <- function(measurement) {
-  
-  connector <- connect()
-  
-  con <- connector$connector
-  
-  dbname <- connector$dbname
-  
-  query <- 'show field keys from %s' %>% sprintf(measurement)
-  
-  res <- influx_query(con,
-                      dbname,
-                      query,
-                      return_xts = F)[[1]] %>%
-    as.data.frame() %>% 
-    select(fieldKey) %>% 
-    t() %>% 
-    as.vector() %>% 
-    setdiff('timestamp')
-  
-  return(res)
-}
-
-
-load_metric_value <- function(measurement) {
-  
-  connector <- connect()
-  
-  con <- connector$con
-  
-  dbname <- connector$dbname
-  
-  tag <- switch(
-    measurement,
-    'cluster' = 'master',
-    'host' = 'host_ip',
-    'task' = 'task',
-    stop('incorrect measurement'))
-  
-  query <- 'SHOW TAG VALUES from %s WITH KEY = %s' %>% sprintf(measurement, tag)
-  
-  res <- influx_query(con,
-                      dbname,
-                      query,
-                      return_xts = F)[[1]] %>%
-    as.data.frame() %>% 
-    select(value) %>% 
-    t() %>% 
-    as.vector()
-  
-  return(res)
-  
-}
-
-
-draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
-  
-  fcst[fcst$ds <= maxDate,]$yhat_lower <- NA
-  
-  fcst[fcst$ds <= maxDate,]$yhat_upper <- NA
-  
-  fcst[fcst$ds <= maxDate,]$yhat <- NA
-  
-  series0 <- xts(tb_$y,
-                 order.by = tb_$ds,
-                 tzone = Sys.getenv("TZ"))
-  
-  series1 <- xts(fcst$yhat,
-                 order.by = fcst$ds,
-                 tzone = Sys.getenv("TZ"))
-  
-  series2 <- xts(fcst$yhat_lower,
-                 order.by = fcst$ds,
-                 tzone = Sys.getenv("TZ"))
-  
-  series3 <- xts(fcst$yhat_upper,
-                 order.by = fcst$ds,
-                 tzone = Sys.getenv("TZ"))
-  
-  series <- cbind(series0, series1, series2, series3)
-  
-  names(series) <- c("hist", "yhat", "yhat_lower", "yhat_upper")
-  
-  dygraph(series, main = "Forecasting Result") %>%
-    dySeries(c( "hist"), label = "Actual") %>%
-    dySeries(c( "yhat_lower", "yhat", "yhat_upper"), label = "Predictd") %>%
-    dyRangeSelector(height = 50)
-  
-}
-
-render_forecast <- function(resource, metric, period, groupby) {
-  
-  tb_ <- load_single_metric(resource, metric, period, groupby)
-  
-  forecast_result <- forecasting(tb_, groupby, 48)
-  
-  fcst <- forecast_result$forecast
-  
-  rendered <- renderDygraph({
-    
-    draw_forecast_dygraph(tb_,
-                          fcst,
-                          max(tb_$ds))
-    
-    })
-  
-  res <- list('forecast_result' = forecast_result,
-              'rendered' = rendered)
-  
-  return(res)
-  
-}
-
-
-render_forecast_component <- function(result) {
-  
-  model <- result$model
-  
-  fcst <- result$forecast
-  
-  rendered <- renderPlot({
-    
-    prophet_plot_components(model, fcst)
-    
-  })
-  
-  return(rendered)
-  
 }
