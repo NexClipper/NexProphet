@@ -362,3 +362,42 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
   
 }
 
+render_forecast <- function(resource, metric, period, groupby) {
+  
+  tb_ <- load_single_metric(resource, metric, period, groupby)
+  
+  forecast_result <- forecasting(tb_, groupby, 48)
+  
+  fcst <- forecast_result$forecast
+  
+  rendered <- renderDygraph({
+    
+    draw_forecast_dygraph(tb_,
+                          fcst,
+                          max(tb_$ds))
+    
+    })
+  
+  res <- list('forecast_result' = forecast_result,
+              'rendered' = rendered)
+  
+  return(res)
+  
+}
+
+
+render_forecast_component <- function(result) {
+  
+  model <- result$model
+  
+  fcst <- result$forecast
+  
+  rendered <- renderPlot({
+    
+    prophet_plot_components(model, fcst)
+    
+  })
+  
+  return(rendered)
+  
+}

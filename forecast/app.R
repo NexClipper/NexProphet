@@ -1,11 +1,9 @@
 #### FORECAST ####
-# .libPaths('C:/Users/yunseop/Documents/R/win-library/3.5')
-# rm(list=ls())
-source("Source/BIZSCAPE_FUNCTIONS.R", local = T, encoding = "utf-8")
-source("Source/package_manage.R", local = T, encoding = "utf-8")
-source("Source/server_func.R", local = T, encoding = "utf-8")
-source("Source/ui_func.R", local = T, encoding = "utf-8")
-# source("Source/global_variable.R", local = T, encoding = "utf-8")
+
+source("../Source/BIZSCAPE_FUNCTIONS.R", local = T, encoding = "utf-8")
+source("../Source/package_manage.R", local = T, encoding = "utf-8")
+source("../Source/server_func.R", local = T, encoding = "utf-8")
+source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
 CLUSTER_METRICS <- metrics_list('cluster')
@@ -46,7 +44,7 @@ ui <- fluidPage(
         pickerInput(
           inputId = 'single_metric',
           label = 'Select Metric',
-          choices = 'cpu_used_percent',
+          choices = '',
           options = list(`style` = "btn-info")
         )
         
@@ -91,9 +89,7 @@ ui <- fluidPage(
 
     ) # mainPanel
     
-  ), # sidebarLayout
-  
-  theme = "./css/bootstrap-theme.css"
+  ) # sidebarLayout
   
 )
 
@@ -125,14 +121,15 @@ server <- function(input, output, session) {
     
   })
   
+
   output$predicted_plot <- renderDygraph({
     
     resource <- input$resource
-    
+  
     metric <- input$single_metric
-    
+  
     period <- input$period
-    
+  
     groupby <- input$groupby
     
     tb_ <- load_single_metric(resource, metric, period, groupby)
@@ -141,10 +138,12 @@ server <- function(input, output, session) {
     
     fcst <- forecast_result$forecast
     
-    draw_forecast_dygraph(tb_, fcst, max(tb_$ds))
+    draw_forecast_dygraph(tb_,
+                          fcst,
+                          max(tb_$ds))
     
   })
-  
+
   output$component_plot <- renderPlot({
     
     model <- forecast_result$model
@@ -152,7 +151,27 @@ server <- function(input, output, session) {
     fcst <- forecast_result$forecast
     
     prophet_plot_components(model, fcst)
-    
+
+  })
+
+  observeEvent(input$execute, {
+
+    resource <- input$resource
+
+    metric <- input$single_metric
+
+    period <- input$period
+
+    groupby <- input$groupby
+
+    render_result <- render_forecast(resource, metric, period, groupby)
+
+    forecast_result <<- render_result$forecast_result
+
+    output$predicted_plot <- render_result$rendered
+
+    output$component_plot <- render_forecast_component(forecast_result)
+
   })
   
 }
@@ -160,4 +179,3 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
-# shiny::runExample("01_hello")
