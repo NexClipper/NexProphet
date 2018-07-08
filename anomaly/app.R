@@ -2,14 +2,14 @@
 rm(list=ls())
 source("../Source/package_manage.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
-source("../Source/ui_func.R", local = T, encoding = "utf-8")
+# source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
-CLUSTER_METRICS <- metrics_list('cluster')
+CLUSTER_METRICS <- load_metric_list('cluster')
 
-HOST_METRICS <- metrics_list('host')
+HOST_METRICS <- load_metric_list('host')
 
-TASK_METRICS <- metrics_list('task')
+TASK_METRICS <- load_metric_list('task')
 
 anomaly_result <- NULL
 
@@ -79,7 +79,7 @@ ui <- fluidPage(
     
     mainPanel(
       
-      plotlyOutput('anomalized_plot'),
+      plotlyOutput('anomalized_plot', height = '500px'),
       
       plotOutput('decomposed_plot', height = '800px')
 
@@ -99,7 +99,7 @@ server <- function(input, output, session) {
                      'host' = 'Select Host IP',
                      'task' = 'Select Task Name')
     
-    choices_ <- load_metric_value(input$resource)
+    choices_ <- load_tag_list(input$resource)
     
     updatePickerInput(
       session = session,
@@ -118,25 +118,25 @@ server <- function(input, output, session) {
   })
   
 
-  output$anomalized_plot <- renderPlotly({
-    
-    resource <- input$resource
-  
-    metric <- input$single_metric
-  
-    period <- input$period
-  
-    groupby <- input$groupby
-    
-    tb_ <- load_single_metric(resource, metric, period, groupby)
-    
-    anomaly_result <<- anomalization(tb_)
-    
-    anomalized_plot <- plot_anomalies(anomaly_result, T)
-    
-    ggplotly(anomalized_plot)
-    
-  })
+  # output$anomalized_plot <- renderPlotly({
+  # 
+  #   resource <- input$resource
+  # 
+  #   metric <- input$single_metric
+  # 
+  #   period <- input$period
+  # 
+  #   groupby <- input$groupby
+  #   cat(resource, metric, period, groupby, '\n')
+  #   tb_ <- load_single_metric(resource, metric, period, groupby)
+  # 
+  #   anomaly_result <<- anomalization(tb_)
+  # 
+  #   anomalized_plot <- plot_anomalies(anomaly_result, T)
+  # 
+  #   ggplotly(anomalized_plot)
+  # 
+  # })
 
   # output$decomposed_plot <- renderPlotly({
     # print(class(anomaly_result))

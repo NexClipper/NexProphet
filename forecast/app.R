@@ -2,14 +2,14 @@
 
 source("../Source/package_manage.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
-source("../Source/ui_func.R", local = T, encoding = "utf-8")
+# source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
-CLUSTER_METRICS <- metrics_list('cluster')
+CLUSTER_METRICS <- load_metric_list('cluster')
 
-HOST_METRICS <- metrics_list('host')
+HOST_METRICS <- load_metric_list('host')
 
-TASK_METRICS <- metrics_list('task')
+TASK_METRICS <- load_metric_list('task')
 
 forecast_result <- NULL
 
@@ -19,7 +19,7 @@ ui <- fluidPage(
     
     sidebarPanel(
       
-      width = 4,
+      width = 3,
       
       wellPanel(
         
@@ -78,14 +78,43 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      width = 9,
       
-      dygraphOutput(
-        'predicted_plot',
-        width = "100%",
-        height = "500px"),
+      fluidRow(
+        
+        column(width = 6, 
+               br(),
+               h4("Time Series Plot"),
+               br(),
+               dygraphOutput(
+                 'trend_plot',
+                 width = "100%",
+                 height = "350px")
+         ),
+        column(width = 6, 
+               br(),
+               h4("Forecasting Plot"),
+               br(),
+               dygraphOutput(
+                 'predicted_plot',
+                 width = "100%",
+                 height = "350px")
+        )
+      ),
+      fluidRow(
+        column(width = 6, 
+               br(),
+               h4("Forecasting Component Plot"),
+               br(),
+               plotOutput('component_plot', height = "350px")
+        ),
+        column(width = 6,
+               br(),
+               h4("Forecasting Statistics"),
+               br()
+        )
+      )
       
-      plotOutput('component_plot')
-
     ) # mainPanel
     
   ) # sidebarLayout
@@ -102,7 +131,7 @@ server <- function(input, output, session) {
                      'host' = 'Select Host IP',
                      'task' = 'Select Task Name')
     
-    choices_ <- load_metric_value(input$resource)
+    choices_ <- load_tag_list(input$resource)
     
     updatePickerInput(
       session = session,
@@ -120,58 +149,82 @@ server <- function(input, output, session) {
     
   })
   
-
-  output$predicted_plot <- renderDygraph({
+  observe({
     
     resource <- input$resource
-  
     metric <- input$single_metric
-  
     period <- input$period
-  
     groupby <- input$groupby
     
-    tb_ <- load_single_metric(resource, metric, period, groupby)
+    output$predicted_plot <- NULL
+    output$component_plot <- NULL
     
-    forecast_result <<- forecasting(tb_, groupby, 48)
+    output$trend_plot <- renderDygraph({
     
-    fcst <- forecast_result$forecast
-    
-    draw_forecast_dygraph(tb_,
-                          fcst,
-                          max(tb_$ds))
+      series <- load_single_metric(resource, metric, period, groupby)
+      
+      ts <- xts(series$y,
+          order.by = series$ds,
+          tzone = Sys.getenv("TZ"))
+      
+      dygraph(ts) %>%
+        dyRangeSelector(height = 30)
+      
+    })
     
   })
-
-  output$component_plot <- renderPlot({
-    
-    model <- forecast_result$model
-    
-    fcst <- forecast_result$forecast
-    
-    prophet_plot_components(model, fcst)
-
-  })
-
+  
+  
+  
   observeEvent(input$execute, {
-
+    
     resource <- input$resource
-
     metric <- input$single_metric
-
     period <- input$period
-
     groupby <- input$groupby
-
+    
     render_result <- render_forecast(resource, metric, period, groupby)
-
+    
     forecast_result <<- render_result$forecast_result
-
+    
     output$predicted_plot <- render_result$rendered
-
     output$component_plot <- render_forecast_component(forecast_result)
-
+    
   })
+
+  # output$predicted_plot <- renderDygraph({
+  #   
+  #   resource <- input$resource
+  # 
+  #   metric <- input$single_metric
+  # 
+  #   period <- input$period
+  # 
+  #   groupby <- input$groupby
+  #   
+  #   tb_ <- load_single_metric(resource, metric, period, groupby)
+  #   
+  #   forecast_result <<- forecasting(tb_, groupby, 48)
+  #   
+  #   fcst <- forecast_result$forecast
+  #   
+  #   draw_forecast_dygraph(tb_,
+  #                         fcst,
+  #                         max(tb_$ds))
+  #   
+  # })
+
+  # output$component_plot <- renderPlot({
+  #   
+  #   model <- forecast_result$model
+  #   
+  #   fcst <- forecast_result$forecast
+  #   
+  #   prophet_plot_components(model, fcst)
+  # 
+  # })
+
+
   
 }
 
