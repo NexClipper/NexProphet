@@ -631,67 +631,163 @@ anomalization <- function(tb_,
 
 
 
-#### METRIC ASSOCIATION ####
+#### METRIC CASUALITY ####
 
-correlation_D3 <- function(mtx, lag = 5) {
+casuality <- function(mtx, lag) {
     
-    node_df <- data.frame('node' = colnames(mtx),
-                          'idx' = 0:(ncol(mtx) - 1),
-                          'size' = 0,
+    link_df <- data.frame('source' = NA,
+                          'target' = NA,
+                          'intension' = NA,
+                          'p_value' = NA,
+                          'max_lag' = NA,
                           stringsAsFactors = F)
     
-    link_df <- data.frame('source' = NA, 'target' = NA, 'edge' = NA)
-    
+    # browser()
     idx <- 1
     
-    for (i in 1:nrow(node_df))
-    {
-        for (j in 1:nrow(node_df))
-        {
+    for (i in 1:ncol(mtx)) {
+      
+        for (j in 1:ncol(mtx)) {
+          
             if (i == j) {next}
-            else
-            {
-                x <- -diff(as.matrix(log(mtx[, node_df$node[i]] + 1e-6)))
-                y <- -diff(as.matrix(log(mtx[, node_df$node[j]] + 1e-6)))
+            else {
+              
+                x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
                 
-                for (k in 1:lag)
-                {
+                y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
+                
+                p_value <- 1
+                
+                lag_ <- 1
+                
+                for (l in 1:lag) {
+                  
+                  g_test <- grangertest(x, y, l)
+                  
+                  if (g_test$`Pr(>F)`[2] < p_value) {
                     
-                    g_test <- grangertest(x, y, k)
+                    p_value <- g_test$`Pr(>F)`[2]
                     
-                    if (g_test$`Pr(>F)`[2] <= 0.05)
-                    {
-                        link_df[idx, ] <- c(i - 1, j - 1, lag + 1 - k)
-                        idx <- idx + 1
-                        break
-                    }
+                    lag_ <- l
+                    
+                  }
+                  
                 }
+                
+                link_df[idx, ] <- c(colnames(mtx)[i],
+                                    colnames(mtx)[j],
+                                    log(1 / (p_value + 1e-6)),
+                                    p_value,
+                                    lag_)
+                
+                # result <- select_lags(x, y, lag)
+                # 
+                # k <- min(result$selection$aic, result$selection$bic)
+                # 
+                # p <- ifelse(k == 1, 0, result$pvals[k - 1])
+                # 
+                # intension <- log(1 / (p + 1e-6))
+                # link_df[idx, ] <- c(i, j, intension, p, k)
+                
+                
+                idx <- idx + 1
+                
             }
         }
     }
+    # browser()
+    # node_df <- data.frame('node' = colnames(mtx),
+    #                       'idx' = 0:(ncol(mtx) - 1),
+    #                       'size' = 0,
+    #                       stringsAsFactors = F)
+    node_df <- data.frame('node' = unique(c(link_df$source,
+                                            link_df$target)),
+                          'size' = 0,
+                          stringsAsFactors = F)
     
-    for (i in node_df$idx) {
+    node_df$idx <- 0:(nrow(node_df) - 1)
+    
+    link_df$source <- inner_join(link_df, node_df, by = c('source' = 'node'))$idx
+    
+    link_df$target <- inner_join(link_df, node_df, by = c('target' = 'node'))$idx
+    
+    link_df <- as.data.frame(sapply(link_df, as.numeric))
+    
+    for (q in node_df$idx) {
         
-        node_df$size[i + 1] <- sum(link_df$source == i)
+        node_df$size[q + 1] <- sum(link_df$source == q)
         
     }
     
-    net <- forceNetwork(Links = link_df,
-                        Nodes = node_df,
-                        Source = 'source',
-                        Target = 'target',
-                        NodeID = 'node',
-                        Group = 'node',
-                        linkDistance = 200,
-                        zoom = T,
-                        fontSize = 10,
-                        opacityNoHover = T,
-                        legend = T,
-                        arrows = T,
-                        opacity = 1,
-                        Value = 'edge',
-                        Nodesize = 'size')
+    link_df$intension <- as.integer(link_df$intension + 1)
     
-    return(net)
+    res <- list('node' = node_df,
+                'link' = link_df)
+    
+    return(res)
     
 }
+
+
+select_lags <- function(x, y, max.lag) {
+  
+  y <- as.numeric(y)
+  y.lag <- embed(y, max.lag + 1)[, -1, drop = FALSE]
+  x.lag <- embed(x, max.lag + 1)[, -1, drop = FALSE]
+  
+  t <- tail(seq_along(y), nrow(y.lag))
+  # browser()
+  ms = lapply(1:max.lag, function(i) lm(y[t] ~ y.lag[, 1:i] +
+                                          x.lag[, 1:i]))
+  
+  pvals <- mapply(function(i) anova(ms[[i]], ms[[i - 1]])[2, "Pr(>F)"], max.lag:2)
+  
+  ind <- which(pvals < 0.05)[1]
+  
+  ftest <- ifelse(is.na(ind), 1, max.lag - ind + 1)
+  
+  aic <- as.numeric(lapply(ms, AIC))
+  
+  bic <- as.numeric(lapply(ms, BIC))
+  
+  res <- structure(list(ic = cbind(aic = aic, bic = bic),
+                        pvals = pvals,
+                        selection = list(aic = which.min(aic),
+                                         bic = which.min(bic),
+                                         ftest = ftest)))
+  
+  return(res)
+  
+}
+
+# max.lag <- 10
+# x <- ChickEgg[, 1] %>% log() %>% diff()
+# y <- ChickEgg[, 2] %>% log() %>% diff()
+# 
+# y <- as.numeric(y)
+# y.lag <- embed(y, max.lag + 1)[, -1, drop = FALSE]
+# x.lag <- embed(x, max.lag + 1)[, -1, drop = FALSE]
+# 
+# t <- tail(seq_along(y), nrow(y.lag))
+# 
+# ms = lapply(1:max.lag, function(i) lm(y[t] ~ y.lag[, 1:i] +
+#                                         x.lag[, 1:i]))
+# 
+# pvals <- mapply(function(i) anova(ms[[i]], ms[[i - 1]])[2, "Pr(>F)"], max.lag:2)
+# 
+# ind <- which(pvals < 0.05)[1]
+# 
+# ftest <- ifelse(is.na(ind), 1, max.lag - ind + 1)
+# 
+# aic <- as.numeric(lapply(ms, AIC))
+# 
+# bic <- as.numeric(lapply(ms, BIC))
+# 
+# structure(list(ic = cbind(aic = aic, bic = bic),
+#                pvals = pvals,
+#                selection = list(aic = which.min(aic),
+#                                 bic = which.min(bic),
+#                                 ftest = ftest)))
+
+# res <- select_lags(chick, egg, 5)
+# res
