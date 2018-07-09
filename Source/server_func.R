@@ -165,11 +165,11 @@ load_metric_from_cluster <- function(period, groupby, metric_list) {
 
 load_metric_from_host <- function(period, groupby, host_list, metric_list) {
   
-  metric_list <- c("cpu_idle_per", "cpu_idle_percent")
-  host_list <- c("192.168.0.160", "192.168.0.161")
-  period = 5
+  # metric_list <- c("cpu_idle_per", "cpu_idle_percent")
+  # host_list <- c("192.168.0.160", "192.168.0.161")
+  # period = 5
   
-  groupby = "1h"
+  # groupby = "1h"
   
   connector <- connect()
   con <- connector$connector

@@ -1,8 +1,7 @@
 #### Metric Association ####
-rm(list = ls())
-source("../Source/package_manage.R", local = T, encoding = "utf-8")
+
+source("../Source/load_packages.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
-# source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
 CLUSTER_LIST <- load_tag_list('cluster')
@@ -15,7 +14,7 @@ TASK_LIST <- load_tag_list('task')
 TASK_METRICS <- load_metric_list('task')
 
 
-# 전체 데이터 
+# total data
 DATA_CORR <- NULL
 
 
@@ -32,24 +31,6 @@ ui <- fluidPage(
       
       wellPanel(
         
-        # dropdownButton(
-        #   
-        #   label = 'Select Cluster',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   actionButton("clus_all",
-        #                "All",
-        #                width = "100%",
-        #                Height = 40),
-        #   
-        #   multiInput(
-        #     inputId = 'clus_list',
-        #     label = '',
-        #     choices = CLUSTER_LIST,
-        #     width = '400px')
-        #   
-        # ),
         actionButton("clus_all",
                      "Select All",
                      Height = 40),
@@ -58,47 +39,11 @@ ui <- fluidPage(
                        "Select Cluster Metric to inspect :", 
                        choices = CLUSTER_METRICS, selected = "", multiple = T )
         
-        # dropdownButton(
-        #   
-        #   label = 'Select Cluster Metrics',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   actionButton("host_all",
-        #                "All",
-        #                width = "100%",
-        #                Height = 40),
-        #   
-        #   multiInput(
-        #     inputId = 'clus_metrics',
-        #     label = '',
-        #     choices = CLUSTER_METRICS,
-        #     width = '400px')
-        #   
-        # )
         
       ),
       
       wellPanel(
         
-        # dropdownButton(
-        #   
-        #   label = 'Select Host',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   actionButton("task_all",
-        #                "All",
-        #                width = "100%",
-        #                Height = 40),
-        #   
-        #   multiInput(
-        #     inputId = 'host_list',
-        #     label = '',
-        #     choices = HOST_LIST,
-        #     width = '400px')
-        #   
-        # ),
         selectizeInput("host_list",
                        "Select Host to inspect :", 
                        choices = HOST_LIST,
@@ -107,19 +52,6 @@ ui <- fluidPage(
 
         br(),
 
-        # dropdownButton(
-        #   
-        #   label = 'Select Host Metrics',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   multiInput(
-        #     inputId = 'host_metrics',
-        #     label = '',
-        #     choices = HOST_METRICS,
-        #     width = '400px')
-        #   
-        # )
         actionButton("host_all",
                      "Select All",
                      Height = 40),
@@ -134,19 +66,6 @@ ui <- fluidPage(
       
       wellPanel(
         
-        # dropdownButton(
-        #   
-        #   label = 'Select Task',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   multiInput(
-        #     inputId = 'task_list',
-        #     label = '',
-        #     choices = TASK_LIST,
-        #     width = '500px')
-        #   
-        # ),
         selectizeInput("task_list",
                        "Select Task to inspect :", 
                        choices = TASK_LIST,
@@ -155,19 +74,6 @@ ui <- fluidPage(
         
         br(),
         
-        # dropdownButton(
-        #   
-        #   label = 'Select Task Metrics',
-        #   circle = F,
-        #   width = "500px",
-        #   
-        #   multiInput(
-        #     inputId = 'task_metrics',
-        #     label = '',
-        #     choices = TASK_METRICS,
-        #     width = '400px')
-        #   
-        # )
         actionButton("task_all",
                      "Select All",
                      Height = 40),
@@ -177,6 +83,16 @@ ui <- fluidPage(
                        choices = TASK_METRICS,
                        selected = "",
                        multiple = T )
+        
+      ),
+      
+      wellPanel(
+        
+        actionButton("execute",
+                     "  Execute",
+                     icon = icon("sign-out"),
+                     width = "100%",
+                     Height = 40)
         
       ),
 
@@ -193,16 +109,6 @@ ui <- fluidPage(
                      inline = T),
         
         style = "padding: 15px 20px 0px 20px;"
-        
-      ),
-      
-      wellPanel(
-        
-        actionButton("execute",
-                     "  Execute",
-                     icon = icon("sign-out"),
-                     width = "100%",
-                     Height = 40)
         
       )
       
@@ -232,10 +138,6 @@ ui <- fluidPage(
         dataTableOutput('correlation_table')
         
       )
-      
-      # plotlyOutput('anomalized_plot', height = '500px'),
-      # 
-      # plotOutput('decomposed_plot', height = '800px')
 
     ) # mainPanel     
     
@@ -260,10 +162,6 @@ server <- function(input, output, session) {
                         'host' = input$host_metrics,
                         'task' = input$task_metrics)
     
-
-    
-    # browser()
-    
     multiple_metrics <- load_multiple_metric(period = period,
                                              groupby = groupby,
                                              host_list = host_list,
@@ -276,22 +174,22 @@ server <- function(input, output, session) {
       as.matrix() %>%
       standardization()
     
-    # browser()
-    
     corr <- cor(multiple_metrics, use = "pairwise.complete.obs")
     
     na.idx <- sapply(as.data.frame(corr), function(x){
+      
       all(is.na(x))
+      
     })
+    
     corr <- corr[!na.idx, !na.idx]
-    # browser()
+    
     corr[is.na(corr)] <- 0
     
     DATA_CORR <<- corr
     
     output$correlation_plot <- renderPlotly({
       
-      # browser()
       ggcorrplot(DATA_CORR,
                  hc.order = TRUE,
                  type = "lower",
@@ -302,7 +200,6 @@ server <- function(input, output, session) {
       
     })
     
-    # browser()
     updateSelectInput(session,
                       "combo_DT_Metric",
                       choices = rownames(DATA_CORR),
@@ -368,7 +265,6 @@ server <- function(input, output, session) {
   observeEvent(input$combo_DT_Metric, {
     output$correlation_table <- renderDataTable({
       
-      # browser()
       if (input$combo_DT_Metric != "") {
         dt <- data.table(Metrics = rownames(DATA_CORR),
                          Correlation = DATA_CORR[, input$combo_DT_Metric],
