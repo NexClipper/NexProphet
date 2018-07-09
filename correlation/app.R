@@ -1,6 +1,6 @@
 #### Metric Association ####
 
-source("../Source/load_packages.R", local = T, encoding = "utf-8")
+source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
