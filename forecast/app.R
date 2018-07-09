@@ -156,8 +156,8 @@ server <- function(input, output, session) {
     period <- input$period
     groupby <- input$groupby
     
-    output$predicted_plot <- NULL
-    output$component_plot <- NULL
+    output$predicted_plot <- plot.new()
+    output$component_plot <- plot.new()
     
     output$trend_plot <- renderDygraph({
     
