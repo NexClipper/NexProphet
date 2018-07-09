@@ -156,8 +156,12 @@ server <- function(input, output, session) {
     period <- input$period
     groupby <- input$groupby
     
-    output$predicted_plot <- plot.new()
-    output$component_plot <- plot.new()
+    "
+    Error in shiny-server
+
+    output$predicted_plot <- NULL
+    output$component_plot <- NULL
+    "
     
     output$trend_plot <- renderDygraph({
     
