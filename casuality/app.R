@@ -1,6 +1,6 @@
 #### Metric Granger Casuality ####
-rm(list = ls())
-source("../Source/package_manage.R", local = T, encoding = "utf-8")
+
+source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
@@ -142,9 +142,6 @@ ui <- fluidPage(
         
       )
       
-      # plotlyOutput('anomalized_plot', height = '500px'),
-      # 
-      # plotOutput('decomposed_plot', height = '800px')
       
     ) # mainPanel     
     
@@ -169,10 +166,6 @@ server <- function(input, output, session) {
                         'host' = input$host_metrics,
                         'task' = input$task_metrics)
     
-    
-    
-    # browser()
-    
     multiple_metrics <- load_multiple_metric(period = period,
                                              groupby = groupby,
                                              host_list = host_list,
@@ -180,7 +173,7 @@ server <- function(input, output, session) {
       select(-time)
     
     all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
-    # browser()
+    
     multiple_metrics <- multiple_metrics[, !all.na.idx] %>%
       na.omit()
     
@@ -212,7 +205,7 @@ server <- function(input, output, session) {
     
     combo_list <- inner_join(link_df, node_df, by = c('target' = 'idx')) %>%
       select(node) %>% unique()
-    # print(combo_list)
+    
     updateSelectInput(session,
                       "combo_DT_Metric",
                       choices = combo_list,
@@ -285,7 +278,7 @@ server <- function(input, output, session) {
         node_df <- casuality_df$node
         
         link_df <- casuality_df$link
-        # browser()
+        
         link_df$target <- inner_join(link_df, node_df, by = c('target' = 'idx'))$node
         
         link_df$source <- inner_join(link_df, node_df, by = c('source' = 'idx'))$node
@@ -300,9 +293,6 @@ server <- function(input, output, session) {
         
         setorder(dt, -intension)
         
-        # output$casuality_table <- renderDataTable(dt[, 1:2, with = F],
-        #                                           options = list(scrollX  = TRUE,
-        #                                                          pageLength = 13))
       }
       
     })

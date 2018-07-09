@@ -1,8 +1,7 @@
 #### FORECAST ####
 
-source("../Source/package_manage.R", local = T, encoding = "utf-8")
+source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
-# source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
 CLUSTER_METRICS <- load_metric_list('cluster')
@@ -12,6 +11,7 @@ HOST_METRICS <- load_metric_list('host')
 TASK_METRICS <- load_metric_list('task')
 
 forecast_result <- NULL
+
 
 ui <- fluidPage(
   
@@ -31,6 +31,7 @@ ui <- fluidPage(
                          'Task' = 'task'),
           selected = 'cluster',
           inline = T
+          
         ),
         
         pickerInput(
@@ -48,6 +49,16 @@ ui <- fluidPage(
         )
         
       ),
+      
+      wellPanel(
+        
+        actionButton("execute",
+                     "  Execute",
+                     icon = icon("sign-out"),
+                     width = "100%",
+                     Height = 40)
+        
+      ),
 
       wellPanel(
         
@@ -62,16 +73,6 @@ ui <- fluidPage(
                      inline = T),
         
         style = "padding: 15px 20px 0px 20px;"
-        
-      ),
-      
-      wellPanel(
-        
-        actionButton("execute",
-                     "  Execute",
-                     icon = icon("sign-out"),
-                     width = "100%",
-                     Height = 40)
         
       )
       
@@ -91,6 +92,7 @@ ui <- fluidPage(
                  width = "100%",
                  height = "350px")
          ),
+        
         column(width = 6, 
                br(),
                h4("Forecasting Plot"),
@@ -100,7 +102,9 @@ ui <- fluidPage(
                  width = "100%",
                  height = "350px")
         )
+        
       ),
+      
       fluidRow(
         column(width = 6, 
                br(),
@@ -108,6 +112,7 @@ ui <- fluidPage(
                br(),
                plotOutput('component_plot', height = "350px")
         ),
+        
         column(width = 6,
                br(),
                h4("Forecasting Statistics"),
@@ -195,40 +200,6 @@ server <- function(input, output, session) {
     output$component_plot <- render_forecast_component(forecast_result)
     
   })
-
-  # output$predicted_plot <- renderDygraph({
-  #   
-  #   resource <- input$resource
-  # 
-  #   metric <- input$single_metric
-  # 
-  #   period <- input$period
-  # 
-  #   groupby <- input$groupby
-  #   
-  #   tb_ <- load_single_metric(resource, metric, period, groupby)
-  #   
-  #   forecast_result <<- forecasting(tb_, groupby, 48)
-  #   
-  #   fcst <- forecast_result$forecast
-  #   
-  #   draw_forecast_dygraph(tb_,
-  #                         fcst,
-  #                         max(tb_$ds))
-  #   
-  # })
-
-  # output$component_plot <- renderPlot({
-  #   
-  #   model <- forecast_result$model
-  #   
-  #   fcst <- forecast_result$forecast
-  #   
-  #   prophet_plot_components(model, fcst)
-  # 
-  # })
-
-
   
 }
 

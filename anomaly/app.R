@@ -1,8 +1,7 @@
 #### Anomaly ####
-rm(list=ls())
-source("../Source/package_manage.R", local = T, encoding = "utf-8")
+
+source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
-# source("../Source/ui_func.R", local = T, encoding = "utf-8")
 
 
 CLUSTER_METRICS <- load_metric_list('cluster')
@@ -48,6 +47,16 @@ ui <- fluidPage(
         )
         
       ),
+      
+      wellPanel(
+        
+        actionButton("execute",
+                     "  Execute",
+                     icon = icon("sign-out"),
+                     width = "100%",
+                     Height = 40)
+        
+      ),
 
       wellPanel(
         
@@ -62,16 +71,6 @@ ui <- fluidPage(
                      inline = T),
         
         style = "padding: 15px 20px 0px 20px;"
-        
-      ),
-      
-      wellPanel(
-        
-        actionButton("execute",
-                     "  Execute",
-                     icon = icon("sign-out"),
-                     width = "100%",
-                     Height = 40)
         
       )
       
@@ -117,32 +116,6 @@ server <- function(input, output, session) {
     
   })
   
-
-  # output$anomalized_plot <- renderPlotly({
-  # 
-  #   resource <- input$resource
-  # 
-  #   metric <- input$single_metric
-  # 
-  #   period <- input$period
-  # 
-  #   groupby <- input$groupby
-  #   cat(resource, metric, period, groupby, '\n')
-  #   tb_ <- load_single_metric(resource, metric, period, groupby)
-  # 
-  #   anomaly_result <<- anomalization(tb_)
-  # 
-  #   anomalized_plot <- plot_anomalies(anomaly_result, T)
-  # 
-  #   ggplotly(anomalized_plot)
-  # 
-  # })
-
-  # output$decomposed_plot <- renderPlotly({
-    # print(class(anomaly_result))
-  #   plot_anomaly_decomposition(anomaly_result) %>% ggplotly()
-  #   
-  # })
 
   observeEvent(input$execute, {
 
