@@ -63,14 +63,12 @@ ui <- fluidPage(
       wellPanel(
         
         sliderInput("period",
-                    "Data Period (days) :",
-                    min = 1, max = 100, value = 5),
+                    "Data Period (Hours) :",
+                    min = 1, max = 120, value = 6),
         
-        radioButtons("groupby",
-                     "Select Group By",
-                     choices = c('5m', "10m", "30m", "1h"),
-                     selected = "1h",
-                     inline = T),
+        sliderInput("groupby",
+                    "Select Group By (sec)",
+                    min = 1, max = 120, value = 10),
         
         style = "padding: 15px 20px 0px 20px;"
         

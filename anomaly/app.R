@@ -219,9 +219,13 @@ server <- function(input, output, session) {
           
         })
         
+        "
+        # Error in shiny        
+
         output$modeling_img <- NULL
         
         output$anomaly_table  <- NULL
+        "
         
         output$notice <- renderText("There is no Forecasting Model!! Make a Model First!!")
         
