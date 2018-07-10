@@ -260,10 +260,8 @@ load_metric_from_task <- function(period, groupby, host_list, metric_list) {
   
   res_task <- res_task %>%
     filter(task %in% host_list) %>% 
-    select(c('time', 'task', 'node_ip', metric_list)) 
+    select(c('time', 'task', 'node_ip', metric_list))
   
-  
-  # browser()
   ts <- seq.POSIXt(min(res_task$time),
                    max(res_task$time),
                    by = posixt_helper_func(str_sub(groupby, -1)))
@@ -388,8 +386,16 @@ load_multiple_metric <- function(period, groupby,
 
 
 
-load_single_metric <- function(measurement, metric, period, group_by) {
+load_single_metric <- function(measurement, host, metric, period, groupby,
+                               limit = -1) {
   # For forecasting, anomaly detection, read only one metric
+  # host : host or task name
+  
+  # measurement <- 'host'
+  # host <- '192.168.0.163'
+  # metric <- 'load1'
+  # period <- 1
+  # groupby <- 10
   
   con <- connect()
   
@@ -397,15 +403,40 @@ load_single_metric <- function(measurement, metric, period, group_by) {
   
   dbname <- con$dbname
   
-  period <- paste0(period, 'd')
+  period <- paste0(period, 'h')
   
-  query = "select mean(${metric}) as metric \
-           from ${measurement} \
-           where time > now() - ${period} \
-           group by time(${group_by}) \
-           fill(none)"
+  groupby <- paste0(groupby, 's')
   
-  query <- str_interp(query)
+  query <- "select mean(%s) as metric
+            from %s
+            where time > now() - %s and %s = '%s'
+            group by time(%s), %s
+            fill(none)
+            order by time desc
+            %s"
+  
+  tag <- switch(measurement,
+                'cluster' = 'master',
+                'host' = 'host_ip',
+                'task' = 'task')
+  
+  if (limit > 0) {
+    
+    limit <- paste('limit', limit)
+    
+  } else {
+    
+    limit <- ""
+    
+  }
+  
+  query <- sprintf(query,
+                   metric,
+                   measurement,
+                   period, tag, host,
+                   groupby, tag,
+                   limit)
+  # print(query)
   
   raw_data <- influx_query(connector,
                            db = dbname,
@@ -413,15 +444,22 @@ load_single_metric <- function(measurement, metric, period, group_by) {
                            simplifyList = T,
                            return_xts = F)[[1]]
   
-  tb <- subset(raw_data, select = c(time, metric))
+  if (!('metric' %in% names(raw_data)))
+    return(default_time_seqeunce(period, groupby))
   
-  ts <- seq.POSIXt(min(tb$time),
-                   max(tb$time),
-                   by = posixt_helper_func(str_sub(group_by, -1)))
+  unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
-  df <- tibble(time = ts)
+  by <- str_extract(groupby, '\\d+') %>% paste(unit)
   
-  tb <- full_join(df, tb)
+  ts <- seq.POSIXt(min(raw_data$time),
+                   max(raw_data$time),
+                   by = by)
+  
+  df <- tibble(ds = ts)
+  
+  raw_data <- select(raw_data, c(time, metric))
+  
+  tb <- full_join(df, raw_data, by = c('ds' = 'time'))
   
   tb$metric <- na.approx(tb$metric)
   
@@ -430,6 +468,43 @@ load_single_metric <- function(measurement, metric, period, group_by) {
   return(tb)
   
 }
+
+
+default_time_seqeunce <- function(period, groupby) {
+  
+  current <- as.POSIXlt(Sys.time())
+  
+  unit <- str_sub(groupby, -1)
+  
+  period <- str_extract(period, '\\d+') %>% as.integer()
+  
+  past <- current
+  
+  if (unit == 'd') {
+    
+    past$mday <- past$mday - period
+    
+  } else if (unit == 'h') {
+    
+    past$hour <- past$hour - period
+    
+  } else {
+    
+    past$sec <- past$sec - period
+    
+  }
+  
+  seq <- seq.POSIXt(past,
+                    current,
+                    by = posixt_helper_func(str_sub(groupby, -1)))
+  
+  dt <- data.table('ds' = seq,
+                   'y' = -1)
+  
+  return(dt)
+  
+}
+
 
 
 load_metric_list <- function(measurement) {
@@ -483,6 +558,99 @@ load_tag_list <- function(measurement) {
     as.vector()
   
   return(res)
+  
+}
+
+
+connect_MySQL <- function() {
+  
+  con <- dbConnect(MySQL(), user = 'admin', password = 'password',
+                   host = '192.168.0.168', port = 18951,
+                   dbname = 'defaultdb')
+  
+  return(con)
+  
+}
+
+
+load_event_data <- function() {
+  
+  con <- connect_MySQL()
+  
+  columns <- c('start_time', "target_system", "target_ip", "target", "metric",
+               "condition", "id")
+  
+  query <- 'SELECT * \
+            FROM nexclipper_incident \
+            order by start_time'
+  
+  raw_data <- as.data.frame(dbGetQuery(con, query))
+  
+  raw_data <- raw_data[, columns]
+  
+  #### Task parsing ####
+  parsed <- str_split(raw_data[raw_data$target_system == 'Task', 'id'],
+                      '[.]|(__)|(_\\d+)', simplify = T)
+  
+  raw_data[raw_data$target_system == 'Task', 'id'] <- parsed[, 1]
+  
+  # table(raw_data[raw_data$target_system == 'Task', 'id'])
+  
+  
+  #### Agent parsing ####
+  parsed <- str_split(raw_data[raw_data$target_system == 'Agent', 'id'],
+                      '_', simplify = T)
+  
+  id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+  
+  raw_data[raw_data$target_system == 'Agent', 'id'] <- id_
+  
+  # table(raw_data[raw_data$target_system == 'Agent', 'id'])
+  
+  
+  #### Host parsing ####
+  parsed <- str_split(raw_data[raw_data$target_system == 'Host', 'id'],
+                      '_', simplify = T)
+  
+  id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+  
+  raw_data[raw_data$target_system == 'Host', 'id'] <- id_
+  
+  # table(raw_data[raw_data$target_system == 'Host', 'id'])
+  
+  
+  #### Docker parsing ####
+  idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')))
+  
+  raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')[idx]
+  
+  idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')))
+  
+  raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')[idx]
+  
+  raw_data$id[str_detect(raw_data$id, 'influxdb')] <- 'influxdb'
+  
+  # table(raw_data[raw_data$target_system == 'Docker', 'id'])
+  
+  df <- raw_data
+  
+  names(df)[6] <- 'service_id'
+  
+  df <- gather(df, key, value, 2) %>% unite(target_system, key, value, sep = '=')
+  
+  df <- gather(df, key, value, 2) %>% unite(target_ip, key, value, sep = '=')
+  
+  df <- gather(df, key, value, 2) %>% unite(target, key, value, sep = '=')
+  
+  df <- gather(df, key, value, 2) %>% unite(metric, key, value, sep = '=')
+  
+  df <- gather(df, key, value, 2) %>% unite(service_id, key, value, sep = '=')
+  
+  df <- gather(df, key, value, 2) %>% unite(id, key, value, sep = '=')
+  
+  df <- unite(df, item, 2:7, sep = ', ') %>% as.data.table()
+  
+  return(df)
   
 }
 
@@ -560,9 +728,9 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
 }
 
 
-render_forecast <- function(resource, metric, period, groupby) {
+render_forecast <- function(resource, host, metric, period, groupby) {
   
-  tb_ <- load_single_metric(resource, metric, period, groupby)
+  tb_ <- load_single_metric(resource, host, metric, period, groupby)
   
   forecast_result <- forecasting(tb_, groupby, 48)
   
@@ -630,7 +798,6 @@ anomalization <- function(tb_,
 
 
 
-
 #### METRIC CASUALITY ####
 
 casuality <- function(mtx, lag) {
@@ -656,12 +823,13 @@ casuality <- function(mtx, lag) {
                 
                 y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
                 
+                if (sd(x) == 0 | sd(y) == 0) next
+                
                 p_value <- 1
                 
                 lag_ <- 1
                 
                 for (l in 1:lag) {
-                  
                   g_test <- grangertest(x, y, l)
                   
                   if (g_test$`Pr(>F)`[2] < p_value) {

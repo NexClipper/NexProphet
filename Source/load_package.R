@@ -17,7 +17,7 @@ bs.Library <- function(pkg, add = T) {
 
 
 # shiny
-bs.Library(c("shiny", "shinyWidgets"))
+bs.Library(c("shiny", "shinyWidgets", 'shinyjs'))
 
 
 # data manipulation

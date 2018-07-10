@@ -122,7 +122,7 @@ ui <- fluidPage(
         
         br(),
         h4("Metric Association Plot"),
-        plotlyOutput('correlation_plot')
+        plotlyOutput('correlation_plot', height = "800px")
         
       ),
       

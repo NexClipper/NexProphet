@@ -157,8 +157,13 @@ server <- function(input, output, session) {
   observe({
     
     resource <- input$resource
+    
+    host <- input$resource_assist
+    
     metric <- input$single_metric
+    
     period <- input$period
+    
     groupby <- input$groupby
     
     "
@@ -170,7 +175,7 @@ server <- function(input, output, session) {
     
     output$trend_plot <- renderDygraph({
     
-      series <- load_single_metric(resource, metric, period, groupby)
+      series <- load_single_metric(resource, host, metric, period, groupby)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -188,11 +193,16 @@ server <- function(input, output, session) {
   observeEvent(input$execute, {
     
     resource <- input$resource
+    
+    host <- input$resource_assist
+    
     metric <- input$single_metric
+    
     period <- input$period
+    
     groupby <- input$groupby
     
-    render_result <- render_forecast(resource, metric, period, groupby)
+    render_result <- render_forecast(resource, host, metric, period, groupby)
     
     forecast_result <<- render_result$forecast_result
     
