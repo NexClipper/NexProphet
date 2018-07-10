@@ -317,8 +317,11 @@ server <- function(input, output, session) {
                        paging = F,
                        pageLength = 10,
                        searching = F))
+        "
+        Error in shiny
 
         output$notice <- NULL
+        "
         
       }
     }
