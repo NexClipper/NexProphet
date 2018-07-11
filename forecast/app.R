@@ -4,15 +4,6 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-CLUSTER_METRICS <- load_metric_list('cluster')
-
-HOST_METRICS <- load_metric_list('host')
-
-TASK_METRICS <- load_metric_list('task')
-
-forecast_result <- NULL
-
-
 ui <- fluidPage(
   
   sidebarLayout(
@@ -26,26 +17,24 @@ ui <- fluidPage(
         prettyRadioButtons(
           inputId = 'resource',
           label = 'Select Resource',
-          choices = list('Cluster' = 'cluster',
-                         'Host' = 'host',
-                         'Task' = 'task'),
-          selected = 'cluster',
+          choices = list('Host' = 'host',
+                         'Task' = 'task',
+                         'Docker' = 'docker'),
+          selected = 'host',
           inline = T
           
         ),
         
-        pickerInput(
+        selectizeInput(
           inputId = 'resource_assist',
-          label = 'Select Master',
-          choices = c('192.168.0.161'),
-          options = list(`style` = "btn-info")
+          label = 'Select Host',
+          choices = ''
         ),
         
-        pickerInput(
+        selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
-          choices = '',
-          options = list(`style` = "btn-info")
+          choices = ''
         )
         
       ),
@@ -59,16 +48,41 @@ ui <- fluidPage(
                      Height = 40)
         
       ),
+      
+      br(),
+      
+      h4('Advanced Options'),
+      
+      br(),
 
       wellPanel(
         
-        sliderInput("period",
-                    "Data Period (Hours) :",
-                    min = 1, max = 120, value = 6),
+        prettyRadioButtons(
+          "unit",
+          'Select Time Unit',
+          choices = list('Days' = 0,
+                         'Hours' = 1),
+          selected = 0,
+          inline = T),
         
-        sliderInput("groupby",
-                    "Select Group By (sec)",
-                    min = 1, max = 120, value = 10),
+        sliderInput("period",
+                    "Select Data Period (Hours)",
+                    min = 6, max = 240, value = 6),
+        
+        sliderInput("predicted_period",
+                    "Predicted Period (Hours)",
+                    min = 3, max = 72, value = 3),
+        
+        prettyRadioButtons(
+          "groupby",
+          'Select Group By',
+          choices = c('1m', '5m', '10m', '1h'),
+          selected = '1h',
+          inline = T),
+        
+        # sliderInput("groupby",
+        #             "Select Group By (sec)",
+        #             min = 10, max = 120, value = 10, step = 10),
         
         style = "padding: 15px 20px 0px 20px;"
         
@@ -77,6 +91,7 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      
       width = 9,
       
       fluidRow(
@@ -104,17 +119,20 @@ ui <- fluidPage(
       ),
       
       fluidRow(
-        column(width = 6, 
-               br(),
-               h4("Forecasting Component Plot"),
-               br(),
-               plotOutput('component_plot', height = "350px")
+        
+        column(
+          width = 6, 
+          br(),
+          h4("Forecasting Component Plot"),
+          br(),
+          plotOutput('component_plot', height = "350px")
         ),
         
-        column(width = 6,
-               br(),
-               h4("Forecasting Statistics"),
-               br()
+        column(
+          width = 6,
+          br(),
+          h4("Forecasting Statistics"),
+          br()
         )
       )
       
@@ -130,13 +148,13 @@ server <- function(input, output, session) {
   observeEvent(input$resource, {
     
     label_ <- switch(input$resource,
-                     'cluster' = 'Select Master',
                      'host' = 'Select Host IP',
-                     'task' = 'Select Task Name')
+                     'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
     
     choices_ <- load_tag_list(input$resource)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'resource_assist',
       label = label_,
@@ -144,12 +162,61 @@ server <- function(input, output, session) {
     
     metrics_ <- load_metric_list(input$resource)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'single_metric',
       choices = metrics_
     )
     
+  })
+  
+  observeEvent(input$unit, {
+    
+    if (input$unit == 0) {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Days)',
+        value = 3, min = 1, max = 60
+      )
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'predicted_period',
+        label = 'Select Predicted Period (Days)',
+        value = 1, min = 1, max = 30
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '1h'
+      )
+      
+    } else {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Hours)',
+        value = 6, min = 1, max = 60
+      )
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'predicted_period',
+        label = 'Select Predicted Period (Hours)',
+        value = 2, min = 1, max = 30
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '10m'
+      )
+      
+    }
   })
   
   observe({
@@ -162,6 +229,8 @@ server <- function(input, output, session) {
     
     period <- input$period
     
+    unit <- input$unit
+    
     groupby <- input$groupby
     
     "
@@ -171,9 +240,13 @@ server <- function(input, output, session) {
     output$component_plot <- NULL
     "
     
+    output$predicted_plot <- renderDygraph({})
+    
+    output$component_plot <- renderPlot({})
+    
     output$trend_plot <- renderDygraph({
     
-      series <- load_single_metric(resource, host, metric, period, groupby)
+      series <- load_single_metric(resource, host, metric, period, groupby, unit)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -198,13 +271,19 @@ server <- function(input, output, session) {
     
     period <- input$period
     
+    unit <- input$unit
+    
+    pred_period <- input$predicted_period
+    
     groupby <- input$groupby
     
-    render_result <- render_forecast(resource, host, metric, period, groupby)
+    render_result <- render_forecast(resource, host, metric, period, groupby,
+                                     pred_period, unit)
     
-    forecast_result <<- render_result$forecast_result
+    forecast_result <- render_result$forecast_result
     
     output$predicted_plot <- render_result$rendered
+    
     output$component_plot <- render_forecast_component(forecast_result)
     
   })

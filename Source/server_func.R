@@ -387,15 +387,16 @@ load_multiple_metric <- function(period, groupby,
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
-                               limit = -1) {
+                               unit, limit = -1) {
   # For forecasting, anomaly detection, read only one metric
   # host : host or task name
   
-  # measurement <- 'host'
-  # host <- '192.168.0.163'
-  # metric <- 'load1'
+  # measurement <- 'docker'
+  # host <- 'redis.f6da7a1a-736e-11e8-bc55-525d563011bd'
+  # metric <- 'rx_bytes'
   # period <- 1
   # groupby <- 10
+  # limit = -1
   
   con <- connect()
   
@@ -403,9 +404,15 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   
   dbname <- con$dbname
   
-  period <- paste0(period, 'h')
-  
-  groupby <- paste0(groupby, 's')
+  if (unit == 0) {
+    
+    period <- paste0(period, 'd')
+    
+  } else {
+    
+    period <- paste0(period, 'h')
+    
+  }
   
   query <- "select mean(%s) as metric
             from %s
@@ -416,9 +423,11 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             %s"
   
   tag <- switch(measurement,
-                'cluster' = 'master',
                 'host' = 'host_ip',
-                'task' = 'task')
+                'task' = 'task',
+                'docker' = 'task_id')
+  
+  if (measurement == 'docker') measurement <- 'docker_container, docker_network'
   
   if (limit > 0) {
     
@@ -515,7 +524,15 @@ load_metric_list <- function(measurement) {
   
   dbname <- connector$dbname
   
-  query <- 'show field keys from %s' %>% sprintf(measurement)
+  if (measurement == 'docker') {
+    
+    cond <- ', docker_network'
+    
+    measurement <- 'docker_container'
+    
+  } else {cond <- ''}
+  
+  query <- 'show field keys from %s%s' %>% sprintf(measurement, cond)
   
   res <- influx_query(con,
                       dbname,
@@ -528,6 +545,7 @@ load_metric_list <- function(measurement) {
     setdiff('timestamp')
   
   return(res)
+  
 }
 
 
@@ -539,12 +557,13 @@ load_tag_list <- function(measurement) {
   
   dbname <- connector$dbname
   
-  tag <- switch(
-    measurement,
-    'cluster' = 'master',
-    'host' = 'host_ip',
-    'task' = 'task',
-    stop('incorrect measurement'))
+  tag <- switch(measurement,
+                'host' = 'host_ip',
+                'task' = 'task',
+                'docker' = 'task_id',
+                stop('incorrect measurement'))
+  
+  if (measurement == 'docker') measurement <- 'docker_container'
   
   query <- 'SHOW TAG VALUES from %s WITH KEY = %s' %>% sprintf(measurement, tag)
   
@@ -658,26 +677,36 @@ load_event_data <- function() {
 
 #### FORECAST ####
 
-forecasting <- function(tb_, group_by, pred_period, changepoint.prior.scale = 0.01) {
+forecasting <- function(tb_, groupby, pred_period, unit, changepoint.prior.scale = 0.01) {
   # pred_period : how long predict
   
   model <- prophet(tb_,
                    changepoint.prior.scale = changepoint.prior.scale)
   
-  if (str_sub(group_by, -1) == 's') {
+  if (str_sub(groupby, -1) == 's') {
     
-    freq <- as.integer(str_sub(group_by, end = -2))
+    freq <- as.integer(str_sub(groupby, end = -2))
     
-  } else if (str_sub(group_by, -1) == 'm') {
+  } else if (str_sub(groupby, -1) == 'm') {
     
-    freq <- as.integer(str_sub(group_by, end = -2)) * 60
+    freq <- as.integer(str_sub(groupby, end = -2)) * 60
     
   } else {
     
-    freq <- as.integer(str_sub(group_by, end = -2)) * 60 * 60
+    freq <- as.integer(str_sub(groupby, end = -2)) * 60 * 60
     
   }
   
+  if (unit == "0") {
+    
+    pred_period <- (pred_period * 24 * 60 * 60) %/% freq
+    
+  } else {
+    
+    pred_period <- (pred_period * 60 * 60) %/% freq
+    
+  }
+  # browser()
   future <- make_future_dataframe(model,
                                   periods = pred_period,
                                   freq = freq)
@@ -694,11 +723,11 @@ forecasting <- function(tb_, group_by, pred_period, changepoint.prior.scale = 0.
 
 draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
   
-  fcst[fcst$ds <= maxDate,]$yhat_lower <- NA
+  fcst[fcst$ds < maxDate,]$yhat_lower <- NA
   
-  fcst[fcst$ds <= maxDate,]$yhat_upper <- NA
+  fcst[fcst$ds < maxDate,]$yhat_upper <- NA
   
-  fcst[fcst$ds <= maxDate,]$yhat <- NA
+  fcst[fcst$ds < maxDate,]$yhat <- NA
   
   series0 <- xts(tb_$y,
                  order.by = tb_$ds,
@@ -728,11 +757,12 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
 }
 
 
-render_forecast <- function(resource, host, metric, period, groupby) {
+render_forecast <- function(resource, host, metric, period, groupby,
+                            pred_period, unit) {
   
-  tb_ <- load_single_metric(resource, host, metric, period, groupby)
+  tb_ <- load_single_metric(resource, host, metric, period, groupby, unit)
   
-  forecast_result <- forecasting(tb_, groupby, 48)
+  forecast_result <- forecasting(tb_, groupby, pred_period, unit)
   
   fcst <- forecast_result$forecast
   
