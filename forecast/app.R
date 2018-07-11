@@ -45,7 +45,7 @@ ui <- fluidPage(
         ),
         
         conditionalPanel(
-          condition = "input.merge == '0'",
+          condition = "input.merge == '0' & input.resource == 'task'",
           selectizeInput(
             inputId = 'host_for_task',
             label = 'Select Host',

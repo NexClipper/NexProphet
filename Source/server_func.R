@@ -418,7 +418,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             from %s
             where time > now() - %s and %s = '%s' %s
             group by time(%s), %s%s
-            fill(none)
+            fill(linear)
             order by time desc
             %s"
   
@@ -457,7 +457,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
                    groupby, tag, by_node,
                    limit)
   # print(query)
-  
+  print(query)
   raw_data <- influx_query(connector,
                            db = dbname,
                            query = query,
