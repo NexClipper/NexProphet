@@ -31,6 +31,28 @@ ui <- fluidPage(
           choices = ''
         ),
         
+        conditionalPanel(
+          condition = "input.resource == 'task'",
+          helpText("Fill here!"),
+          prettyRadioButtons(
+            inputId = 'merge',
+            label = 'Merge or Not',
+            choices = list('Yes' = 1,
+                           'No' = 0),
+            selected = 1,
+            inline = T
+          )
+        ),
+        
+        conditionalPanel(
+          condition = "input.merge == '0'",
+          selectizeInput(
+            inputId = 'host_for_task',
+            label = 'Select Host',
+            choices = ''
+          )
+        ),
+        
         selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
@@ -170,6 +192,32 @@ server <- function(input, output, session) {
     
   })
   
+  
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$merge == "0") {
+      
+      choices_ <- load_host_list_for_task(input$resource_assist)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = choices_
+      )
+      
+    } else {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = ''
+      )
+      
+    }
+    
+  })
+  
+  
   observeEvent(input$unit, {
     
     if (input$unit == 0) {
@@ -219,6 +267,7 @@ server <- function(input, output, session) {
     }
   })
   
+  
   observe({
     
     resource <- input$resource
@@ -233,6 +282,8 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
+    node_ip <- input$host_for_task
+    
     "
     Error in shiny-server
 
@@ -246,7 +297,8 @@ server <- function(input, output, session) {
     
     output$trend_plot <- renderDygraph({
     
-      series <- load_single_metric(resource, host, metric, period, groupby, unit)
+      series <- load_single_metric(resource, host, metric, period, groupby,
+                                   unit, node_ip)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -277,8 +329,10 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
+    node_ip <- input$host_for_task
+    
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit)
+                                     pred_period, unit, node_ip)
     
     forecast_result <- render_result$forecast_result
     

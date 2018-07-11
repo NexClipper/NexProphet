@@ -387,7 +387,7 @@ load_multiple_metric <- function(period, groupby,
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
-                               unit, limit = -1) {
+                               unit, node_ip, limit = -1) {
   # For forecasting, anomaly detection, read only one metric
   # host : host or task name
   
@@ -416,8 +416,8 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   
   query <- "select mean(%s) as metric
             from %s
-            where time > now() - %s and %s = '%s'
-            group by time(%s), %s
+            where time > now() - %s and %s = '%s' %s
+            group by time(%s), %s%s
             fill(none)
             order by time desc
             %s"
@@ -428,6 +428,17 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
                 'docker' = 'task_id')
   
   if (measurement == 'docker') measurement <- 'docker_container, docker_network'
+  
+  if (node_ip != "") {
+    
+    node_ip <- sprintf("and node_ip = '%s'", node_ip)
+    by_node <- ', node_ip'
+    
+  } else {
+    
+    by_node <- ''
+    
+  }
   
   if (limit > 0) {
     
@@ -442,8 +453,8 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   query <- sprintf(query,
                    metric,
                    measurement,
-                   period, tag, host,
-                   groupby, tag,
+                   period, tag, host, node_ip,
+                   groupby, tag, by_node,
                    limit)
   # print(query)
   
@@ -577,6 +588,31 @@ load_tag_list <- function(measurement) {
     as.vector()
   
   return(res)
+  
+}
+
+load_host_list_for_task <- function(task_name) {
+  
+  connector <- connect()
+  
+  con <- connector$con
+  
+  dbname <- connector$dbname
+  
+  query <- "select mean(*)
+            from task
+            where time > now() - 3d and task = '%s'
+            group by time(1w), node_ip" %>% sprintf(task_name)
+  
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F,
+                      simplifyList = T)[[1]] %>% as.data.frame()
+  
+  if (!('node_ip' %in% names(res))) return('Not Exist!')
+  
+  return(res$node_ip)
   
 }
 
@@ -758,9 +794,10 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
 
 
 render_forecast <- function(resource, host, metric, period, groupby,
-                            pred_period, unit) {
+                            pred_period, unit, node_ip) {
   
-  tb_ <- load_single_metric(resource, host, metric, period, groupby, unit)
+  tb_ <- load_single_metric(resource, host, metric, period, groupby, unit,
+                            node_ip)
   
   forecast_result <- forecasting(tb_, groupby, pred_period, unit)
   
