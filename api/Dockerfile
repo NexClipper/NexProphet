@@ -7,7 +7,7 @@ RUN apt-get update -qq && apt-get install -y \
   libcurl4-gnutls-dev \
   r-base
 
-MKDIR /home/plumber
+MKDIR -p /home/plumber
 
 WORKDIR /home/plumber
 
