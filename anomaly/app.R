@@ -4,12 +4,6 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-CLUSTER_METRICS <- load_metric_list('cluster')
-
-HOST_METRICS <- load_metric_list('host')
-
-TASK_METRICS <- load_metric_list('task')
-
 CLIENT = "nexcloud"
 
 global_series = NULL
@@ -32,25 +26,45 @@ ui <- fluidPage(
         prettyRadioButtons(
           inputId = 'resource',
           label = 'Select Resource',
-          choices = list('Cluster' = 'cluster',
-                         'Host' = 'host',
-                         'Task' = 'task'),
-          selected = 'cluster',
+          choices = list('Host' = 'host',
+                         'Task' = 'task',
+                         'Docker' = 'docker'),
+          selected = 'host',
           inline = T
         ),
         
         selectizeInput(
           inputId = 'resource_assist',
-          label = 'Select Master',
-          choices = c('192.168.0.161'),
-          options = list('style' = "btn-info")
+          label = 'Select Host',
+          choices = ''
+        ),
+        
+        conditionalPanel(
+          condition = "input.resource == 'task'",
+          helpText("Fill here!"),
+          prettyRadioButtons(
+            inputId = 'merge',
+            label = 'Merge or Not',
+            choices = list('Yes' = 1,
+                           'No' = 0),
+            selected = 1,
+            inline = T
+          )
+        ),
+        
+        conditionalPanel(
+          condition = "input.merge == '0' & input.resource == 'task'",
+          selectizeInput(
+            inputId = 'host_for_task',
+            label = 'Select Host',
+            choices = ''
+          )
         ),
         
         selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
-          choices = '',
-          options = list('style' = "btn-info")
+          choices = ''
         )
         
       ),
@@ -68,26 +82,64 @@ ui <- fluidPage(
       hr(),
       
       h4("Model Development Options"),
-
+      
       wellPanel(
         
+        prettyRadioButtons(
+          "unit",
+          'Select Time Unit',
+          choices = list('Days' = 0,
+                         'Hours' = 1),
+          selected = 0,
+          inline = T),
+        
         sliderInput("period",
-                    "Data Period (Hours) :",
-                    min = 1, max = 120, value = 6),
+                    "Select Data Period (Days)",
+                    min = 3, max = 240, value = 3),
         
-        sliderInput("groupby",
-                    "Select Group By (sec)",
-                    min = 1, max = 120, value = 10),
+        selectInput(
+          "renewal",
+          'Select time to renew graph',
+          choices = c('off', '5s', '10s', '30s', '1m', '5m', '10m', '30m', '1h'),
+          selected = '10s'),
         
-        sliderInput("anomaly_CI",
-                    "Confidence Interval : ",
-                    min = 0.9, max = 1, value = 0.99),
+        prettyRadioButtons(
+          "groupby",
+          'Select Group By',
+          choices = c('1m', '5m', '10m', '1h'),
+          selected = '1h',
+          inline = T),
+        
+        sliderInput(
+          "anomaly_CI",
+          "Select Confidence Interval",
+          min = 0.9, max = 1, value = 0.95),
         
         helpText("It takes much time to make forecasting model if there is no model for this metric!"),
         
         style = "padding: 15px 20px 0px 20px;"
         
       )
+
+      # wellPanel(
+      #   
+      #   sliderInput("period",
+      #               "Data Period (Hours) :",
+      #               min = 1, max = 120, value = 6),
+      #   
+      #   sliderInput("groupby",
+      #               "Select Group By (sec)",
+      #               min = 1, max = 120, value = 10),
+      #   
+      #   sliderInput("anomaly_CI",
+      #               "Confidence Interval : ",
+      #               min = 0.9, max = 1, value = 0.99),
+      #   
+      #   helpText("It takes much time to make forecasting model if there is no model for this metric!"),
+      #   
+      #   style = "padding: 15px 20px 0px 20px;"
+      #   
+      # )
       
     ),
     
@@ -146,14 +198,48 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  observeEvent(input$unit, {
+    
+    if (input$unit == '0') {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Days)',
+        min = 3, max = 30, value = 6
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '1h'
+      )
+      
+    } else {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Days)',
+        min = 6, max = 240, value = 9
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '1m'
+      )
+      
+    }
+    
+  })
+  
   observeEvent(input$resource, {
     
-    table <- input$resource
-    
     label_ <- switch(input$resource,
-                     'cluster' = 'Select Master',
                      'host' = 'Select Host IP',
-                     'task' = 'Select Task Name')
+                     'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
     
     choices_ <- load_tag_list(input$resource)
     
@@ -163,7 +249,7 @@ server <- function(input, output, session) {
       label = label_,
       choices = choices_)
     
-    metrics_ <- load_metric_list(table)
+    metrics_ <- load_metric_list(input$resource)
     
     updateSelectizeInput(
       session = session,
@@ -178,21 +264,29 @@ server <- function(input, output, session) {
     
     if (input$single_metric != "") {
       
-      table <- input$resource
+      resource <- input$resource
+      
+      host <- input$resource_assist
       
       metric <- input$single_metric
       
-      dir.name <-  paste("../Model", CLIENT, table, metric, sep = "/")
+      period <- input$period
+      
+      unit <- input$unit
+      
+      groupby <- input$groupby
+      
+      node_ip <- input$host_for_task
+      
+      renewal <- input$renewal
+      
+      renewal_time <- renew(renewal)
+      
+      dir.name <-  paste("../Model", CLIENT, resource, metric, sep = "/")
       
       modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
       
       figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
-      
-      host <- input$resource_assist
-      
-      groupby <- input$groupby
-      
-      period <- input$period
       
       if (!file.exists(modelFile.name)) {   # 모델이 없는 경우.... -----------------------
         
@@ -203,9 +297,10 @@ server <- function(input, output, session) {
           # groupby <- input$groupby
           # 
           # period <- input$period
-          invalidateLater(groupby * 1000)
+          invalidateLater(renewal_time * 1000)
           # anomaly 차트용 데이터 
-          series <- load_single_metric(table, host, metric, period, groupby,
+          series <- load_single_metric(resource, host, metric, period, groupby,
+                                       unit, node_ip,
                                        limit = 100) %>% 
             as.data.table()
           # invalidateLater(groupby * 1000)
@@ -235,10 +330,11 @@ server <- function(input, output, session) {
         
         output$monitoring <- renderPlot({
           
-          invalidateLater(groupby * 1000)
+          invalidateLater(renewal_time * 1000)
           
           # anomaly 차트용 데이터 
-          series <- load_single_metric(table, host, metric, period, groupby,
+          series <- load_single_metric(resource, host, metric, period, groupby,
+                                       unit, node_ip,
                                        limit = 100) %>% 
             as.data.table()
           
@@ -247,7 +343,7 @@ server <- function(input, output, session) {
           # Forecastring 결과에 따라 Anomaly 탐지
           future <- data.frame(ds = seq(min(series$ds),
                                         max(series$ds),
-                                        by = input$groupby))
+                                        by = posixt_helper_func(str_sub(groupby, -1))))
           
           fcst <- predict(fcastModel, future)
           
@@ -371,6 +467,10 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
+    unit <- input$unit
+    
+    node_ip <- input$host_for_task
+    
     # 모델 이름 결정
     dir.name <-  paste("../Model", CLIENT, table, metric, sep = "/")
     
@@ -391,7 +491,8 @@ server <- function(input, output, session) {
       # mseries <- as.data.table(mseries)
       # names(mseries) <- c("ds", "y")
       # browser()
-      mseries <- load_single_metric(table, host, metric, period, groupby) %>% 
+      mseries <- load_single_metric(table, host, metric, period, groupby,
+                                    unit, node_ip, limit = 100) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,
@@ -408,8 +509,8 @@ server <- function(input, output, session) {
       # 그림 결과 저장
       future <- data.frame(ds = seq(min(mseries$ds),
                                     max(mseries$ds),
-                                    by = input$groupby))
-      
+                                    by = posixt_helper_func(str_sub(groupby, -1))))
+      # browser()
       fcst <- predict(fcastModel, future)
       
       pData <- merge(mseries, fcst, by = "ds", all.x = T)[, .(ds, y, yhat_lower, yhat_upper)]

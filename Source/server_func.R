@@ -21,21 +21,21 @@ connect <- function() {
 }
 
 
-extract_field <- function(df) {
-    
-    # select numeric fields
-    num_var = names(df)[sapply(df, class) == "numeric"]
-    
-    # select fields such that stddev is not equal to zero
-    not0var = names(df[,num_var])[sapply(df[,num_var], var) != 0]
-    
-    # delete timestamp
-    not0var = setdiff(not0var, "timestamp")
-    
-    extracted_df <- df %>% select(c(not0var, 'time'))
-    
-    return(extracted_df)
-}
+# extract_field <- function(df) {
+#     
+#     # select numeric fields
+#     num_var = names(df)[sapply(df, class) == "numeric"]
+#     
+#     # select fields such that stddev is not equal to zero
+#     not0var = names(df[,num_var])[sapply(df[,num_var], var) != 0]
+#     
+#     # delete timestamp
+#     not0var = setdiff(not0var, "timestamp")
+#     
+#     extracted_df <- df %>% select(c(not0var, 'time'))
+#     
+#     return(extracted_df)
+# }
 
 
 standardization <- function(mtx) {
@@ -47,62 +47,6 @@ standardization <- function(mtx) {
     return(new_mtx)
 }
 
-load_metric_from_host <- function(period, groupby, host_list, metric_list) {
-  
-  # metric_list <- c("cpu_idle_per", "cpu_idle_percent")
-  # host_list <- c("192.168.0.160", "192.168.0.161")
-  # period = 5
-  
-  # groupby = "1h"
-  
-  connector <- connect()
-  con <- connector$connector
-  dbname <- connector$dbname
-  
-  period <- paste0(period, 'd')
-  
-  
-  #### host ####
-  query <- "select mean(*)
-  from %s
-  where time > now() - %s
-  group by time(%s), host_ip
-  fill(none)"
-  
-  query <- sprintf(query, 
-                   'host', 
-                   period,
-                   groupby)
-  
-  res_host <- influx_query(con,
-                           db = dbname,
-                           query = query,
-                           simplifyList = T,
-                           return_xts = F)[[1]]
-  
-  names(res_host) <- gsub('mean_', '', names(res_host))
-  
-  res_host <- res_host %>% filter(host_ip %in% host_list) %>% 
-    select(c('time', 'host_ip', metric_list)) 
-  
-  ts <- seq.POSIXt(min(res_host$time),
-                   max(res_host$time),
-                   by = posixt_helper_func(str_sub(groupby, -1)))
-  
-  df <- tibble(time = ts)
-  
-  res_host <- full_join(df, res_host)
-  
-  res_host <- gather(res_host, var, value, -(1:2)) %>% 
-    unite(var_new, host_ip, var) %>% 
-    spread(var_new, value)
-  
-  
-  print('Host OK!')
-  
-  return(res_host)
-  
-}
 
 load_metric_from_cluster <- function(period, groupby, metric_list) {
   
@@ -421,7 +365,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             fill(linear)
             order by time desc
             %s"
-  
+  # browser()
   tag <- switch(measurement,
                 'host' = 'host_ip',
                 'task' = 'task',
@@ -863,6 +807,24 @@ anomalization <- function(tb_,
   
 }
 
+
+renew <- function(renewal) {
+  
+  unit <- str_extract(renewal, '[:alpha:]+')
+  
+  time_ <- str_extract(renewal, '\\d+') %>% as.integer()
+  
+  time_ <- ifelse(is.na(time_), 0, time_)
+  
+  renew_time <- time_ * switch(unit,
+                               's' = 1,
+                               'm' = 60,
+                               'h' = 60 * 60,
+                               'off' = 0)
+  
+  return(renew_time)
+  
+}
 
 
 #### METRIC CASUALITY ####

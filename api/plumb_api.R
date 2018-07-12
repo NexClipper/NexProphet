@@ -269,11 +269,13 @@ metric_fcst_data <- NULL
 #' @get /forecast
 function(measurement = 'host', host = '192.168.0.163', metric = 'load1',
          period = 7, groupby = '1h', unit = "0", node_ip = "",
-         pred_period = 1, changepoint = 0.01, limit = -1, renew = F) {
+         pred_period = 1, changepoint = 0.01, limit = -1, renew = 0) {
   
+  renew <- as.integer(renew)
+
   if (is.null(single_metric_data) | renew)
     single_metric_data <<- load_single_metric(measurement, host, metric, period,
-                                              groupby, unit, limit)
+                                              groupby, unit, node_ip)
   
   if (is.null(predicted_data) | renew)
     predicted_data <<- forecasting(single_metric_data, groupby, pred_period,
@@ -326,7 +328,9 @@ history_forecast <- function(tb_, fcst) {
 #' @get /forecast/metric
 function(measurement = 'host', host = '192.168.0.163', metric = 'load1',
          period = 7, groupby = '1h',
-         unit = '0', node_ip = '', limit = -1, renew = F) {
+         unit = '0', node_ip = '', limit = -1, renew = 0) {
+  
+  renew <- as.integer(renew)
   
   if (is.null(single_metric_data) | renew)
     single_metric_data <<- load_single_metric(measurement, host, metric, 
@@ -385,6 +389,83 @@ make_future <- function(model, groupby, unit, pred_period) {
                                   freq = freq)
   
   return(future)
+  
+}
+
+
+
+
+
+
+
+### ANOMALY ####
+
+CLIENT = "nexcloud"
+
+anomaly_metric_data <- NULL
+
+anomaly_fcst_model <- NULL
+
+global_series = NULL
+
+global_pData = NULL
+
+numVar = NULL
+
+
+#' @get /anomaly/metric
+function(resource = 'host', host = '192.168.0.163', metric = 'load1', period = 7,
+         groupby = '1h', unit = '0', node_ip = '',
+         limit = 100) {
+  
+    
+  anomaly_metric_data <<- load_single_metric(resource, host, metric, period, groupby,
+                                             unit, node_ip,
+                                             limit = 100) 
+    
+  return(anomaly_metric_data)
+  
+}
+
+
+#' @get /anomaly
+make_anomaly_fcst_model <- function(resource = 'host', host = '192.168.0.163', metric = 'load1',
+                                    period = 7, groupby = '1h', unit = '0', node_ip = '', 
+                                    changepoint = 0.01, confidence = 0.95) {
+  
+  changepoint <- as.numeric(changepoint)
+  
+  confidence <- as.numeric(confidence)
+  
+  if (is.null(anomaly_metric_data))
+    anomaly_metric_data <<- load_single_metric(resource, host, metric, period, groupby,
+                                               unit, node_ip,
+                                               limit = 100) %>% 
+    as.data.table()
+    
+  
+  anomaly_fcst_model <<- prophet(anomaly_metric_data,
+                                 changepoint.prior.scale = changepoint,
+                                 uncertainty.samples = 100,
+                                 interval.width = confidence)
+  
+  future <- data.frame(ds = seq(min(anomaly_metric_data$ds),
+                                max(anomaly_metric_data$ds),
+                                by = posixt_helper_func(str_sub(groupby, -1))))
+  
+  fcst <- predict(anomaly_fcst_model, future)
+  
+  pData <- merge(anomaly_metric_data, fcst, by = "ds", all.x = T)[, .(ds, y, yhat_lower, yhat_upper)]
+  
+  pData[, anomaly := y]
+  
+  pData[, anomaly := ifelse(y > yhat_upper | y < yhat_lower, y, NA)]
+  
+  anom_count <- pData[, sum(anomaly, na.rm = T)]
+  
+  global_pData <<- pData
+  
+  return(pData)
   
 }
 

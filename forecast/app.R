@@ -102,10 +102,6 @@ ui <- fluidPage(
           selected = '1h',
           inline = T),
         
-        # sliderInput("groupby",
-        #             "Select Group By (sec)",
-        #             min = 10, max = 120, value = 10, step = 10),
-        
         style = "padding: 15px 20px 0px 20px;"
         
       )
@@ -284,13 +280,6 @@ server <- function(input, output, session) {
     
     node_ip <- input$host_for_task
     
-    "
-    Error in shiny-server
-
-    output$predicted_plot <- NULL
-    output$component_plot <- NULL
-    "
-    
     output$predicted_plot <- renderDygraph({})
     
     output$component_plot <- renderPlot({})
@@ -310,7 +299,6 @@ server <- function(input, output, session) {
     })
     
   })
-  
   
   
   observeEvent(input$execute, {
