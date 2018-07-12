@@ -5,22 +5,23 @@ RUN apt-get update -qq && apt-get install -y \
   git-core \
   libssl-dev \
   libcurl4-gnutls-dev \
-  r-base
+  r-base \
+  libxml2-dev
 
-MKDIR -p /home/plumber
+WORKDIR /home
 
-WORKDIR /home/plumber
+COPY app.R .
 
-COPY /api .
+COPY plumb_api.R .
 
-RUN Rscript api/load_package.R
+COPY load_package.R .
+
+RUN Rscript load_package.R
 
 RUN R -e 'install.packages(c("devtools"))'
 
 RUN R -e 'devtools::install_github("trestletech/plumber")'
 
-# RUN R -e 'install.packages(c("tidyverse", "data.table", "influxdbr", "xts", "zoo", "prophet"))''
-
 EXPOSE 8000
 
-CMD Rscript api/app.R
+CMD Rscript app.R

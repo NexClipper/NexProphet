@@ -4,4 +4,4 @@ library(plumber)
 
 app <- plumb('plumb_api.R')
 
-app$run(host = 'localhost', port = 8282)
+app$run(port = 8282)
