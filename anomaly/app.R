@@ -358,7 +358,7 @@ server <- function(input, output, session) {
         
         output$modeling_img <- renderImage({
           
-          figFile.name <- '../www/no-image.png'
+          figFile.name <- '../Image/no-image.png'
           
           return(list(
             src = figFile.name,
