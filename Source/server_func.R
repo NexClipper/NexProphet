@@ -362,10 +362,11 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             from %s
             where time > now() - %s and %s = '%s' %s
             group by time(%s), %s%s
-            fill(linear)
+            fill(none)
             order by time desc
             %s"
-  # browser()
+  # if (node_ip != '')
+  #   browser()
   tag <- switch(measurement,
                 'host' = 'host_ip',
                 'task' = 'task',
@@ -400,7 +401,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
                    period, tag, host, node_ip,
                    groupby, tag, by_node,
                    limit)
-  # print(query)
+  
   print(query)
   raw_data <- influx_query(connector,
                            db = dbname,
@@ -534,6 +535,7 @@ load_tag_list <- function(measurement) {
   return(res)
   
 }
+
 
 load_host_list_for_task <- function(task_name) {
   

@@ -198,6 +198,31 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$merge == "0" & input$resource == 'task') {
+      
+      choices_ <- load_host_list_for_task(input$resource_assist)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = choices_
+      )
+      
+    } else {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = ''
+      )
+      
+    }
+    
+  })
+  
+  
   observeEvent(input$unit, {
     
     if (input$unit == '0') {
@@ -220,19 +245,20 @@ server <- function(input, output, session) {
       updateSliderInput(
         session = session,
         inputId = 'period',
-        label = 'Select Data Period (Days)',
-        min = 6, max = 240, value = 9
+        label = 'Select Data Period (Hours)',
+        value = 6, min = 1, max = 60
       )
       
       updatePrettyRadioButtons(
         session = session,
         inputId = 'groupby',
-        selected = '1m'
+        selected = '10m'
       )
       
     }
     
   })
+  
   
   observeEvent(input$resource, {
     
@@ -257,7 +283,18 @@ server <- function(input, output, session) {
       choices = metrics_
     )
     
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = ''
+    #   )
+    #   
+    # }
+    
   })
+  
   
   observe({
   # observeEvent(input$single_metric, {
@@ -282,22 +319,27 @@ server <- function(input, output, session) {
       
       renewal_time <- renew(renewal)
       
-      dir.name <-  paste("../Model", CLIENT, resource, metric, sep = "/")
+      if (node_ip != '') {
+        
+        dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+        
+      } else {
+        
+        dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+        
+      }
       
       modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
       
       figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
       
+      if (renewal_time > 0)
+        invalidateLater(renewal_time * 1000)
+      
       if (!file.exists(modelFile.name)) {   # 모델이 없는 경우.... -----------------------
         
         output$monitoring <- renderPlot({
           
-          # host <- input$resource_assist
-          # 
-          # groupby <- input$groupby
-          # 
-          # period <- input$period
-          invalidateLater(renewal_time * 1000)
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
                                        unit, node_ip,
@@ -314,23 +356,25 @@ server <- function(input, output, session) {
           
         })
         
-        "
-        # Error in shiny        
-
-        output$modeling_img <- NULL
+        output$modeling_img <- renderImage({
+          
+          figFile.name <- '../www/no-image.png'
+          
+          return(list(
+            src = figFile.name,
+            filetype = "image/png",
+            width = "100%"))
+          
+        }, deleteFile = FALSE)
         
-        output$anomaly_table  <- NULL
-        "
+        output$anomaly_table <- renderDataTable({})
         
         output$notice <- renderText("There is no Forecasting Model!! Make a Model First!!")
-        
+        cat('\n\n\n', 'No model~~~~~~~~~~', '\n\n\n')
       } else {
         # 모델이 있는 경우....
         # 이미 만들어진 모형이 있으면  
-        
         output$monitoring <- renderPlot({
-          
-          invalidateLater(renewal_time * 1000)
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
@@ -380,11 +424,15 @@ server <- function(input, output, session) {
           # if (is.null(input$picture))
           #     return(NULL)
           
-          table <- input$resource
-          
-          metric <- input$single_metric
-          
-          dir.name <-  paste("../Model", CLIENT, table, metric, sep = "/")
+          if (node_ip != '') {
+            
+            dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+            
+          } else {
+            
+            dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+            
+          }
           
           figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
           
@@ -403,7 +451,7 @@ server <- function(input, output, session) {
 
           tdf <- as.data.frame(setorder(global_pData, -ds))[1:15, 1:4]
           
-          names(tdf) <- c("Time", input$combo_Anomaly_Metric, "Lower_Limit", "Upper_Limit")
+          names(tdf) <- c("Time", input$metric, "Lower_Limit", "Upper_Limit")
           
           tdf
           
@@ -418,6 +466,8 @@ server <- function(input, output, session) {
 
         output$notice <- NULL
         "
+        
+        output$notice <- renderText({})
         
       }
     }
@@ -457,7 +507,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
-    table <- input$resource
+    resource <- input$resource
     
     host <- input$resource_assist
     
@@ -472,7 +522,15 @@ server <- function(input, output, session) {
     node_ip <- input$host_for_task
     
     # 모델 이름 결정
-    dir.name <-  paste("../Model", CLIENT, table, metric, sep = "/")
+    if (node_ip != '') {
+      
+      dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+      
+    } else {
+      
+      dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+      
+    }
     
     modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
     
@@ -491,7 +549,7 @@ server <- function(input, output, session) {
       # mseries <- as.data.table(mseries)
       # names(mseries) <- c("ds", "y")
       # browser()
-      mseries <- load_single_metric(table, host, metric, period, groupby,
+      mseries <- load_single_metric(resource, host, metric, period, groupby,
                                     unit, node_ip, limit = 100) %>% 
         as.data.table()
       
