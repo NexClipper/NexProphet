@@ -584,15 +584,13 @@ server <- function(input, output, session) {
         xlim(c(min(pData$ds),max(pData$ds))) +
         ylab(metric) + xlab("Time")
       
+      pdf(NULL)
+      
       ggsave("anomaly.png", plot = gm, path = dir.name, width = 12, height = 8)
       
       updateSelectInput(session,
                         "single_metric",
                         choices = numVar)
-      
-      # updateSelectInput(session,
-      #                   "single_metric",
-      #                   choices = numVar)
       
     }
     
