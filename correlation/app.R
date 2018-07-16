@@ -205,7 +205,9 @@ server <- function(input, output, session) {
                  lab = T,
                  outline.color = 'white',
                  lab_size = 2,
-                 tl.cex = 8) %>% ggplotly()
+                 tl.cex = 8) %>%
+        ggplotly() %>% 
+        layout(margin = list(b = 350, l = 350))
       
     })
     
@@ -215,6 +217,7 @@ server <- function(input, output, session) {
                       selected = NULL)
    
   })
+  
   
   observeEvent(input$docker_all, {
     
@@ -234,6 +237,7 @@ server <- function(input, output, session) {
     
   })
   
+  
   observeEvent(input$host_all, {
     
     if (is.null(input$host_metrics)) {
@@ -251,6 +255,7 @@ server <- function(input, output, session) {
     }
     
   })
+  
   
   observeEvent(input$task_all, {
     
@@ -289,9 +294,7 @@ server <- function(input, output, session) {
       
     })
     
-    
   })
-  
   
 }
 
