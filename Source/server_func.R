@@ -225,6 +225,68 @@ load_metric_from_task <- function(period, groupby, host_list, metric_list) {
 }
 
 
+load_metric_from_docker <- function(period, groupby,
+                                    host_list, metric_list) {
+  
+  metric_list <- c("cpu_used_percent", "mem_used_percent")
+  host_list <- c('influxdb.6d7f9135-8681-11e8-80dc-664d329f843c',
+                 'kafka-manager.db6362d7-8696-11e8-80dc-664d329f843c')
+  period = 6
+
+  groupby = "1h"
+  
+  connector <- connect()
+  
+  con <- connector$connector
+  
+  dbname <- connector$dbname
+  
+  period <- paste0(period, 'd')
+  
+  
+  #### host ####
+  query <- "select mean(*)
+            from %s
+            where time > now() - %s
+            group by time(%s)
+            fill(none)"
+  
+  query <- sprintf(query, 
+                   'docker_container', 
+                   period,
+                   groupby)
+  
+  res_task <- influx_query(con,
+                           db = dbname,
+                           query = query,
+                           simplifyList = T,
+                           return_xts = F)[[1]]
+  
+  names(res_task) <- gsub('mean_', '', names(res_task))
+  
+  res_task <- res_task %>%
+    filter(task %in% host_list) %>% 
+    select(c('time', 'task', 'node_ip', metric_list))
+  
+  ts <- seq.POSIXt(min(res_task$time),
+                   max(res_task$time),
+                   by = posixt_helper_func(str_sub(groupby, -1)))
+  
+  df <- tibble(time = ts)
+  
+  res_task <- full_join(df, res_task)
+  
+  res_task <- gather(res_task, var, value, -(1:3)) %>% 
+    unite(var_new, task, node_ip, var) %>% 
+    spread(var_new, value)
+  
+  print('Task OK!')
+  
+  return(res_task)
+  
+}
+
+
 load_multiple_metric <- function(period, groupby,
                                  host_list, metric_list) {
   
@@ -234,11 +296,9 @@ load_multiple_metric <- function(period, groupby,
   
   dbname <- connector$dbname
   
-  
   cluster_metric <- load_metric_from_cluster(period = period,
                                              groupby = groupby,
                                              metric_list = metric_list$cluster)
-
   
   whole_data <- cluster_metric
   
@@ -307,6 +367,7 @@ load_multiple_metric <- function(period, groupby,
   
 }
 
+
 # load_multiple_metric(5, '1h',
 #                      list('host'=c('192.168.0.162',
 #                                    '192.168.0.163')),
@@ -365,8 +426,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             fill(none)
             order by time desc
             %s"
-  # if (node_ip != '')
-  #   browser()
+  
   tag <- switch(measurement,
                 'host' = 'host_ip',
                 'task' = 'task',
@@ -471,7 +531,6 @@ default_time_seqeunce <- function(period, groupby) {
 }
 
 
-
 load_metric_list <- function(measurement) {
   
   connector <- connect()
@@ -480,15 +539,11 @@ load_metric_list <- function(measurement) {
   
   dbname <- connector$dbname
   
-  if (measurement == 'docker') {
+  if (measurement == 'docker') 
     
-    cond <- ', docker_network'
-    
-    measurement <- 'docker_container'
-    
-  } else {cond <- ''}
+    measurement <- 'docker_container, docker_network'
   
-  query <- 'show field keys from %s%s' %>% sprintf(measurement, cond)
+  query <- 'show field keys from %s' %>% sprintf(measurement)
   
   res <- influx_query(con,
                       dbname,

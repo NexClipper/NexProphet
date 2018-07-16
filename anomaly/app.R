@@ -370,7 +370,7 @@ server <- function(input, output, session) {
         output$anomaly_table <- renderDataTable({})
         
         output$notice <- renderText("There is no Forecasting Model!! Make a Model First!!")
-        cat('\n\n\n', 'No model~~~~~~~~~~', '\n\n\n')
+        
       } else {
         # 모델이 있는 경우....
         # 이미 만들어진 모형이 있으면  
@@ -584,7 +584,7 @@ server <- function(input, output, session) {
         xlim(c(min(pData$ds),max(pData$ds))) +
         ylab(metric) + xlab("Time")
       
-      ggsave("anomaly.png", path = dir.name, width = 12, height = 8)
+      ggsave("anomaly.png", plot = gm, path = dir.name, width = 12, height = 8)
       
       updateSelectInput(session,
                         "single_metric",
