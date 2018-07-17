@@ -186,6 +186,21 @@ server <- function(input, output, session) {
       choices = metrics_
     )
     
+    if (input$resource != 'task') {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'merge',
+        selected = '1'
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        selected = ''
+      )
+    }
+    
   })
   
   
