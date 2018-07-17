@@ -151,9 +151,7 @@ ui <- fluidPage(
           width = 6,
           br(),
           h4("Forecasting Statistics"),
-          br(),
-          verbatimTextOutput("urlText"),
-          verbatimTextOutput("queryText")
+          br()
         )
       )
       
@@ -165,26 +163,25 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  
-  output$urlText <- renderText({
-    paste(sep = "",
-          "protocol: ", session$clientData$url_protocol, "\n",
-          "hostname: ", session$clientData$url_hostname, "\n",
-          "pathname: ", session$clientData$url_pathname, "\n",
-          "port: ",     session$clientData$url_port,     "\n",
-          "search: ",   session$clientData$url_search,   "\n"
-    )
-  })
-  
-  # Parse the GET query string
-  output$queryText <- renderText({
+  #### ClientData Test ####
+  observe({
+    
+    cdata <- session$clientData
+    
+    cnames <- names(cdata)
+    
+    allvalues <- lapply(cnames, function(name) {
+      paste(name, cdata[[name]], sep = " = ")
+    })
+    
+    cat('\n', paste(allvalues, collapse = "\n"), '\n')
+    
     query <- parseQueryString(session$clientData$url_search)
     
-    # Return a string with key-value pairs
-    paste(names(query), query, sep = "=", collapse=", ")
+    cat('\n', paste(names(query), query, sep = "=", collapse = ", "), '\n')
+    
   })
-  
-  
+  # -----
   
   observeEvent(input$resource, {
     
@@ -303,9 +300,7 @@ server <- function(input, output, session) {
   
   
   observe({
-    query <- parseQueryString(session$clientData$url_search)
-    q <- paste(names(query), query, sep = "=", collapse = ", ")
-    cat('\n\n\n', session$clientData$url_search, '##########', '\n\n\n')
+    
     resource <- input$resource
     
     host <- input$resource_assist
