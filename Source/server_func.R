@@ -475,11 +475,11 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   # host : host or task name
   
   # measurement <- 'docker'
-  # host <- 'redis.f6da7a1a-736e-11e8-bc55-525d563011bd'
-  # metric <- 'rx_bytes'
+  # host <- 'influxdb.6d7f9135-8681-11e8-80dc-664d329f843c'
+  # metric <- 'cpu_used_percent'
   # period <- 1
-  # groupby <- 10
-  # limit = -1
+  # groupby <- '1m'
+  # unit = '0'
   
   con <- connect()
   
@@ -487,7 +487,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   
   dbname <- con$dbname
   
-  if (unit == 0) {
+  if (unit == '0') {
     
     period <- paste0(period, 'd')
     
@@ -535,7 +535,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   
   if (!('metric' %in% names(raw_data)))
     return(default_time_seqeunce(period, groupby))
-  
+  # browser()
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
   by <- str_extract(groupby, '\\d+') %>% paste(unit)

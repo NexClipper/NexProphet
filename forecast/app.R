@@ -33,7 +33,8 @@ ui <- fluidPage(
         
         conditionalPanel(
           condition = "input.resource == 'task'",
-          helpText("Fill here!"),
+          helpText("Note : if task name is same and host is seperated, Merge = No.\
+                           if host is seperated for same task, Merge = Yes."),
           prettyRadioButtons(
             inputId = 'merge',
             label = 'Merge or Not',
@@ -280,7 +281,9 @@ server <- function(input, output, session) {
   
   
   observe({
-    
+    query <- parseQueryString(session$clientData$url_search)
+    q <- paste(names(query), query, sep = "=", collapse = ", ")
+    cat('\n\n\n', session$clientData$url_search, '##########', '\n\n\n')
     resource <- input$resource
     
     host <- input$resource_assist
