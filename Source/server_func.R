@@ -470,7 +470,7 @@ load_multiple_metric <- function(period, groupby,
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
-                               unit, node_ip, limit = -1) {
+                               unit, node_ip) {
   # For forecasting, anomaly detection, read only one metric
   # host : host or task name
   
@@ -502,8 +502,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             where time > now() - %s and %s = '%s' %s
             group by time(%s), %s%s
             fill(none)
-            order by time desc
-            %s"
+            order by time desc"
   
   tag <- switch(measurement,
                 'host' = 'host_ip',
@@ -512,24 +511,12 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   
   if (measurement == 'docker') measurement <- 'docker_container, docker_network'
   
+  by_node <- ''
+  
   if (node_ip != "") {
     
     node_ip <- sprintf("and node_ip = '%s'", node_ip)
     by_node <- ', node_ip'
-    
-  } else {
-    
-    by_node <- ''
-    
-  }
-  
-  if (limit > 0) {
-    
-    limit <- paste('limit', limit)
-    
-  } else {
-    
-    limit <- ""
     
   }
   
@@ -537,8 +524,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
                    metric,
                    measurement,
                    period, tag, host, node_ip,
-                   groupby, tag, by_node,
-                   limit)
+                   groupby, tag, by_node)
   
   print(query)
   raw_data <- influx_query(connector,

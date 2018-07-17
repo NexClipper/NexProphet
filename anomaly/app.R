@@ -342,8 +342,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip,
-                                       limit = 100) %>% 
+                                       unit, node_ip) %>% 
             as.data.table()
           # invalidateLater(groupby * 1000)
           
@@ -378,8 +377,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip,
-                                       limit = 100) %>% 
+                                       unit, node_ip) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -550,7 +548,7 @@ server <- function(input, output, session) {
       # names(mseries) <- c("ds", "y")
       # browser()
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip, limit = 100) %>% 
+                                    unit, node_ip) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,
