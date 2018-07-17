@@ -153,6 +153,17 @@ ui <- fluidPage(
           h4("Forecasting Statistics"),
           br()
         )
+      ),
+      
+      fluidRow(
+        
+        column(
+          width = 6, 
+          br(),
+          h4("Client Data, will be deleted"),
+          br(),
+          verbatimTextOutput("clientdataText")
+        )
       )
       
     ) # mainPanel
@@ -168,17 +179,15 @@ server <- function(input, output, session) {
     
     cdata <- session$clientData
     
-    cnames <- names(cdata)
-    
-    allvalues <- lapply(cnames, function(name) {
-      paste(name, cdata[[name]], sep = " = ")
+    # Values from cdata returned as text
+    output$clientdataText <- renderText({
+      cnames <- names(cdata)
+      
+      allvalues <- lapply(cnames, function(name) {
+        paste(name, cdata[[name]], sep = " = ")
+      })
+      paste(allvalues, collapse = "\n")
     })
-    
-    cat('\n', paste(allvalues, collapse = "\n"), '\n')
-    
-    query <- parseQueryString(session$clientData$url_search)
-    
-    cat('\n', paste(names(query), query, sep = "=", collapse = ", "), '\n')
     
   })
   # -----
