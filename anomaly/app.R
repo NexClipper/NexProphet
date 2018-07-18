@@ -82,9 +82,11 @@ ui <- fluidPage(
         
       ),
       
-      hr(),
+      br(),
       
-      h4("Model Development Options"),
+      h4(class = 'h4_alter', "Advanced Option"),
+      
+      br(),
       
       wellPanel(
         

@@ -76,8 +76,9 @@ ui <- fluidPage(
       
       br(),
       
-      h4('Advanced Options'),
+      h4(class = 'h4_alter', 'Advanced Options'),
       
+      br(),
 
       wellPanel(
         

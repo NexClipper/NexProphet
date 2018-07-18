@@ -123,3 +123,7 @@ body.body_alter {
 	width: 50%;
 	vertical-align: middle;
 }
+
+.btn {
+	margin-bottom: 10px;
+}
