@@ -20,6 +20,8 @@ DATA_CORR <- NULL
 
 ui <- fluidPage(
   
+  includeCSS('../www/custom.css'),
+  
   sidebarLayout(
     
     sidebarPanel(
@@ -124,27 +126,52 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      
+      tags$body(class = 'body_alter'),
+      
       width = 9, 
       
       column(
         width = 8,
-        
-        br(),
-        h4("Metric Association Plot"),
-        plotlyOutput('correlation_plot', height = "800px")
+        fluidRow(
+          class = 'graph_panel',
+          
+          br(),
+          h4(class = 'h4_alter', "Metric Association Plot"),
+          hr(),
+          plotlyOutput('correlation_plot', height = "800px")
+        )
+        # width = 8,
+        # 
+        # br(),
+        # h4("Metric Association Plot"),
+        # hr(),
+        # plotlyOutput('correlation_plot', height = "800px")
         
       ),
       
       column(
-        
         width = 4,
-        br(),
-        h4("Find the most related Metrics"),
-        br(),
-        selectizeInput("combo_DT_Metric",
-                       "Select Metric to inspect :", 
-                       choices = c(""), selected = ""),
-        dataTableOutput('correlation_table')
+        
+        fluidRow(
+          class = 'graph_panel',
+          
+          br(),
+          h4(class = 'h4_alter', "Find the most related Metrics"),
+          hr(),
+          selectizeInput("combo_DT_Metric",
+                         "Select Metric to inspect :", 
+                         choices = c(""), selected = ""),
+          dataTableOutput('correlation_table')
+        )
+        # width = 4,
+        # br(),
+        # h4("Find the most related Metrics"),
+        # br(),
+        # selectizeInput("combo_DT_Metric",
+        #                "Select Metric to inspect :", 
+        #                choices = c(""), selected = ""),
+        # dataTableOutput('correlation_table')
         
       )
 

@@ -43,7 +43,8 @@ ui <- fluidPage(
         
         conditionalPanel(
           condition = "input.resource == 'task'",
-          helpText("Fill here!"),
+          helpText("Note : if task name is same and host is seperated, Merge = No.\
+                           if host is seperated for same task, Merge = Yes."),
           prettyRadioButtons(
             inputId = 'merge',
             label = 'Merge or Not',
@@ -161,7 +162,7 @@ ui <- fluidPage(
             
             h4(class = 'h4_alter', "Anomaly Detection Chart"),
             
-            tags$hr(),
+            hr(),
             
             plotOutput("monitoring", height = 500)
           ),
@@ -192,7 +193,7 @@ ui <- fluidPage(
             
             h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
             
-            tags$hr(),
+            hr(),
             
             imageOutput("modeling_img", height = '70%', width = '100%')
           )
@@ -217,7 +218,7 @@ ui <- fluidPage(
             
             h4(class = 'h4_alter', "Anomaly Detection Chart"),
             
-            tags$hr(),
+            hr(),
             
             dataTableOutput('anomaly_table')
           )
@@ -503,49 +504,13 @@ server <- function(input, output, session) {
                        paging = F,
                        pageLength = 10,
                        searching = F))
-        "
-        Error in shiny
-
-        output$notice <- NULL
-        "
         
-        output$notice <- renderText({})
+        output$notice <- renderText('Date at which model is built : ')
         
       }
     }
   })
-  
 
-  # observeEvent(input$execute, {
-  # 
-  #   resource <- input$resource
-  # 
-  #   metric <- input$single_metric
-  # 
-  #   period <- input$period
-  # 
-  #   groupby <- input$groupby
-  # 
-  #   tb_ <- load_single_metric(resource, host, metric, period, groupby)
-  #   
-  #   anomaly_result <- anomalization(tb_)
-  #   
-  #   anomalized_plot <- plot_anomalies(anomaly_result, T)
-  #   
-  #   output$anomalized_plot <- renderPlotly({
-  #     
-  #     ggplotly(anomalized_plot)
-  #     
-  #   })
-  #   
-  #   output$decomposed_plot <- renderPlot({
-  #     
-  #     plot_anomaly_decomposition(anomaly_result)
-  #     
-  #   })
-  #   
-  # 
-  # })
   
   observeEvent(input$execute, {
     

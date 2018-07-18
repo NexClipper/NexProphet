@@ -57,7 +57,7 @@ body.body_alter {
 
 .graph_panel_ano {
 	background-color: white;
-	margin-right: 0px;
+	margin-right: 10px;
 	margin-left: -5px;
 	margin-top: 5px;
 	margin-bottom: 5px;
@@ -95,14 +95,14 @@ body.body_alter {
 }
 
 .item {
-    font-size: 1.0rem;
+    font-size: 1.5rem;
 }
 
 .selectize-dropdown-content {
-	font-size: 1rem;
+	font-size: 1.2rem;
 }
 
-./*col-sm-8 {
+/*col-sm-8 {
 	background-color: white;
 }*/
 
@@ -116,4 +116,10 @@ body.body_alter {
 	line-height: 1.2;
 	margin-bottom: 0.5rem;
 	margin-top: 0;
+}
+
+.form-inline .form-control {
+	display: inline-block;
+	width: 50%;
+	vertical-align: middle;
 }
