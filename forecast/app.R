@@ -4,16 +4,9 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-CLUSTER_METRICS <- load_metric_list('cluster')
-
-HOST_METRICS <- load_metric_list('host')
-
-TASK_METRICS <- load_metric_list('task')
-
-forecast_result <- NULL
-
-
 ui <- fluidPage(
+  
+  includeCSS("../www/custom.css"),
   
   sidebarLayout(
     
@@ -26,26 +19,47 @@ ui <- fluidPage(
         prettyRadioButtons(
           inputId = 'resource',
           label = 'Select Resource',
-          choices = list('Cluster' = 'cluster',
-                         'Host' = 'host',
-                         'Task' = 'task'),
-          selected = 'cluster',
+          choices = list('Host' = 'host',
+                         'Task' = 'task',
+                         'Docker' = 'docker'),
+          selected = 'host',
           inline = T
           
         ),
         
-        pickerInput(
+        selectizeInput(
           inputId = 'resource_assist',
-          label = 'Select Master',
-          choices = c('192.168.0.161'),
-          options = list(`style` = "btn-info")
+          label = 'Select Host',
+          choices = ''
         ),
         
-        pickerInput(
+        conditionalPanel(
+          condition = "input.resource == 'task'",
+          helpText("Note : if task name is same and host is seperated, Merge = No.\
+                           if host is seperated for same task, Merge = Yes."),
+          prettyRadioButtons(
+            inputId = 'merge',
+            label = 'Merge or Not',
+            choices = list('Yes' = 1,
+                           'No' = 0),
+            selected = 1,
+            inline = T
+          )
+        ),
+        
+        conditionalPanel(
+          condition = "input.merge == '0' & input.resource == 'task'",
+          selectizeInput(
+            inputId = 'host_for_task',
+            label = 'Select Host',
+            choices = ''
+          )
+        ),
+        
+        selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
-          choices = '',
-          options = list(`style` = "btn-info")
+          choices = ''
         )
         
       ),
@@ -59,18 +73,37 @@ ui <- fluidPage(
                      Height = 40)
         
       ),
+      
+      br(),
+      
+      h4(class = 'h4_alter', 'Advanced Options'),
+      
+      br(),
 
       wellPanel(
         
-        sliderInput("period",
-                    "Data Period (days) :",
-                    min = 1, max = 100, value = 5),
+        prettyRadioButtons(
+          "unit",
+          'Select Time Unit',
+          choices = list('Days' = 0,
+                         'Hours' = 1),
+          selected = 0,
+          inline = T),
         
-        radioButtons("groupby",
-                     "Select Group By",
-                     choices = c('5m', "10m", "30m", "1h"),
-                     selected = "1h",
-                     inline = T),
+        sliderInput("period",
+                    "Select Data Period (Hours)",
+                    min = 6, max = 240, value = 6),
+        
+        sliderInput("predicted_period",
+                    "Predicted Period (Hours)",
+                    min = 3, max = 72, value = 3),
+        
+        prettyRadioButtons(
+          "groupby",
+          'Select Group By',
+          choices = c('1m', '5m', '10m', '1h'),
+          selected = '1h',
+          inline = T),
         
         style = "padding: 15px 20px 0px 20px;"
         
@@ -79,44 +112,102 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      
       width = 9,
+      tags$body(class = 'body_alter',
+                fluidRow(
+                  
+                  column(width = 6,
+                         fluidRow(
+                           class = "graph_panel",  
+                           br(),
+                           # tags$div(
+                           #   class = 'h4_alter'
+                           # ),
+                           h4(class = 'h4_alter', "Time Series Plot"),
+                           tags$hr(),
+                           dygraphOutput(
+                             'trend_plot',
+                             width = "100%",
+                             height = "300px")
+                         )
+                  ),
+                  
+                  column(width = 6, 
+                         fluidRow(
+                           class = "graph_panel",  
+                           br(),
+                           h4(class = 'h4_alter', "Forecasting Plot"),
+                           tags$hr(),
+                           dygraphOutput(
+                             'predicted_plot',
+                             width = "100%",
+                             height = "300px")
+                         )
+                  )
+                  
+                )
+      ), # body
+      
+      # fluidRow(
+      #   
+      #   column(width = 6, 
+      #          br(),
+      #          # tags$div(
+      #          #   class = 'h4_alter'
+      #          # ),
+      #          h4(class = 'h4_alter', "Time Series Plot"),
+      #          br(),
+      #          dygraphOutput(
+      #            'trend_plot',
+      #            width = "100%",
+      #            height = "350px")
+      #    ),
+      #   
+      #   column(width = 6, 
+      #          br(),
+      #          h4("Forecasting Plot"),
+      #          br(),
+      #          dygraphOutput(
+      #            'predicted_plot',
+      #            width = "100%",
+      #            height = "350px")
+      #   )
+      #   
+      # ),
       
       fluidRow(
         
-        column(width = 6, 
-               br(),
-               h4("Time Series Plot"),
-               br(),
-               dygraphOutput(
-                 'trend_plot',
-                 width = "100%",
-                 height = "350px")
-         ),
+        column(
+          width = 6,
+          fluidRow(
+            class = 'graph_panel',
+            br(),
+            h4(class = 'h4_alter', "Forecasting Component Plot"),
+            tags$hr(),
+            plotOutput('component_plot', height = "350px")
+          )
+        ),
         
-        column(width = 6, 
-               br(),
-               h4("Forecasting Plot"),
-               br(),
-               dygraphOutput(
-                 'predicted_plot',
-                 width = "100%",
-                 height = "350px")
+        column(
+          width = 6,
+          fluidRow(
+            class = 'graph_panel',
+            br(),
+            h4(class = 'h4_alter', "Forecasting Statistics"),
+            tags$hr()
+          )
         )
-        
       ),
       
       fluidRow(
-        column(width = 6, 
-               br(),
-               h4("Forecasting Component Plot"),
-               br(),
-               plotOutput('component_plot', height = "350px")
-        ),
         
-        column(width = 6,
-               br(),
-               h4("Forecasting Statistics"),
-               br()
+        column(
+          width = 6, 
+          br(),
+          h4("Client Data, will be deleted"),
+          br(),
+          verbatimTextOutput("clientdataText")
         )
       )
       
@@ -128,17 +219,35 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
+  #### ClientData Test ####
+  observe({
+    
+    cdata <- session$clientData
+    
+    # Values from cdata returned as text
+    output$clientdataText <- renderText({
+      cnames <- names(cdata)
+      
+      allvalues <- lapply(cnames, function(name) {
+        paste(name, cdata[[name]], sep = " = ")
+      })
+      paste(allvalues, collapse = "\n")
+    })
+    
+  })
+  
+  # -----
   
   observeEvent(input$resource, {
     
     label_ <- switch(input$resource,
-                     'cluster' = 'Select Master',
                      'host' = 'Select Host IP',
-                     'task' = 'Select Task Name')
+                     'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
     
     choices_ <- load_tag_list(input$resource)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'resource_assist',
       label = label_,
@@ -146,31 +255,129 @@ server <- function(input, output, session) {
     
     metrics_ <- load_metric_list(input$resource)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'single_metric',
       choices = metrics_
     )
     
+    if (input$resource != 'task') {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'merge',
+        selected = '1'
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        selected = ''
+      )
+    }
+    
   })
+  
+  
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$merge == "0") {
+      
+      choices_ <- load_host_list_for_task(input$resource_assist)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = choices_
+      )
+      
+    } else {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = ''
+      )
+      
+    }
+    
+  })
+  
+  
+  observeEvent(input$unit, {
+    
+    if (input$unit == 0) {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Days)',
+        value = 3, min = 1, max = 60
+      )
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'predicted_period',
+        label = 'Select Predicted Period (Days)',
+        value = 1, min = 1, max = 30
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '1h'
+      )
+      
+    } else {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Hours)',
+        value = 6, min = 1, max = 60
+      )
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'predicted_period',
+        label = 'Select Predicted Period (Hours)',
+        value = 2, min = 1, max = 30
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '10m'
+      )
+      
+    }
+  })
+  
   
   observe({
     
     resource <- input$resource
+    
+    host <- input$resource_assist
+    
     metric <- input$single_metric
+    
     period <- input$period
+    
+    unit <- input$unit
+    
     groupby <- input$groupby
     
-    "
-    Error in shiny-server
-
-    output$predicted_plot <- NULL
-    output$component_plot <- NULL
-    "
+    node_ip <- input$host_for_task
+    
+    output$predicted_plot <- renderDygraph({})
+    
+    output$component_plot <- renderPlot({})
     
     output$trend_plot <- renderDygraph({
     
-      series <- load_single_metric(resource, metric, period, groupby)
+      series <- load_single_metric(resource, host, metric, period, groupby,
+                                   unit, node_ip)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -184,19 +391,31 @@ server <- function(input, output, session) {
   })
   
   
-  
   observeEvent(input$execute, {
     
     resource <- input$resource
+    
+    host <- input$resource_assist
+    
     metric <- input$single_metric
+    
     period <- input$period
+    
+    unit <- input$unit
+    
+    pred_period <- input$predicted_period
+    
     groupby <- input$groupby
     
-    render_result <- render_forecast(resource, metric, period, groupby)
+    node_ip <- input$host_for_task
     
-    forecast_result <<- render_result$forecast_result
+    render_result <- render_forecast(resource, host, metric, period, groupby,
+                                     pred_period, unit, node_ip)
+    
+    forecast_result <- render_result$forecast_result
     
     output$predicted_plot <- render_result$rendered
+    
     output$component_plot <- render_forecast_component(forecast_result)
     
   })

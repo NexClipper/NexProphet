@@ -125,7 +125,7 @@ ui <- fluidPage(
         
         br(),
         h4("Time Lag Analysis"),
-        forceNetworkOutput('network_plot')
+        forceNetworkOutput('network_plot', height = "800px")
         
       ),
       

@@ -1,11 +1,8 @@
 #### Metric Association ####
 
-source("../Source/load_packages.R", local = T, encoding = "utf-8")
+source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
-
-CLUSTER_LIST <- load_tag_list('cluster')
-CLUSTER_METRICS <- load_metric_list('cluster')
 
 HOST_LIST <- load_tag_list('host')
 HOST_METRICS <- load_metric_list('host')
@@ -13,12 +10,17 @@ HOST_METRICS <- load_metric_list('host')
 TASK_LIST <- load_tag_list('task')
 TASK_METRICS <- load_metric_list('task')
 
+DOCKER_LIST <- load_tag_list('docker')
+DOCKER_METRICS <- load_metric_list('docker')
+
 
 # total data
 DATA_CORR <- NULL
 
 
 ui <- fluidPage(
+  
+  includeCSS('../www/custom.css'),
   
   sidebarLayout(
     
@@ -28,19 +30,6 @@ ui <- fluidPage(
       
       helpText("Note: You can select multiple metrics you want to see.
                 Also, multiple hosts(tasks) can be selected."),
-      
-      wellPanel(
-        
-        actionButton("clus_all",
-                     "Select All",
-                     Height = 40),
-        
-        selectizeInput("clus_metrics",
-                       "Select Cluster Metric to inspect :", 
-                       choices = CLUSTER_METRICS, selected = "", multiple = T )
-        
-        
-      ),
       
       wellPanel(
         
@@ -88,6 +77,28 @@ ui <- fluidPage(
       
       wellPanel(
         
+        selectizeInput("docker_list",
+                       "Select Docker to inspect :", 
+                       choices = DOCKER_LIST,
+                       selected = "",
+                       multiple = T ),
+        
+        br(),
+        
+        actionButton("docker_all",
+                     "Select All",
+                     Height = 40),
+        
+        selectizeInput("docker_metrics",
+                       "Select Docker Metric to inspect :", 
+                       choices = DOCKER_METRICS,
+                       selected = "", multiple = T )
+        
+        
+      ),
+      
+      wellPanel(
+        
         actionButton("execute",
                      "  Execute",
                      icon = icon("sign-out"),
@@ -115,27 +126,52 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      
+      tags$body(class = 'body_alter'),
+      
       width = 9, 
       
       column(
         width = 8,
-        
-        br(),
-        h4("Metric Association Plot"),
-        plotlyOutput('correlation_plot')
+        fluidRow(
+          class = 'graph_panel',
+          
+          br(),
+          h4(class = 'h4_alter', "Metric Association Plot"),
+          hr(),
+          plotlyOutput('correlation_plot', height = "800px")
+        )
+        # width = 8,
+        # 
+        # br(),
+        # h4("Metric Association Plot"),
+        # hr(),
+        # plotlyOutput('correlation_plot', height = "800px")
         
       ),
       
       column(
-        
         width = 4,
-        br(),
-        h4("Find the most related Metrics"),
-        br(),
-        selectizeInput("combo_DT_Metric",
-                       "Select Metric to inspect :", 
-                       choices = c(""), selected = ""),
-        dataTableOutput('correlation_table')
+        
+        fluidRow(
+          class = 'graph_panel',
+          
+          br(),
+          h4(class = 'h4_alter', "Find the most related Metrics"),
+          hr(),
+          selectizeInput("combo_DT_Metric",
+                         "Select Metric to inspect :", 
+                         choices = c(""), selected = ""),
+          dataTableOutput('correlation_table')
+        )
+        # width = 4,
+        # br(),
+        # h4("Find the most related Metrics"),
+        # br(),
+        # selectizeInput("combo_DT_Metric",
+        #                "Select Metric to inspect :", 
+        #                choices = c(""), selected = ""),
+        # dataTableOutput('correlation_table')
         
       )
 
@@ -154,13 +190,13 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
 
-    host_list <- list('cluster' = input$clus_list,
-                      'host' = input$host_list,
-                      'task' = input$task_list)
+    host_list <- list('host' = input$host_list,
+                      'task' = input$task_list,
+                      'docker' = input$docker_list)
     
-    metric_list <- list('cluster' = input$clus_metrics,
-                        'host' = input$host_metrics,
-                        'task' = input$task_metrics)
+    metric_list <- list('host' = input$host_metrics,
+                        'task' = input$task_metrics,
+                        'docker' = input$docker_metrics)
     
     multiple_metrics <- load_multiple_metric(period = period,
                                              groupby = groupby,
@@ -196,7 +232,9 @@ server <- function(input, output, session) {
                  lab = T,
                  outline.color = 'white',
                  lab_size = 2,
-                 tl.cex = 8) %>% ggplotly()
+                 tl.cex = 8) %>%
+        ggplotly() %>% 
+        layout(margin = list(b = 350, l = 350))
       
     })
     
@@ -207,23 +245,25 @@ server <- function(input, output, session) {
    
   })
   
-  observeEvent(input$clus_all, {
+  
+  observeEvent(input$docker_all, {
     
-    if (is.null(input$clus_metrics)) {
+    if (is.null(input$docker_metrics)) {
       
       updateSelectizeInput(session,
-                           inputId = 'clus_metrics',
-                           selected = CLUSTER_METRICS)
+                           inputId = 'docker_metrics',
+                           selected = DOCKER_METRICS)
       
     } else {
       
       updateSelectizeInput(session,
-                           inputId = 'clus_metrics',
+                           inputId = 'docker_metrics',
                            selected = '')
       
     }
     
   })
+  
   
   observeEvent(input$host_all, {
     
@@ -242,6 +282,7 @@ server <- function(input, output, session) {
     }
     
   })
+  
   
   observeEvent(input$task_all, {
     
@@ -263,6 +304,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$combo_DT_Metric, {
+    
     output$correlation_table <- renderDataTable({
       
       if (input$combo_DT_Metric != "") {
@@ -279,9 +321,7 @@ server <- function(input, output, session) {
       
     })
     
-    
   })
-  
   
 }
 
