@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-www
+www/*
 Model
+!www/custom.css

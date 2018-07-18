@@ -15,6 +15,8 @@ numVar = NULL
 
 ui <- fluidPage(
   
+  includeCSS("../www/custom.css"),
+  
   sidebarLayout(
     
     sidebarPanel(
@@ -146,46 +148,91 @@ ui <- fluidPage(
     mainPanel(
       
       width = 9,
-      
+      tags$body(class = 'body_alter'),
       fluidRow(
         
         column(
           
           width = 8,
           
-          br(),
+          fluidRow(
+            class = 'graph_panel_ano',
+            br(),
+            
+            h4(class = 'h4_alter', "Anomaly Detection Chart"),
+            
+            tags$hr(),
+            
+            plotOutput("monitoring", height = 500)
+          ),
+          # br(),
+          # 
+          # h4("Anomaly Detection Chart"),
+          # 
+          # br(),
+          # 
+          # plotOutput("monitoring", height = 500),
+          fluidRow(
+            
+            class = 'notice_ano',
+            
+            verbatimTextOutput("notice")
+            
+          ),
+          # br(),
+          # 
+          # verbatimTextOutput("notice"),
+          # 
+          # br(),
           
-          h4("Anomaly Detection Chart"),
-          
-          br(),
-          
-          plotOutput("monitoring", height = 500),
-          
-          br(),
-          
-          verbatimTextOutput("notice"),
-          
-          br(),
-          
-          h4("Whole data plot for Modeling Data"),
-          
-          br(),
-          
-          imageOutput("modeling_img", height = 500)
+          fluidRow(
+            
+            class = 'graph_panel_ano',
+            br(),
+            
+            h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
+            
+            tags$hr(),
+            
+            imageOutput("modeling_img", height = '70%', width = '100%')
+          )
+          # br(),
+          # 
+          # h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
+          # 
+          # br(),
+          # 
+          # imageOutput("modeling_img", height = '70%', width = '100%')
           
         ),
         
         column(
-          
           width = 4,
           
-          br(),
-          
-          h4("Anomaly Detection Chart"),
-          
-          br(),
-          
-          dataTableOutput('anomaly_table')                                          )
+          fluidRow(
+            
+            class = 'graph_panel',
+            
+            br(),
+            
+            h4(class = 'h4_alter', "Anomaly Detection Chart"),
+            
+            tags$hr(),
+            
+            dataTableOutput('anomaly_table')
+          )
+          # class = 'graph_panel',
+          # 
+          # width = 4,
+          # 
+          # br(),
+          # 
+          # h4(class = 'h4_alter', "Anomaly Detection Chart"),
+          # 
+          # tags$hr(),
+          # 
+          # dataTableOutput('anomaly_table')
+        )
         
       )
       
@@ -417,10 +464,7 @@ server <- function(input, output, session) {
           
         })
         
-        # 모형 개발 그림 렌더링
         output$modeling_img <- renderImage({
-          # if (is.null(input$picture))
-          #     return(NULL)
           
           if (node_ip != '') {
             
@@ -449,7 +493,7 @@ server <- function(input, output, session) {
 
           tdf <- as.data.frame(setorder(global_pData, -ds))[1:15, 1:4]
           
-          names(tdf) <- c("Time", input$metric, "Lower_Limit", "Upper_Limit")
+          names(tdf) <- c("Time", input$single_metric, "Lower_Limit", "Upper_Limit")
           
           tdf
           

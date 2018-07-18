@@ -6,6 +6,8 @@ source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 ui <- fluidPage(
   
+  includeCSS("../www/custom.css"),
+  
   sidebarLayout(
     
     sidebarPanel(
@@ -76,7 +78,6 @@ ui <- fluidPage(
       
       h4('Advanced Options'),
       
-      br(),
 
       wellPanel(
         
@@ -112,46 +113,89 @@ ui <- fluidPage(
     mainPanel(
       
       width = 9,
+      tags$body(class = 'body_alter',
+                fluidRow(
+                  
+                  column(width = 6,
+                         fluidRow(
+                           class = "graph_panel",  
+                           br(),
+                           # tags$div(
+                           #   class = 'h4_alter'
+                           # ),
+                           h4(class = 'h4_alter', "Time Series Plot"),
+                           tags$hr(),
+                           dygraphOutput(
+                             'trend_plot',
+                             width = "100%",
+                             height = "300px")
+                         )
+                  ),
+                  
+                  column(width = 6, 
+                         fluidRow(
+                           class = "graph_panel",  
+                           br(),
+                           h4(class = 'h4_alter', "Forecasting Plot"),
+                           tags$hr(),
+                           dygraphOutput(
+                             'predicted_plot',
+                             width = "100%",
+                             height = "300px")
+                         )
+                  )
+                  
+                )
+      ), # body
       
-      fluidRow(
-        
-        column(width = 6, 
-               br(),
-               h4("Time Series Plot"),
-               br(),
-               dygraphOutput(
-                 'trend_plot',
-                 width = "100%",
-                 height = "350px")
-         ),
-        
-        column(width = 6, 
-               br(),
-               h4("Forecasting Plot"),
-               br(),
-               dygraphOutput(
-                 'predicted_plot',
-                 width = "100%",
-                 height = "350px")
-        )
-        
-      ),
+      # fluidRow(
+      #   
+      #   column(width = 6, 
+      #          br(),
+      #          # tags$div(
+      #          #   class = 'h4_alter'
+      #          # ),
+      #          h4(class = 'h4_alter', "Time Series Plot"),
+      #          br(),
+      #          dygraphOutput(
+      #            'trend_plot',
+      #            width = "100%",
+      #            height = "350px")
+      #    ),
+      #   
+      #   column(width = 6, 
+      #          br(),
+      #          h4("Forecasting Plot"),
+      #          br(),
+      #          dygraphOutput(
+      #            'predicted_plot',
+      #            width = "100%",
+      #            height = "350px")
+      #   )
+      #   
+      # ),
       
       fluidRow(
         
         column(
-          width = 6, 
-          br(),
-          h4("Forecasting Component Plot"),
-          br(),
-          plotOutput('component_plot', height = "350px")
+          width = 6,
+          fluidRow(
+            class = 'graph_panel',
+            br(),
+            h4(class = 'h4_alter', "Forecasting Component Plot"),
+            tags$hr(),
+            plotOutput('component_plot', height = "350px")
+          )
         ),
         
         column(
           width = 6,
-          br(),
-          h4("Forecasting Statistics"),
-          br()
+          fluidRow(
+            class = 'graph_panel',
+            br(),
+            h4(class = 'h4_alter', "Forecasting Statistics"),
+            tags$hr()
+          )
         )
       ),
       
@@ -190,6 +234,7 @@ server <- function(input, output, session) {
     })
     
   })
+  
   # -----
   
   observeEvent(input$resource, {
