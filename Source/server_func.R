@@ -39,8 +39,9 @@ connect <- function() {
 
 
 standardization <- function(mtx) {
-    col_min <- as.vector(apply(mtx, 2, min))
-    col_max <- as.vector(apply(mtx, 2, max))
+  
+    col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
+    col_max <- as.vector(apply(mtx, 2, function(x) max(x, na.rm = T)))
     new_mtx <- t(apply(mtx,
                        1,
                        function(x) (x - col_min) / (col_max - col_min + 1e-6)))
@@ -950,6 +951,243 @@ renew <- function(renewal) {
 
 #### METRIC CASUALITY ####
 
+get_node_edge_df <- function(mtx, lag) {
+  
+  mtx <- mtx %>%
+    select_if(~sum(!is.na(.)) > 0) %>%
+    as.matrix() %>%
+    standardization()
+  
+  link_df <- data.frame('from' = NA,
+                        'to' = NA,
+                        'intension' = NA,
+                        'p_value' = NA,
+                        'max_lag' = NA,
+                        stringsAsFactors = F)
+  
+  idx <- 1
+  
+  for (i in 1:ncol(mtx)) {
+    
+    for (j in 1:ncol(mtx)) {
+      
+      if (i == j) next
+      
+      else {
+        
+        x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
+        
+        y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
+        
+        if (sd(x, na.rm = T) == 0 | sd(y, na.rm = T) == 0) next
+        
+        p_value <- 1
+        
+        lag_ <- 1
+        
+        for (l in 1:lag) {
+          
+          tryCatch(
+            {g_test <- grangertest(x, y, l)},
+            error = function(cond) {
+              cat('\n', i, j, l, '\n')
+            }
+          )
+          
+          if (g_test$`Pr(>F)`[2] < p_value) {
+            
+            p_value <- g_test$`Pr(>F)`[2]
+            
+            lag_ <- l
+            
+          }
+          
+        }
+        
+        link_df[idx, ] <- c(colnames(mtx)[i],
+                            colnames(mtx)[j],
+                            log10(1 / (p_value + 1e-6)),
+                            p_value,
+                            lag_)
+        
+        idx <- idx + 1
+        
+      }
+    }
+  }
+  # browser()
+  node_df <- data.frame('label' = unique(c(link_df$from,
+                                           link_df$to)),
+                        'group' = NA,
+                        indegree = NA,
+                        stringsAsFactors = F)
+  
+  node_df$id <- 1:(nrow(node_df))
+  
+  link_df$from <- inner_join(link_df, node_df, by = c('from' = 'label'))$id
+  
+  link_df$to <- inner_join(link_df, node_df, by = c('to' = 'label'))$id
+  
+  link_df <- as.data.frame(sapply(link_df, as.numeric))
+  
+  # link_df$value <- link_df$intension * 0.6
+  
+  return(list('node' = node_df,
+              'edge' = link_df))
+  
+}
+
+
+
+get_node_group_idx <- function(node_df,
+                               host_list,
+                               task_list,
+                               docker_list) {
+  
+  host_idx <- c()
+  
+  node <- node_df$label
+  
+  if (!is.null(host_list))
+    
+    for (host_ip in host_list) {
+      
+      idx <- str_which(node, host_ip)
+      
+      host_idx <- c(host_idx, idx)
+      
+    }
+  
+  task_idx <- c()
+  
+  if (!is.null(task_list))
+    
+    for (task_name in task_list) {
+      
+      idx <- str_which(node, task_name)
+      
+      task_idx <- c(task_idx, idx)
+      
+    }
+  
+  docker_idx <- c()
+  
+  if (!is.null(docker_list))
+    
+    docker_list <- str_extract(docker_list, '[[:alpha:]\\d-_]+')
+    
+    for (docker_id in docker_list) {
+      
+      idx <- str_which(node, docker_id)
+      
+      docker_idx <- c(docker_idx, idx)
+      
+    }
+  
+  return(list('host' = host_idx,
+              'task' = task_idx,
+              'docker' = docker_idx))
+  
+}
+
+
+get_degree <- function(node_df, edge_df) {
+  
+  indegree_idx <- table(edge_df$to) %>% names() %>% as.integer()
+  
+  indegree <- table(edge_df$to) %>% as.vector()
+  
+  node_df$indegree[indegree_idx] <- indegree
+  
+}
+
+# will be deleted
+get_network_graph <- function(node_edge_df,
+                              input_host_list,
+                              input_task_list,
+                              input_docker_list) {
+  
+  node_df <- node_edge_df$node
+  
+  edge_df <- node_edge_df$edge
+  
+  idx_list <- get_node_color_idx(node_df,
+                                 input_host_list,
+                                 input_task_list,
+                                 input_docker_list)
+  # browser()
+  net <- create_graph() %>% 
+    add_nodes_from_table(
+      table = node_df,
+      label_col = node
+    ) %>% 
+    add_edges_from_table(
+      table = edge_df,
+      from_col = source,
+      to_col = target,
+      from_to_map = id_external
+    ) %>% 
+    select_nodes() %>% 
+    set_node_attrs_ws(
+      width, 0.5
+    ) %>% 
+    clear_selection()
+  
+  if (!is.null(idx_list$host)) {
+    
+    net <- net %>%
+      select_nodes(
+        nodes = idx_list$host
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'red'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  
+  if (!is.null(idx_list$task)) {
+    
+    net <- net %>% 
+      select_nodes(
+        nodes = idx_list$task
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'blue'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  if (!is.null(idx_list$docker)) {
+    
+    net <- net %>% 
+      select_nodes(
+        nodes = idx_list$docker
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'green'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  return(net)
+  
+}
+
+
+# will be deleted
 casuality <- function(mtx, lag) {
     
     link_df <- data.frame('source' = NA,
@@ -1047,6 +1285,7 @@ casuality <- function(mtx, lag) {
 }
 
 
+# will be deleted
 select_lags <- function(x, y, max.lag) {
   
   y <- as.numeric(y)

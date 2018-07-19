@@ -25,8 +25,7 @@ bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts', 'RMySQL'))
 
 
 # visualization
-bs.Library(c("dygraphs", "visNetwork", "networkD3", 'plotly',
-             'ggcorrplot'))
+bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot'))
 
 
 # machine learning
