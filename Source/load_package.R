@@ -21,7 +21,7 @@ bs.Library(c("shiny", "shinyWidgets", 'shinyjs'))
 
 
 # data manipulation
-bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts', 'RMySQL'))
+bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
 
 
 # visualization
@@ -29,4 +29,4 @@ bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot'))
 
 
 # machine learning
-bs.Library(c("prophet", "anomalize", 'lmtest', 'arules'))
+bs.Library(c("prophet", 'lmtest'))
