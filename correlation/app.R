@@ -7,6 +7,8 @@ source("../Source/server_func.R", local = T, encoding = "utf-8")
 HOST_LIST <- load_tag_list('host')
 HOST_METRICS <- load_metric_list('host')
 
+HOST_METRICS <- HOST_METRICS[!str_detect(HOST_METRICS, '_per$')]
+
 TASK_LIST <- load_tag_list('task')
 TASK_METRICS <- load_metric_list('task')
 
@@ -139,7 +141,7 @@ ui <- fluidPage(
           br(),
           h4(class = 'h4_alter', "Metric Association Plot"),
           hr(),
-          plotlyOutput('correlation_plot', height = "800px")
+          d3heatmapOutput('correlation_plot', height = '500px')
         )
         # width = 8,
         # 
@@ -202,41 +204,29 @@ server <- function(input, output, session) {
                                              groupby = groupby,
                                              host_list = host_list,
                                              metric_list = metric_list) %>%
-      select(-time) 
-    
-    all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
-    
-    multiple_metrics[, !all.na.idx] %>% 
-      as.matrix() %>%
+      select(-time) %>% 
+      select_if(~ sd(., na.rm = T) != 0) %>% 
+      as.matrix() %>% 
       standardization()
     
-    corr <- cor(multiple_metrics, use = "pairwise.complete.obs")
+    DATA_CORR <<- multiple_metrics %>% cor()
     
-    na.idx <- sapply(as.data.frame(corr), function(x){
+    # all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
+    
+    # multiple_metrics %>% 
+    #   as.matrix() %>%
+    #   standardization()
+    
+    # browser()
+    
+    output$correlation_plot <- renderD3heatmap({
       
-      all(is.na(x))
-      
-    })
-    
-    corr <- corr[!na.idx, !na.idx]
-    
-    corr[is.na(corr)] <- 0
-    
-    DATA_CORR <<- corr
-    
-    output$correlation_plot <- renderPlotly({
-      
-      ggcorrplot(DATA_CORR,
-                 hc.order = TRUE,
-                 type = "lower",
-                 lab = T,
-                 outline.color = 'white',
-                 lab_size = 2,
-                 tl.cex = 8) %>%
-        ggplotly() %>% 
-        layout(margin = list(b = 350, l = 350))
+      d3heatmap(DATA_CORR, colors = "Blues", scale = "none",
+                dendrogram = "both", k_row = 3, height = '600px',
+                xaxis_font_size = '8px', yaxis_font_size = '8px')
       
     })
+    
     
     updateSelectInput(session,
                       "combo_DT_Metric",

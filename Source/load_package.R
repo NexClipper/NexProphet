@@ -25,7 +25,8 @@ bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
 
 
 # visualization
-bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot'))
+bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot',
+             'd3heatmap'))
 
 
 # machine learning
