@@ -2,22 +2,22 @@
 #### COMMON FUNCTION ####
 
 posixt_helper_func <- function(x) {
-    switch(x,
-           's' = 'sec',
-           'm' = 'min',
-           'h' = 'hour',
-           stop('incorrect group time'))
+  switch(x,
+         's' = 'sec',
+         'm' = 'min',
+         'h' = 'hour',
+         stop('incorrect group time'))
 }
 
 
 connect <- function() {
-    con <- influx_connection(host = '192.168.0.162', port = 10091)
-    
-    dbname <- 'nexclipper'
-    
-    conn <- list(connector = con, dbname = dbname)
-    
-    return(conn)
+  con <- influx_connection(host = '192.168.0.162', port = 10091)
+  
+  dbname <- 'nexclipper'
+  
+  conn <- list(connector = con, dbname = dbname)
+  
+  return(conn)
 }
 
 
@@ -40,12 +40,12 @@ connect <- function() {
 
 standardization <- function(mtx) {
   
-    col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
-    col_max <- as.vector(apply(mtx, 2, function(x) max(x, na.rm = T)))
-    new_mtx <- t(apply(mtx,
-                       1,
-                       function(x) (x - col_min) / (col_max - col_min + 1e-6)))
-    return(new_mtx)
+  col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
+  col_max <- as.vector(apply(mtx, 2, function(x) max(x, na.rm = T)))
+  new_mtx <- t(apply(mtx,
+                     1,
+                     function(x) (x - col_min) / (col_max - col_min + 1e-6)))
+  return(new_mtx)
 }
 
 
@@ -368,9 +368,9 @@ load_multiple_metric <- function(period, groupby,
   if (!is.null(metric_list$docker)) {
     
     docker_metric <- load_metric_from_docker(period = period,
-                                           groupby = groupby,
-                                           host_list = host_list$docker,
-                                           metric_list = metric_list$docker)
+                                             groupby = groupby,
+                                             host_list = host_list$docker,
+                                             metric_list = metric_list$docker)
     
     if (is.null(whole_data)) {
       
@@ -875,7 +875,7 @@ render_forecast <- function(resource, host, metric, period, groupby,
                           fcst,
                           max(tb_$ds))
     
-    })
+  })
   
   res <- list('forecast_result' = forecast_result,
               'rendered' = rendered)
@@ -991,9 +991,14 @@ get_node_edge_df <- function(mtx, lag) {
         for (l in 1:lag) {
           
           tryCatch(
-            {g_test <- grangertest(x, y, l)},
+            {
+              g_test <- grangertest(x, y, l)
+            },
+            
             error = function(cond) {
+              
               cat('\n', i, j, l, '\n')
+              
             }
           )
           
@@ -1078,14 +1083,14 @@ get_node_group_idx <- function(node_df,
   if (!is.null(docker_list))
     
     docker_list <- str_extract(docker_list, '[[:alpha:]\\d-_]+')
+  
+  for (docker_id in docker_list) {
     
-    for (docker_id in docker_list) {
-      
-      idx <- str_which(node, docker_id)
-      
-      docker_idx <- c(docker_idx, idx)
-      
-    }
+    idx <- str_which(node, docker_id)
+    
+    docker_idx <- c(docker_idx, idx)
+    
+  }
   
   return(list('host' = host_idx,
               'task' = task_idx,
@@ -1193,99 +1198,99 @@ get_network_graph <- function(node_edge_df,
 
 # will be deleted
 casuality <- function(mtx, lag) {
+  
+  link_df <- data.frame('source' = NA,
+                        'target' = NA,
+                        'intension' = NA,
+                        'p_value' = NA,
+                        'max_lag' = NA,
+                        stringsAsFactors = F)
+  
+  # browser()
+  idx <- 1
+  
+  for (i in 1:ncol(mtx)) {
     
-    link_df <- data.frame('source' = NA,
-                          'target' = NA,
-                          'intension' = NA,
-                          'p_value' = NA,
-                          'max_lag' = NA,
-                          stringsAsFactors = F)
-    
-    # browser()
-    idx <- 1
-    
-    for (i in 1:ncol(mtx)) {
+    for (j in 1:ncol(mtx)) {
       
-        for (j in 1:ncol(mtx)) {
+      if (i == j) {next}
+      else {
+        
+        x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
+        
+        y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
+        
+        if (sd(x) == 0 | sd(y) == 0) next
+        
+        p_value <- 1
+        
+        lag_ <- 1
+        
+        for (l in 1:lag) {
+          g_test <- grangertest(x, y, l)
           
-            if (i == j) {next}
-            else {
-              
-                x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
-                
-                y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
-                
-                if (sd(x) == 0 | sd(y) == 0) next
-                
-                p_value <- 1
-                
-                lag_ <- 1
-                
-                for (l in 1:lag) {
-                  g_test <- grangertest(x, y, l)
-                  
-                  if (g_test$`Pr(>F)`[2] < p_value) {
-                    
-                    p_value <- g_test$`Pr(>F)`[2]
-                    
-                    lag_ <- l
-                    
-                  }
-                  
-                }
-                
-                link_df[idx, ] <- c(colnames(mtx)[i],
-                                    colnames(mtx)[j],
-                                    log(1 / (p_value + 1e-6)),
-                                    p_value,
-                                    lag_)
-                
-                # result <- select_lags(x, y, lag)
-                # 
-                # k <- min(result$selection$aic, result$selection$bic)
-                # 
-                # p <- ifelse(k == 1, 0, result$pvals[k - 1])
-                # 
-                # intension <- log(1 / (p + 1e-6))
-                # link_df[idx, ] <- c(i, j, intension, p, k)
-                
-                
-                idx <- idx + 1
-                
-            }
+          if (g_test$`Pr(>F)`[2] < p_value) {
+            
+            p_value <- g_test$`Pr(>F)`[2]
+            
+            lag_ <- l
+            
+          }
+          
         }
-    }
-    # browser()
-    # node_df <- data.frame('node' = colnames(mtx),
-    #                       'idx' = 0:(ncol(mtx) - 1),
-    #                       'size' = 0,
-    #                       stringsAsFactors = F)
-    node_df <- data.frame('node' = unique(c(link_df$source,
-                                            link_df$target)),
-                          'size' = 0,
-                          stringsAsFactors = F)
-    
-    node_df$idx <- 0:(nrow(node_df) - 1)
-    
-    link_df$source <- inner_join(link_df, node_df, by = c('source' = 'node'))$idx
-    
-    link_df$target <- inner_join(link_df, node_df, by = c('target' = 'node'))$idx
-    
-    link_df <- as.data.frame(sapply(link_df, as.numeric))
-    
-    for (q in node_df$idx) {
         
-        node_df$size[q + 1] <- sum(link_df$source == q)
+        link_df[idx, ] <- c(colnames(mtx)[i],
+                            colnames(mtx)[j],
+                            log(1 / (p_value + 1e-6)),
+                            p_value,
+                            lag_)
         
+        # result <- select_lags(x, y, lag)
+        # 
+        # k <- min(result$selection$aic, result$selection$bic)
+        # 
+        # p <- ifelse(k == 1, 0, result$pvals[k - 1])
+        # 
+        # intension <- log(1 / (p + 1e-6))
+        # link_df[idx, ] <- c(i, j, intension, p, k)
+        
+        
+        idx <- idx + 1
+        
+      }
     }
+  }
+  # browser()
+  # node_df <- data.frame('node' = colnames(mtx),
+  #                       'idx' = 0:(ncol(mtx) - 1),
+  #                       'size' = 0,
+  #                       stringsAsFactors = F)
+  node_df <- data.frame('node' = unique(c(link_df$source,
+                                          link_df$target)),
+                        'size' = 0,
+                        stringsAsFactors = F)
+  
+  node_df$idx <- 0:(nrow(node_df) - 1)
+  
+  link_df$source <- inner_join(link_df, node_df, by = c('source' = 'node'))$idx
+  
+  link_df$target <- inner_join(link_df, node_df, by = c('target' = 'node'))$idx
+  
+  link_df <- as.data.frame(sapply(link_df, as.numeric))
+  
+  for (q in node_df$idx) {
     
-    link_df$intension <- as.integer(link_df$intension + 1)
+    node_df$size[q + 1] <- sum(link_df$source == q)
     
-    res <- list('node' = node_df,
-                'link' = link_df)
-    
-    return(res)
-    
+  }
+  
+  link_df$intension <- as.integer(link_df$intension + 1)
+  
+  res <- list('node' = node_df,
+              'link' = link_df)
+  
+  return(res)
+  
 }
 
 
