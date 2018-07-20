@@ -14,8 +14,9 @@ DOCKER_LIST <- load_tag_list('docker')
 DOCKER_METRICS <- load_metric_list('docker')
 
 
-net <- NULL
-node_edge_df <- NULL
+node_df <- NULL
+edge_df <- NULL
+edge_df_filtered <- NULL
 
 
 ui <- fluidPage(
@@ -149,23 +150,30 @@ ui <- fluidPage(
           
           hr(),
           
-          # DiagrammeROutput('network_chart')
-          visNetworkOutput('network_chart')
+          visNetworkOutput('network_chart', height = '100%')
           
-        )#,
+        ),
         
-        # fluidRow(
-        #   
-        #   class = 'graph_panel',
-        #   
-        #   br(),
-        #   
-        #   h4(class = 'h4_alter', "Network Chart Control Panel"),
-        #   
-        #   hr()
-        #   
-        #   # sankeyNetworkOutput('network_plot', height = "500px")
-        # )
+        fluidRow(
+
+          class = 'graph_panel',
+
+          br(),
+
+          h4(class = 'h4_alter', "Network Chart Control Panel"),
+
+          hr(),
+          
+          helpText("Do filtering edges using threshold; edges of intension which is less than threshold are filtered."),
+          
+          conditionalPanel(
+            condition = 'input.control_intension != -1',
+            sliderInput('control_intension',
+                        label = '',
+                        min = -1, max = -1, value = -1)
+          )
+          
+        )
         
       ),
       
@@ -175,7 +183,7 @@ ui <- fluidPage(
         
         fluidRow(
           
-          class = 'graph_panel',
+          class = 'graph_panel_dt',
           
           br(),
           
@@ -185,7 +193,7 @@ ui <- fluidPage(
           
           selectizeInput("combo_DT_Metric",
                          "Select Metric to inspect :", 
-                         choices = "", selected = ""),
+                         choices = "", selected = "", width = '100%'),
           
           dataTableOutput('casuality_table')
           
@@ -222,7 +230,7 @@ server <- function(input, output, session) {
                                              metric_list = metric_list) %>%
       select(-time) 
     
-    node_edge_df <<- get_node_edge_df(multiple_metrics, input$max_lag)
+    node_edge_df <- get_node_edge_df(multiple_metrics, input$max_lag)
     
     node_df <- node_edge_df$node
     
@@ -237,13 +245,17 @@ server <- function(input, output, session) {
     
     node_df$group[group_idx$docker] <- 'docker'
     
-    edge_df <- node_edge_df$edge
+    node_df <<- node_df
+    
+    edge_df <<- node_edge_df$edge
     # browser()
-    edge_df_filtered <- edge_df %>% filter(intension > 2)
+    edge_df_filtered <- edge_df %>% filter(intension > 3)
     
     edge_df_filtered$title <- paste0("<p>Intension: ",
                                      edge_df_filtered$intension,
                                      "</p>")
+    
+    edge_df_filtered <<- edge_df_filtered
     
     output$network_chart <- renderVisNetwork({
       
@@ -259,9 +271,7 @@ server <- function(input, output, session) {
         visGroups(groupname = 'docker', color = 'green') %>% 
         visPhysics(repulsion = list('nodeDistance' = 200))
       
-      if (sum(!is.null(group_idx$host),
-              !is.null(group_idx$task),
-              !is.null(group_idx$docker)) > 1) {
+      if (length(unique(node_df$group)) > 1) {
         
         net <- net %>% visLegend()
         
@@ -271,77 +281,101 @@ server <- function(input, output, session) {
       
     })
     
+    combo_list <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id')) %>%
+      select(label, group)
     
+    choices_ <- split(combo_list$label, combo_list$group)
     
-    # net <<- get_network_graph(node_edge_df,
-    #                           host_list$host,
-    #                           host_list$task,
-    #                           host_list$docker)
-    # DiagrammeR::Di
-    # output$network_chart <- renderGrViz({
-    #   grViz({
-    #   net %>% render_graph(output = 'DOT') %>% 
-    #     tempfile(fileext = "~/dot.gv") #%>% 
-    #     #DiagrammeR(type = 'grViz')
-    #   })
-    # })
-    # DiagrammeR::gr
-    # file <- tempfile(fileext = ".html")
-    # 
-    # saveWidget(graph, file, selfcontained = TRUE)
-    # 
-    # paste(readLines(file), collapse = "")
+    updateSelectInput(session,
+                      "combo_DT_Metric",
+                      choices = choices_,
+                      selected = NULL)
+    # browser()
+    updateSliderInput(session,
+                      'control_intension',
+                      'Select Threshold',
+                      min = floor(min(edge_df$intension)),
+                      max = floor(max(edge_df$intension)),
+                      value = floor(mean(edge_df$intension)))
     
-    # test <- renderDiagrammeR({
-    #   net %>% render_graph(layout = 'kk')
-    # })
-    # print(str(test))
-    # DiagrammeR::dig
-    # output$network_chart <- test
-  }
+  })
+  
+  
+  observeEvent(input$control_intension, {
     
-    # all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
-    # 
-    # multiple_metrics <- multiple_metrics[, !all.na.idx] %>%
-    #   na.omit() %>% 
-    #   as.matrix %>% 
-    #   standardization()
-    # 
-    # casuality_df <<- casuality(multiple_metrics, input$max_lag)
+    if (input$control_intension > -1) {
+      
+      threshold <- input$control_intension
+      
+      edge_df_filtered <- edge_df %>% filter(intension >= threshold)
+      
+      edge_df_filtered$title <- paste0("<p>Intension: ",
+                                       edge_df_filtered$intension,
+                                       "</p>")
+      
+      edge_df_filtered <<- edge_df_filtered
+      
+      output$network_chart <- renderVisNetwork({
+        
+        net <- visNetwork(node_df, edge_df_filtered) %>% 
+          visEdges(arrows = 'to') %>% 
+          visOptions(highlightNearest = T,
+                     selectedBy = 'group',
+                     nodesIdSelection = list(enabled = T,
+                                             style = ".dropdown {width: auto;}")
+          ) %>%
+          visGroups(groupname = 'host', color = 'red') %>% 
+          visGroups(groupname = 'task', color = 'cyan') %>% 
+          visGroups(groupname = 'docker', color = 'green') %>% 
+          visPhysics(repulsion = list('nodeDistance' = 200))
+        
+        if (length(unique(node_df$group)) > 1) {
+          
+          net <- net %>% visLegend()
+          
+        }
+        
+        net
+        
+      })
+      
+      combo_list <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id')) %>%
+        select(label, group)
+      
+      choices_ <- split(combo_list$label, combo_list$group)
+      
+      updateSelectInput(session,
+                        "combo_DT_Metric",
+                        choices = choices_,
+                        selected = NULL)
+      
+      output$casuality_table <- renderDataTable({
+        
+        if (input$combo_DT_Metric != "") {
+          
+          edge_df_filtered$to_label <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id'))$label
+          
+          edge_df_filtered$from_label <- inner_join(edge_df_filtered, node_df, by = c('from' = 'id'))$label
+          
+          df <- edge_df_filtered %>% 
+            subset(to_label == input$combo_DT_Metric) #[edge_df_filtered$to_label == input$combo_DT_Metric, ]
+          
+          dt <- data.table(from = df$from_label,
+                           to = df$to_label,
+                           intension = df$intension,
+                           p_value = df$p_value,
+                           lag = df$max_lag)
+          
+          setorder(dt, -intension)
+          
+        }
+        
+      })
+      
+    }
     
-    # node_df <- casuality_df$node
-    # 
-    # link_df <- casuality_df$link
-    # 
-    # output$network_plot <- renderSankeyNetwork({
-    #   
-    #   forceNetwork(Links = link_df,
-    #                Nodes = node_df,
-    #                Source = 'source',
-    #                Target = 'target',
-    #                NodeID = 'node',
-    #                Group = 'node',
-    #                linkDistance = 200,
-    #                zoom = T,
-    #                fontSize = 10,
-    #                opacityNoHover = T,
-    #                legend = T,
-    #                arrows = T,
-    #                opacity = 1,
-    #                Value = 'intension',
-    #                Nodesize = 'size')
-    #   
-    # })
-    # 
-    # combo_list <- inner_join(link_df, node_df, by = c('target' = 'idx')) %>%
-    #   select(node) %>% unique()
-    # 
-    # updateSelectInput(session,
-    #                   "combo_DT_Metric",
-    #                   choices = combo_list,
-    #                   selected = NULL)
-    # 
-  )
+  })
+  
   
   observeEvent(input$docker_all, {
     
@@ -404,21 +438,17 @@ server <- function(input, output, session) {
     
     output$casuality_table <- renderDataTable({
       
-      
       if (input$combo_DT_Metric != "") {
         
-        node_df <- casuality_df$node
+        edge_df_filtered$to_label <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id'))$label
         
-        link_df <- casuality_df$link
+        edge_df_filtered$from_label <- inner_join(edge_df_filtered, node_df, by = c('from' = 'id'))$label
         
-        link_df$target <- inner_join(link_df, node_df, by = c('target' = 'idx'))$node
+        df <- edge_df_filtered %>% 
+          subset(to_label == input$combo_DT_Metric) #[edge_df_filtered$to_label == input$combo_DT_Metric, ]
         
-        link_df$source <- inner_join(link_df, node_df, by = c('source' = 'idx'))$node
-        
-        df <- link_df[link_df$target == input$combo_DT_Metric, ]
-        
-        dt <- data.table(source = df$source,
-                         target = df$target,
+        dt <- data.table(from = df$from_label,
+                         to = df$to_label,
                          intension = df$intension,
                          p_value = df$p_value,
                          lag = df$max_lag)

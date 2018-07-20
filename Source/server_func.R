@@ -1006,7 +1006,7 @@ get_node_edge_df <- function(mtx, lag) {
         
         link_df[idx, ] <- c(colnames(mtx)[i],
                             colnames(mtx)[j],
-                            log10(1 / (p_value + 1e-6)),
+                            log10(1 / (p_value + 1e-8)),
                             p_value,
                             lag_)
         
@@ -1100,6 +1100,7 @@ get_degree <- function(node_df, edge_df) {
   node_df$indegree[indegree_idx] <- indegree
   
 }
+
 
 # will be deleted
 get_network_graph <- function(node_edge_df,
