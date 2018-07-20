@@ -955,8 +955,11 @@ get_node_edge_df <- function(mtx, lag) {
   
   mtx <- mtx %>%
     select_if(~sum(!is.na(.)) > 0) %>%
+    select_if(~ sd(., na.rm = T) != 0) %>% 
     as.matrix() %>%
     standardization()
+  
+  if (ncol(mtx) < 2) stop('At least, two metrics is necessary.')
   
   link_df <- data.frame('from' = NA,
                         'to' = NA,

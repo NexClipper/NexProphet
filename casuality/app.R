@@ -7,6 +7,8 @@ source("../Source/server_func.R", local = T, encoding = "utf-8")
 HOST_LIST <- load_tag_list('host')
 HOST_METRICS <- load_metric_list('host')
 
+HOST_METRICS <- HOST_METRICS[!str_detect(HOST_METRICS, '_per$')]
+
 TASK_LIST <- load_tag_list('task')
 TASK_METRICS <- load_metric_list('task')
 
@@ -150,7 +152,7 @@ ui <- fluidPage(
           
           hr(),
           
-          visNetworkOutput('network_chart', height = '100%')
+          visNetworkOutput('network_chart', height = '800px', width = '500px')
           
         ),
         
@@ -229,7 +231,7 @@ server <- function(input, output, session) {
                                              host_list = host_list,
                                              metric_list = metric_list) %>%
       select(-time) 
-    
+    # browser()
     node_edge_df <- get_node_edge_df(multiple_metrics, input$max_lag)
     
     node_df <- node_edge_df$node
@@ -249,54 +251,54 @@ server <- function(input, output, session) {
     
     edge_df <<- node_edge_df$edge
     # browser()
-    edge_df_filtered <- edge_df %>% filter(intension > 3)
-    
-    edge_df_filtered$title <- paste0("<p>Intension: ",
-                                     edge_df_filtered$intension,
-                                     "</p>")
-    
-    edge_df_filtered <<- edge_df_filtered
-    
-    output$network_chart <- renderVisNetwork({
-      
-      net <- visNetwork(node_df, edge_df_filtered) %>% 
-        visEdges(arrows = 'to') %>% 
-        visOptions(highlightNearest = T,
-                   selectedBy = 'group',
-                   nodesIdSelection = list(enabled = T,
-                                           style = ".dropdown {width: auto;}")
-        ) %>%
-        visGroups(groupname = 'host', color = 'red') %>% 
-        visGroups(groupname = 'task', color = 'cyan') %>% 
-        visGroups(groupname = 'docker', color = 'green') %>% 
-        visPhysics(repulsion = list('nodeDistance' = 200))
-      
-      if (length(unique(node_df$group)) > 1) {
-        
-        net <- net %>% visLegend()
-        
-      }
-      
-      net
-      
-    })
-    
-    combo_list <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id')) %>%
-      select(label, group)
-    
-    choices_ <- split(combo_list$label, combo_list$group)
-    
-    updateSelectInput(session,
-                      "combo_DT_Metric",
-                      choices = choices_,
-                      selected = NULL)
+    # edge_df_filtered <- edge_df %>% filter(intension > 3)
+    # 
+    # edge_df_filtered$title <- paste0("<p>Intension: ",
+    #                                  edge_df_filtered$intension,
+    #                                  "</p>")
+    # 
+    # edge_df_filtered <<- edge_df_filtered
+    # 
+    # output$network_chart <- renderVisNetwork({
+    #   
+    #   net <- visNetwork(node_df, edge_df_filtered) %>% 
+    #     visEdges(arrows = 'to') %>% 
+    #     visOptions(highlightNearest = T,
+    #                selectedBy = 'group',
+    #                nodesIdSelection = list(enabled = T,
+    #                                        style = ".dropdown {width: auto;}")
+    #     ) %>%
+    #     visGroups(groupname = 'host', color = 'red') %>% 
+    #     visGroups(groupname = 'task', color = 'cyan') %>% 
+    #     visGroups(groupname = 'docker', color = 'green') %>% 
+    #     visPhysics(repulsion = list('nodeDistance' = 200))
+    #   
+    #   if (length(unique(node_df$group)) > 1) {
+    #     
+    #     net <- net %>% visLegend()
+    #     
+    #   }
+    #   
+    #   net
+    #   
+    # })
+    # 
+    # combo_list <- inner_join(edge_df_filtered, node_df, by = c('to' = 'id')) %>%
+    #   select(label, group)
+    # 
+    # choices_ <- split(combo_list$label, combo_list$group)
+    # 
+    # updateSelectInput(session,
+    #                   "combo_DT_Metric",
+    #                   choices = choices_,
+    #                   selected = NULL)
     # browser()
     updateSliderInput(session,
                       'control_intension',
                       'Select Threshold',
                       min = floor(min(edge_df$intension)),
                       max = floor(max(edge_df$intension)),
-                      value = floor(mean(edge_df$intension)))
+                      value = floor(median(edge_df$intension)))
     
   })
   
