@@ -173,7 +173,9 @@ ui <- fluidPage(
             sliderInput('control_intension',
                         label = '',
                         min = -1, max = -1, value = -1)
-          )
+          ),
+          
+          style = '{height = 200%;}'
           
         )
         
@@ -303,7 +305,7 @@ server <- function(input, output, session) {
     
   })
   
-  # test
+  
   observeEvent(c(input$control_intension, input$excute), {
     
     if (input$control_intension > -1) {
