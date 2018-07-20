@@ -4,6 +4,9 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
+agent_id <- NULL
+
+
 ui <- fluidPage(
   
   includeCSS("../www/custom.css"),
@@ -198,18 +201,18 @@ ui <- fluidPage(
             tags$hr()
           )
         )
-      ),
-      
-      fluidRow(
-        
-        column(
-          width = 6, 
-          br(),
-          h4("Client Data, will be deleted"),
-          br(),
-          verbatimTextOutput("clientdataText")
-        )
-      )
+      )#,
+      # 
+      # fluidRow(
+      #   
+      #   column(
+      #     width = 6, 
+      #     br(),
+      #     h4("Client Data, will be deleted"),
+      #     br(),
+      #     verbatimTextOutput("clientdataText")
+      #   )
+      # )
       
     ) # mainPanel
     
@@ -220,23 +223,37 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   #### ClientData Test ####
-  observe({
+  # observe({
+  #   
+  #   cdata <- session$clientData
+  #   browser()
+  #   print(cdata$url_search)
+  #   # Values from cdata returned as text
+  #   output$clientdataText <- renderText({
+  #     cnames <- names(cdata)
+  #     
+  #     allvalues <- lapply(cnames, function(name) {
+  #       paste(name, cdata[[name]], sep = " = ")
+  #     }) %>% unlist() %>%  as.data.frame()
+  #     paste(allvalues, collapse = "\n")
+  #   })
+  #   
+  # })
+  # 
+  # -----
+  
+  observeEvent(session$clientData$url_search, {
     
-    cdata <- session$clientData
+    url_search <- session$clientData$url_search
     
-    # Values from cdata returned as text
-    output$clientdataText <- renderText({
-      cnames <- names(cdata)
-      
-      allvalues <- lapply(cnames, function(name) {
-        paste(name, cdata[[name]], sep = " = ")
-      })
-      paste(allvalues, collapse = "\n")
-    })
+    agent <- str_extract(url_search, 'agent_id=\\d') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    agent_id <<- agent[2]
     
   })
   
-  # -----
   
   observeEvent(input$resource, {
     

@@ -905,6 +905,7 @@ render_forecast_component <- function(result) {
 
 #### ANOMALY ####
 
+# will be deleted
 anomalization <- function(tb_,
                           frequency = 'auto',
                           method = 'stl',
