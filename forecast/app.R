@@ -249,7 +249,7 @@ server <- function(input, output, session) {
     agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
-    
+
     agent_id <<- agent[2]
     
   })
@@ -258,7 +258,7 @@ server <- function(input, output, session) {
   observeEvent(input$resource, {
     
     label_ <- switch(input$resource,
-                     'host' = 'Select Host IP',
+                     'host' = 'Select Host Name',
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
@@ -427,7 +427,7 @@ server <- function(input, output, session) {
     node_ip <- input$host_for_task
     
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit, node_ip)
+                                     pred_period, unit, node_ip, agent_id)
     
     forecast_result <- render_result$forecast_result
     

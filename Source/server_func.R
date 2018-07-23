@@ -501,7 +501,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   query <- "select mean(%s) as metric
             from %s
             where time > now() - %s and %s = '%s' and agent_id = '%s' %s
-            group by time(%s), %s, agent_id, %s
+            group by time(%s), %s, agent_id %s
             fill(none)
             order by time desc"
   
@@ -636,7 +636,7 @@ load_tag_list <- function(measurement) {
   dbname <- connector$dbname
   
   tag <- switch(measurement,
-                'host' = 'host_ip',
+                'host' = 'host_name',
                 'task' = 'task',
                 'docker' = 'task_id',
                 stop('incorrect measurement'))
@@ -862,10 +862,10 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
 
 
 render_forecast <- function(resource, host, metric, period, groupby,
-                            pred_period, unit, node_ip) {
+                            pred_period, unit, node_ip, agent_id) {
   
   tb_ <- load_single_metric(resource, host, metric, period, groupby, unit,
-                            node_ip)
+                            node_ip, agent_id)
   
   forecast_result <- forecasting(tb_, groupby, pred_period, unit)
   
