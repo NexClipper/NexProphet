@@ -246,7 +246,7 @@ server <- function(input, output, session) {
     
     url_search <- session$clientData$url_search
     
-    agent <- str_extract(url_search, 'agent_id=\\d') %>%
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
     
@@ -394,7 +394,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip)
+                                   unit, node_ip, agent_id)
       
       ts <- xts(series$y,
           order.by = series$ds,

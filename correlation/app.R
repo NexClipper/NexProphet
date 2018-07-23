@@ -7,8 +7,6 @@ source("../Source/server_func.R", local = T, encoding = "utf-8")
 HOST_LIST <- load_tag_list('host')
 HOST_METRICS <- load_metric_list('host')
 
-HOST_METRICS <- HOST_METRICS[!str_detect(HOST_METRICS, '_per$')]
-
 TASK_LIST <- load_tag_list('task')
 TASK_METRICS <- load_metric_list('task')
 
