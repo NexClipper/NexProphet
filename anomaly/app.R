@@ -5,7 +5,7 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-CLIENT = "nexcloud"
+# CLIENT = "nexcloud"
 
 global_series = NULL
 
@@ -394,11 +394,11 @@ server <- function(input, output, session) {
       
       if (node_ip != '') {
         
-        dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+        dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
         
       } else {
         
-        dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+        dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
         
       }
       
@@ -494,11 +494,11 @@ server <- function(input, output, session) {
           
           if (node_ip != '') {
             
-            dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+            dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
             
           } else {
             
-            dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+            dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
             
           }
           
