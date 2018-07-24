@@ -12,7 +12,7 @@ global_pData = NULL
 
 numVar = NULL
 
-agent_id <- NULL
+# agent_id <- NULL
 
 HOST_TAG_LIST <- NULL
 
@@ -251,18 +251,18 @@ server <- function(input, output, session) {
   })
 
     
-  observeEvent(session$clientData$url_search, {
-    
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    agent_id <<- agent[2]
-    # agent_id <<- 27
-    
-  })
+  # observeEvent(session$clientData$url_search, {
+  #   
+  #   url_search <- session$clientData$url_search
+  #   
+  #   agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+  #     strsplit('=') %>%
+  #     unlist()
+  #   
+  #   # agent_id <<- agent[2]
+  #   agent_id <<- 60
+  #   
+  # })
   
   
   observeEvent(input$unit, {
@@ -304,11 +304,20 @@ server <- function(input, output, session) {
   
   observeEvent(input$resource, {
     
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    # agent_id <- agent[2]
+    agent_id <- 60
+    
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
-    
+    # browser()
     if (is.null(HOST_TAG_LIST)) {
       
       HOST_TAG_LIST <<- load_tag_list('host', agent_id)
@@ -352,6 +361,15 @@ server <- function(input, output, session) {
   
   observe({
   # observeEvent(input$single_metric, {
+    
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    # agent_id <- agent[2]
+    agent_id <- 60
     
     if (input$single_metric != "") {
       
@@ -519,6 +537,15 @@ server <- function(input, output, session) {
 
   
   observeEvent(input$execute, {
+    
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    # agent_id <- agent[2]
+    agent_id <- 60
     
     resource <- input$resource
     

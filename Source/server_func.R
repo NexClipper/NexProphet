@@ -597,7 +597,7 @@ default_time_seqeunce <- function(period, groupby) {
 
 
 load_metric_list <- function(measurement) {
-  
+  # measurement <- 'host'; measurement <- 'task'; measurement <- 'docker'
   connector <- connect()
   
   con <- connector$connector
@@ -642,7 +642,7 @@ load_tag_list <- function(measurement, agent_id) {
 
 
 load_host_tag_list <- function(agent_id) {
-  
+  # agent_id <- 60
   connector <- connect()
   
   con <- connector$con
@@ -656,15 +656,18 @@ load_host_tag_list <- function(agent_id) {
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
-    as.data.frame() %>%
-    select(key)
+    as.data.frame() 
   
-  res <- res %>% separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
+  if (!('key' %in% names(res))) return(NULL)
+  
+  res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
     select(-col1) %>% 
     separate(col2, c('col5', 'col6'), '=') %>% 
     separate(col3, c('col7', 'col8'), '=') %>% 
-    separate(col4, c('col9', 'col10'), '=') %>% 
-    subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
+    separate(col4, c('col9', 'col10'), '=') #%>% 
+    # subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
+  
+  # if (nrow(res) == 0) return(NULL)
   
   res <- split(res$col8, res$col10)
   
@@ -688,18 +691,21 @@ load_task_tag_list <- function(agent_id) {
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
-    as.data.frame() %>%
-    select(key)
+    as.data.frame()
   
-  res <- res %>% separate(key, c('col1', 'col2', 'col3',
-                                 'col4', 'col5', 'col6'),
-                          ',') %>% 
+  if (!('key' %in% names(res))) return(NULL)
+  
+  res <- res %>% select(key) %>%
+    separate(key, c('col1', 'col2', 'col3',
+                    'col4', 'col5', 'col6'), ',') %>% 
     select(c(-col1, -col2)) %>% 
     separate(col3, c('col7', 'col8'), '=') %>% 
     separate(col4, c('col9', 'col10'), '=') %>% 
     separate(col5, c('col11', 'col12'), '=') %>%
-    separate(col6, c('col13', 'col14'), '=') %>% 
-    subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
+    separate(col6, c('col13', 'col14'), '=') #%>% 
+    # subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
+  
+  # if (nrow(res) == 0) return(NULL)
   
   res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
   
@@ -711,7 +717,7 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-  
+  # agent_id <- 60
   connector <- connect()
   
   con <- connector$con
@@ -725,19 +731,22 @@ load_docker_tag_list <- function(agent_id) {
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
-    as.data.frame() %>% 
-    select(key)
+    as.data.frame()
   
-  res <- res %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
+  if (!('key' %in% names(res))) return(NULL)
+  
+  res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
                                  'col5', 'col6', 'col7'), ',') %>% 
     select(c(-col1, -col2)) %>% 
     separate(col3, c('col13', 'col14'), '=') %>% 
     separate(col4, c('col15', 'col16'), '=') %>% 
     separate(col5, c('col17', 'col18'), '=') %>% 
     separate(col6, c('col19', 'col20'), '=') %>% 
-    separate(col7, c('col21', 'col22'), '=') %>% 
-    subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
-             col20 != 'null' & col22 != 'null')
+    separate(col7, c('col21', 'col22'), '=') #%>% 
+    # subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
+    #          col20 != 'null' & col22 != 'null')
+  
+  # if (nrow(res) == 0) return(NULL)
   
   res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
   
