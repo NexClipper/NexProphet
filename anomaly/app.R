@@ -1,4 +1,5 @@
 #### Anomaly ####
+rm(list = ls())
 
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
@@ -310,8 +311,8 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
     
-    # agent_id <- agent[2]
-    agent_id <- 60
+    agent_id <- agent[2]
+    # agent_id <- 60
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
@@ -368,8 +369,8 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
     
-    # agent_id <- agent[2]
-    agent_id <- 60
+    agent_id <- agent[2]
+    # agent_id <- 60
     
     if (input$single_metric != "") {
       
@@ -544,8 +545,8 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
     
-    # agent_id <- agent[2]
-    agent_id <- 60
+    agent_id <- agent[2]
+    # agent_id <- 60
     
     resource <- input$resource
     
