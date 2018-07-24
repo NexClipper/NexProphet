@@ -139,3 +139,8 @@ body.body_alter {
 .btn {
 	margin-bottom: 10px;
 }
+
+.dropdown-menu open {
+
+    max-width: 280px;
+}

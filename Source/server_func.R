@@ -506,7 +506,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
             order by time desc"
   
   tag <- switch(measurement,
-                'host' = 'host_name',
+                'host' = 'host_ip',
                 'task' = 'task',
                 'docker' = 'task_id')
   
@@ -608,7 +608,8 @@ load_metric_list <- function(measurement) {
     
     measurement <- 'docker_container, docker_network'
   
-  query <- 'show field keys from %s' %>% sprintf(measurement)
+  query <- 'show field keys from %s' %>% 
+    sprintf(measurement)
   
   res <- influx_query(con,
                       dbname,
@@ -627,7 +628,20 @@ load_metric_list <- function(measurement) {
 }
 
 
-load_tag_list <- function(measurement) {
+load_tag_list <- function(measurement, agent_id) {
+  # measurement <- 'task'; agent_id <- 27
+  
+  tag_list <- switch(measurement,
+                     'host' = load_host_tag_list(agent_id),
+                     'task' = load_task_tag_list(agent_id),
+                     'docker' = load_docker_tag_list(agent_id))
+  
+  return(tag_list)
+  
+}
+
+
+load_host_tag_list <- function(agent_id) {
   
   connector <- connect()
   
@@ -635,24 +649,99 @@ load_tag_list <- function(measurement) {
   
   dbname <- connector$dbname
   
-  tag <- switch(measurement,
-                'host' = 'host_name',
-                'task' = 'task',
-                'docker' = 'task_id',
-                stop('incorrect measurement'))
+  query <- 'SHOW series from host where agent_id =~ /%s/' %>%
+    sprintf(agent_id)
   
-  if (measurement == 'docker') measurement <- 'docker_container'
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F)[[1]] %>%
+    as.data.frame() %>%
+    select(key)
   
-  query <- 'SHOW TAG VALUES from %s WITH KEY = %s' %>% sprintf(measurement, tag)
+  res <- res %>% separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
+    select(-col1) %>% 
+    separate(col2, c('col5', 'col6'), '=') %>% 
+    separate(col3, c('col7', 'col8'), '=') %>% 
+    separate(col4, c('col9', 'col10'), '=') %>% 
+    subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
+  
+  res <- split(res$col8, res$col10)
+  
+  return(res)
+  
+}
+
+
+load_task_tag_list <- function(agent_id) {
+  
+  connector <- connect()
+  
+  con <- connector$con
+  
+  dbname <- connector$dbname
+  
+  query <- 'SHOW series from task where agent_id =~ /%s/' %>%
+    sprintf(agent_id)
+  
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F)[[1]] %>%
+    as.data.frame() %>%
+    select(key)
+  
+  res <- res %>% separate(key, c('col1', 'col2', 'col3',
+                                 'col4', 'col5', 'col6'),
+                          ',') %>% 
+    select(c(-col1, -col2)) %>% 
+    separate(col3, c('col7', 'col8'), '=') %>% 
+    separate(col4, c('col9', 'col10'), '=') %>% 
+    separate(col5, c('col11', 'col12'), '=') %>%
+    separate(col6, c('col13', 'col14'), '=') %>% 
+    subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
+  
+  res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
+  
+  res <- split(res$col14, res$col12)
+  
+  return(res)
+  
+}
+
+
+load_docker_tag_list <- function(agent_id) {
+  
+  connector <- connect()
+  
+  con <- connector$con
+  
+  dbname <- connector$dbname
+  
+  query <- 'SHOW series from docker_container where agent_id =~ /%s/' %>%
+    sprintf(agent_id)
   
   res <- influx_query(con,
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
     as.data.frame() %>% 
-    select(value) %>% 
-    t() %>% 
-    as.vector()
+    select(key)
+  
+  res <- res %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
+                                 'col5', 'col6', 'col7'), ',') %>% 
+    select(c(-col1, -col2)) %>% 
+    separate(col3, c('col13', 'col14'), '=') %>% 
+    separate(col4, c('col15', 'col16'), '=') %>% 
+    separate(col5, c('col17', 'col18'), '=') %>% 
+    separate(col6, c('col19', 'col20'), '=') %>% 
+    separate(col7, c('col21', 'col22'), '=') %>% 
+    subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
+             col20 != 'null' & col22 != 'null')
+  
+  res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
+  
+  res <- split(res$col20, res$col18)
   
   return(res)
   
@@ -667,10 +756,11 @@ load_host_list_for_task <- function(task_name) {
   
   dbname <- connector$dbname
   
-  query <- "select mean(*)
+  query <- "show tag values
             from task
-            where time > now() - 3d and task = '%s'
-            group by time(1w), node_ip" %>% sprintf(task_name)
+            with key = node_ip
+            where task =~ /%s/" %>% 
+    sprintf(task_name)
   
   res <- influx_query(con,
                       dbname,
@@ -678,9 +768,9 @@ load_host_list_for_task <- function(task_name) {
                       return_xts = F,
                       simplifyList = T)[[1]] %>% as.data.frame()
   
-  if (!('node_ip' %in% names(res))) return('Not Exist!')
+  # if (!('node_ip' %in% names(res))) return('Not Exist!')
   
-  return(res$node_ip)
+  return(res$value)
   
 }
 
