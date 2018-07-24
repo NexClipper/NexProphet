@@ -151,26 +151,6 @@ ui <- fluidPage(
         style = "padding: 15px 20px 0px 20px;"
         
       )
-
-      # wellPanel(
-      #   
-      #   sliderInput("period",
-      #               "Data Period (Hours) :",
-      #               min = 1, max = 120, value = 6),
-      #   
-      #   sliderInput("groupby",
-      #               "Select Group By (sec)",
-      #               min = 1, max = 120, value = 10),
-      #   
-      #   sliderInput("anomaly_CI",
-      #               "Confidence Interval : ",
-      #               min = 0.9, max = 1, value = 0.99),
-      #   
-      #   helpText("It takes much time to make forecasting model if there is no model for this metric!"),
-      #   
-      #   style = "padding: 15px 20px 0px 20px;"
-      #   
-      # )
       
     ),
     
@@ -194,13 +174,7 @@ ui <- fluidPage(
             
             plotOutput("monitoring", height = 500)
           ),
-          # br(),
-          # 
-          # h4("Anomaly Detection Chart"),
-          # 
-          # br(),
-          # 
-          # plotOutput("monitoring", height = 500),
+          
           fluidRow(
             
             class = 'notice_ano',
@@ -208,11 +182,6 @@ ui <- fluidPage(
             verbatimTextOutput("notice")
             
           ),
-          # br(),
-          # 
-          # verbatimTextOutput("notice"),
-          # 
-          # br(),
           
           fluidRow(
             
@@ -225,13 +194,6 @@ ui <- fluidPage(
             
             imageOutput("modeling_img", height = '70%', width = '100%')
           )
-          # br(),
-          # 
-          # h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
-          # 
-          # br(),
-          # 
-          # imageOutput("modeling_img", height = '70%', width = '100%')
           
         ),
         
@@ -250,17 +212,7 @@ ui <- fluidPage(
             
             dataTableOutput('anomaly_table')
           )
-          # class = 'graph_panel',
-          # 
-          # width = 4,
-          # 
-          # br(),
-          # 
-          # h4(class = 'h4_alter', "Anomaly Detection Chart"),
-          # 
-          # tags$hr(),
-          # 
-          # dataTableOutput('anomaly_table')
+          
         )
         
       )
