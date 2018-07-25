@@ -565,11 +565,11 @@ server <- function(input, output, session) {
     # 모델 이름 결정
     if (node_ip != '') {
       
-      dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+      dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
       
     } else {
       
-      dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
+      dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
       
     }
     
