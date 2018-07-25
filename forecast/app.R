@@ -1,10 +1,23 @@
 #### FORECAST ####
 
+rm(list = ls())
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-agent_id <- NULL
+AGENT_ID <- NULL
+
+HOST_TAG_LIST <- NULL
+
+HOST_METRIC_LIST <- NULL
+
+TASK_TAG_LIST <- NULL
+
+TASK_METRIC_LIST <- NULL
+
+DOCKER_TAG_LIST <- NULL
+
+DOCKER_METRIC_LIST <- NULL
 
 
 ui <- fluidPage(
@@ -94,12 +107,12 @@ ui <- fluidPage(
           inline = T),
         
         sliderInput("period",
-                    "Select Data Period (Hours)",
-                    min = 6, max = 240, value = 6),
+                    "Select Data Period (Days)",
+                    value = 3, min = 1, max = 60),
         
         sliderInput("predicted_period",
-                    "Predicted Period (Hours)",
-                    min = 3, max = 72, value = 3),
+                    "Predicted Period (Days)",
+                    value = 1, min = 1, max = 30),
         
         prettyRadioButtons(
           "groupby",
@@ -117,102 +130,94 @@ ui <- fluidPage(
     mainPanel(
       
       width = 9,
+      
       tags$body(class = 'body_alter',
+                
                 fluidRow(
                   
                   column(width = 6,
+                         
                          fluidRow(
+                           
                            class = "graph_panel",  
+                           
                            br(),
-                           # tags$div(
-                           #   class = 'h4_alter'
-                           # ),
+                           
                            h4(class = 'h4_alter', "Time Series Plot"),
-                           tags$hr(),
+                           
+                           hr(),
+                           
                            dygraphOutput(
                              'trend_plot',
                              width = "100%",
                              height = "300px")
                          )
+                         
                   ),
                   
                   column(width = 6, 
+                         
                          fluidRow(
+                           
                            class = "graph_panel",  
+                           
                            br(),
+                           
                            h4(class = 'h4_alter', "Forecasting Plot"),
-                           tags$hr(),
+                           
+                           hr(),
+                           
                            dygraphOutput(
                              'predicted_plot',
                              width = "100%",
                              height = "300px")
+                           
                          )
+                         
                   )
                   
                 )
-      ), # body
-      
-      # fluidRow(
-      #   
-      #   column(width = 6, 
-      #          br(),
-      #          # tags$div(
-      #          #   class = 'h4_alter'
-      #          # ),
-      #          h4(class = 'h4_alter', "Time Series Plot"),
-      #          br(),
-      #          dygraphOutput(
-      #            'trend_plot',
-      #            width = "100%",
-      #            height = "350px")
-      #    ),
-      #   
-      #   column(width = 6, 
-      #          br(),
-      #          h4("Forecasting Plot"),
-      #          br(),
-      #          dygraphOutput(
-      #            'predicted_plot',
-      #            width = "100%",
-      #            height = "350px")
-      #   )
-      #   
-      # ),
+      ),
       
       fluidRow(
         
         column(
+          
           width = 6,
+          
           fluidRow(
+            
             class = 'graph_panel',
+            
             br(),
+            
             h4(class = 'h4_alter', "Forecasting Component Plot"),
-            tags$hr(),
+            
+            hr(),
+            
             plotOutput('component_plot', height = "350px")
+            
           )
+          
         ),
         
         column(
+          
           width = 6,
+          
           fluidRow(
+            
             class = 'graph_panel',
+            
             br(),
+            
             h4(class = 'h4_alter', "Forecasting Statistics"),
-            tags$hr()
+            
+            hr()
+            
           )
         )
-      )#,
-      # 
-      # fluidRow(
-      #   
-      #   column(
-      #     width = 6, 
-      #     br(),
-      #     h4("Client Data, will be deleted"),
-      #     br(),
-      #     verbatimTextOutput("clientdataText")
-      #   )
-      # )
+      )
       
     ) # mainPanel
     
@@ -222,25 +227,6 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  #### ClientData Test ####
-  # observe({
-  #   
-  #   cdata <- session$clientData
-  #   browser()
-  #   print(cdata$url_search)
-  #   # Values from cdata returned as text
-  #   output$clientdataText <- renderText({
-  #     cnames <- names(cdata)
-  #     
-  #     allvalues <- lapply(cnames, function(name) {
-  #       paste(name, cdata[[name]], sep = " = ")
-  #     }) %>% unlist() %>%  as.data.frame()
-  #     paste(allvalues, collapse = "\n")
-  #   })
-  #   
-  # })
-  # 
-  # -----
   
   observeEvent(session$clientData$url_search, {
     
@@ -250,7 +236,8 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
 
-    agent_id <<- agent[2]
+    # AGENT_ID <<- agent[2]
+    AGENT_ID <<- 27
     
   })
   
@@ -262,20 +249,42 @@ server <- function(input, output, session) {
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
-    choices_ <- load_tag_list(input$resource)
+    if (is.null(HOST_TAG_LIST)) {
+      
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
+      
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+      
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+      
+      HOST_METRIC_LIST <<- load_metric_list('host')
+      
+      TASK_METRIC_LIST <<- load_metric_list('task')
+      
+      DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      
+    }
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
     
     updateSelectizeInput(
       session = session,
       inputId = 'resource_assist',
       label = label_,
-      choices = choices_)
-    
-    metrics_ <- load_metric_list(input$resource)
+      choices = resource_assist)
     
     updateSelectizeInput(
       session = session,
       inputId = 'single_metric',
-      choices = metrics_
+      choices = metrics
     )
     
     if (input$resource != 'task') {
@@ -291,6 +300,7 @@ server <- function(input, output, session) {
         inputId = 'host_for_task',
         selected = ''
       )
+      
     }
     
   })
@@ -298,7 +308,7 @@ server <- function(input, output, session) {
   
   observeEvent(c(input$resource_assist, input$merge), {
     
-    if (input$merge == "0") {
+    if (input$merge == "0" & input$resource == 'task') {
       
       choices_ <- load_host_list_for_task(input$resource_assist)
       
@@ -323,7 +333,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$unit, {
     
-    if (input$unit == 0) {
+    if (input$unit == '0') {
       
       updateSliderInput(
         session = session,
@@ -373,6 +383,8 @@ server <- function(input, output, session) {
   
   observe({
     
+    if (input$single_metric == "") return()
+    
     resource <- input$resource
     
     host <- input$resource_assist
@@ -394,7 +406,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip, agent_id)
+                                   unit, node_ip, AGENT_ID)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -427,7 +439,7 @@ server <- function(input, output, session) {
     node_ip <- input$host_for_task
     
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit, node_ip, agent_id)
+                                     pred_period, unit, node_ip, AGENT_ID)
     
     forecast_result <- render_result$forecast_result
     
