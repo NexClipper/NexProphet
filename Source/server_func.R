@@ -137,6 +137,82 @@ load_metric_from_cluster <- function(period, groupby, metric_list) {
 # }
 
 
+# will be deleted
+# load_metric_from_task_for_single <- function(period, groupby,
+#                                              task, metric,
+#                                              agent_id, unit,
+#                                              node_ip) {
+#   # period <- 3;groupby <- '1h';task <- 'agent.nexcloud'
+#   # metric <- 'cpu_used_percent';agent_id <- 27;unit <- '0';
+#   # node_ip <- ''
+#   
+#   con <- connect()
+#   
+#   connector <- con$connector
+#   
+#   dbname <- con$dbname
+#   
+#   if (unit == '0') {
+#     
+#     period <- paste0(period, 'd')
+#     
+#   } else {
+#     
+#     period <- paste0(period, 'h')
+#     
+#   }
+#   
+#   query <- "select mean(%s) as metric
+#             from task
+#             where time > now() - %s and task = '%s' and agent_id = '%s' %s
+#             group by time(%s), task, agent_id%s
+#             fill(none)
+#             order by time desc"
+#   
+#   by_node <- ''
+#   
+#   if (node_ip != "") {
+#     
+#     node_ip <- sprintf("and node_ip = '%s'", node_ip)
+#     by_node <- ', node_ip'
+#     
+#   }
+#   # browser()
+#   query <- query %>%
+#     sprintf(metric,
+#             period, task, agent_id, node_ip,
+#             groupby, by_node)
+#   cat(query)
+#   raw_data <- influx_query(connector,
+#                            db = dbname,
+#                            query = query,
+#                            simplifyList = T,
+#                            return_xts = F)[[1]]
+#   
+#   if (!('metric' %in% names(raw_data)))
+#     
+#     return(default_time_seqeunce(period, groupby))
+#   
+#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
+#   
+#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
+#   
+#   ts <- seq.POSIXt(min(raw_data$time),
+#                    max(raw_data$time),
+#                    by = by)
+#   
+#   df <- tibble(ds = ts)
+#   
+#   tb <- select(raw_data, c(time, metric)) %>% 
+#     full_join(df, by = c('time' = 'ds'))
+#   
+#   names(tb) <- c("ds", "y")
+#   
+#   return(tb)
+#   
+# }
+
+
 load_single_metric <- function(measurement, host, metric, period, groupby,
                                unit, node_ip, agent_id) {
   # For forecasting, anomaly detection, read only one metric
@@ -232,81 +308,6 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   return(tb)
 
-}
-
-
-load_metric_from_task_for_single <- function(period, groupby,
-                                             task, metric,
-                                             agent_id, unit,
-                                             node_ip) {
-  # period <- 3;groupby <- '1h';task <- 'agent.nexcloud'
-  # metric <- 'cpu_used_percent';agent_id <- 27;unit <- '0';
-  # node_ip <- ''
-  
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
-  if (unit == '0') {
-    
-    period <- paste0(period, 'd')
-    
-  } else {
-    
-    period <- paste0(period, 'h')
-    
-  }
-  
-  query <- "select mean(%s) as metric
-            from task
-            where time > now() - %s and task = '%s' and agent_id = '%s' %s
-            group by time(%s), task, agent_id%s
-            fill(none)
-            order by time desc"
-  
-  by_node <- ''
-  
-  if (node_ip != "") {
-    
-    node_ip <- sprintf("and node_ip = '%s'", node_ip)
-    by_node <- ', node_ip'
-    
-  }
-  # browser()
-  query <- query %>%
-    sprintf(metric,
-            period, task, agent_id, node_ip,
-            groupby, by_node)
-  cat(query)
-  raw_data <- influx_query(connector,
-                           db = dbname,
-                           query = query,
-                           simplifyList = T,
-                           return_xts = F)[[1]]
-  
-  if (!('metric' %in% names(raw_data)))
-    
-    return(default_time_seqeunce(period, groupby))
-  
-  unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-  
-  by <- str_extract(groupby, '\\d+') %>% paste(unit)
-  
-  ts <- seq.POSIXt(min(raw_data$time),
-                   max(raw_data$time),
-                   by = by)
-  
-  df <- tibble(ds = ts)
-  
-  tb <- select(raw_data, c(time, metric)) %>% 
-    full_join(df, by = c('time' = 'ds'))
-  
-  names(tb) <- c("ds", "y")
-  
-  return(tb)
-  
 }
 
 
