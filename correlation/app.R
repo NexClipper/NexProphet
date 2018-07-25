@@ -196,8 +196,9 @@ server <- function(input, output, session) {
       str_extract('agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
-    # agent_id = agent[2]
-    AGENT_ID <<-  27
+    
+    AGENT_ID <<- agent[2]
+    # AGENT_ID <<-  27
     
   })
   
