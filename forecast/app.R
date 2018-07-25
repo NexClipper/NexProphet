@@ -236,8 +236,8 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
 
-    # AGENT_ID <<- agent[2]
-    AGENT_ID <<- 27
+    AGENT_ID <<- agent[2]
+    # AGENT_ID <<- 27
     
   })
   
