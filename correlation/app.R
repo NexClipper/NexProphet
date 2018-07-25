@@ -1,21 +1,26 @@
-#### Metric Association ####
+#### Metric Correlation ####
 
+rm(list = ls())
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-HOST_LIST <- load_tag_list('host')
-HOST_METRICS <- load_metric_list('host')
+HOST_TAG_LIST <- NULL
 
-TASK_LIST <- load_tag_list('task')
-TASK_METRICS <- load_metric_list('task')
+HOST_METRIC_LIST <- NULL
 
-DOCKER_LIST <- load_tag_list('docker')
-DOCKER_METRICS <- load_metric_list('docker')
+TASK_TAG_LIST <- NULL
 
+TASK_METRIC_LIST <- NULL
+
+DOCKER_TAG_LIST <- NULL
+
+DOCKER_METRIC_LIST <- NULL
+
+AGENT_ID <- NULL
 
 # total data
-DATA_CORR <- NULL
+data_corr <- NULL
 
 
 ui <- fluidPage(
@@ -35,7 +40,7 @@ ui <- fluidPage(
         
         selectizeInput("host_list",
                        "Select Host to inspect :", 
-                       choices = HOST_LIST,
+                       choices = '',
                        selected = "",
                        multiple = T ),
 
@@ -47,7 +52,7 @@ ui <- fluidPage(
         
         selectizeInput("host_metrics",
                        "Select Host Metric to inspect :", 
-                       choices = HOST_METRICS,
+                       choices = "",
                        selected = "",
                        multiple = T )
         
@@ -57,7 +62,7 @@ ui <- fluidPage(
         
         selectizeInput("task_list",
                        "Select Task to inspect :", 
-                       choices = TASK_LIST,
+                       choices = "",
                        selected = "",
                        multiple = T ),
         
@@ -69,7 +74,7 @@ ui <- fluidPage(
         
         selectizeInput("task_metrics",
                        "Select Task Metric to inspect :", 
-                       choices = TASK_METRICS,
+                       choices = "",
                        selected = "",
                        multiple = T )
         
@@ -79,7 +84,7 @@ ui <- fluidPage(
         
         selectizeInput("docker_list",
                        "Select Docker to inspect :", 
-                       choices = DOCKER_LIST,
+                       choices = "",
                        selected = "",
                        multiple = T ),
         
@@ -91,9 +96,9 @@ ui <- fluidPage(
         
         selectizeInput("docker_metrics",
                        "Select Docker Metric to inspect :", 
-                       choices = DOCKER_METRICS,
-                       selected = "", multiple = T )
-        
+                       choices = "",
+                       selected = "",
+                       multiple = T )
         
       ),
       
@@ -113,11 +118,12 @@ ui <- fluidPage(
                     "Data Period (days) :",
                     min = 1, max = 100, value = 5),
         
-        radioButtons("groupby",
-                     "Select Group By",
-                     choices = c('5m', "10m", "30m", "1h"),
-                     selected = "1h",
-                     inline = T),
+        prettyRadioButtons(
+          "groupby",
+          'Select Group By',
+          choices = c('1m', '5m', '10m', '1h'),
+          selected = '1h',
+          inline = T),
         
         style = "padding: 15px 20px 0px 20px;"
         
@@ -132,46 +138,46 @@ ui <- fluidPage(
       width = 9, 
       
       column(
+        
         width = 8,
+        
         fluidRow(
+          
           class = 'graph_panel',
           
           br(),
+          
           h4(class = 'h4_alter', "Metric Association Plot"),
+          
           hr(),
+          
           d3heatmapOutput('correlation_plot', height = '500px')
+          
         )
-        # width = 8,
-        # 
-        # br(),
-        # h4("Metric Association Plot"),
-        # hr(),
-        # plotlyOutput('correlation_plot', height = "800px")
         
       ),
       
       column(
+        
         width = 4,
         
         fluidRow(
+          
           class = 'graph_panel',
           
           br(),
+          
           h4(class = 'h4_alter', "Find the most related Metrics"),
+          
           hr(),
+          
           selectizeInput("combo_DT_Metric",
                          "Select Metric to inspect :", 
                          choices = c(""), selected = ""),
+          
           dataTableOutput('correlation_table')
+          
         )
-        # width = 4,
-        # br(),
-        # h4("Find the most related Metrics"),
-        # br(),
-        # selectizeInput("combo_DT_Metric",
-        #                "Select Metric to inspect :", 
-        #                choices = c(""), selected = ""),
-        # dataTableOutput('correlation_table')
         
       )
 
@@ -184,7 +190,85 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  observeEvent(session$clientData$url_search, {
+    
+    agent <- session$clientData$url_search %>%
+      str_extract('agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    # agent_id = agent[2]
+    AGENT_ID <<-  27
+    
+  })
+  
+  
+  observeEvent(AGENT_ID, {
+    
+    if (!is.null(AGENT_ID)) {
+      
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
+
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+
+      HOST_METRIC_LIST <<- load_metric_list('host')
+
+      TASK_METRIC_LIST <<- load_metric_list('task')
+
+      DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_list',
+        choices = HOST_TAG_LIST
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'task_list',
+        choices = TASK_TAG_LIST
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'docker_list',
+        choices = DOCKER_TAG_LIST
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_metrics',
+        choices = HOST_METRIC_LIST
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'task_metrics',
+        choices = TASK_METRIC_LIST
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'docker_metrics',
+        choices = DOCKER_METRIC_LIST
+      )
+      
+    }
+    
+  })
+  
+  
   observeEvent(input$execute, {
+    
+    # url_search <- session$clientData$url_search
+    # 
+    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+    #   strsplit('=') %>%
+    #   unlist()
+    # 
+    # agent_id <- agent[2]
+    # agent_id <- 27
     
     period <- input$period
     
@@ -201,13 +285,16 @@ server <- function(input, output, session) {
     multiple_metrics <- load_multiple_metric(period = period,
                                              groupby = groupby,
                                              host_list = host_list,
-                                             metric_list = metric_list) %>%
+                                             metric_list = metric_list,
+                                             AGENT_ID) %>%
       select(-time) %>% 
+      select_if(~sum(!is.na(.)) > 0) %>% 
       select_if(~ sd(., na.rm = T) != 0) %>% 
       as.matrix() %>% 
       standardization()
     
-    DATA_CORR <<- multiple_metrics %>% cor()
+    data_corr <<- multiple_metrics %>%
+      cor(use = 'pairwise.complete.obs')
     
     # all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
     
@@ -219,7 +306,7 @@ server <- function(input, output, session) {
     
     output$correlation_plot <- renderD3heatmap({
       
-      d3heatmap(DATA_CORR, colors = "Blues", scale = "none",
+      d3heatmap(data_corr, colors = "Blues", scale = "none",
                 dendrogram = "both", k_row = 3, height = '600px',
                 xaxis_font_size = '8px', yaxis_font_size = '8px')
       
@@ -228,7 +315,7 @@ server <- function(input, output, session) {
     
     updateSelectInput(session,
                       "combo_DT_Metric",
-                      choices = rownames(DATA_CORR),
+                      choices = rownames(data_corr),
                       selected = NULL)
    
   })
@@ -240,7 +327,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'docker_metrics',
-                           selected = DOCKER_METRICS)
+                           selected = DOCKER_METRIC_LIST)
       
     } else {
       
@@ -259,7 +346,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'host_metrics',
-                           selected = HOST_METRICS)
+                           selected = HOST_METRIC_LIST)
       
     } else {
       
@@ -278,7 +365,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'task_metrics',
-                           selected = TASK_METRICS)
+                           selected = TASK_METRIC_LIST)
       
     } else {
       
@@ -296,9 +383,9 @@ server <- function(input, output, session) {
     output$correlation_table <- renderDataTable({
       
       if (input$combo_DT_Metric != "") {
-        dt <- data.table(Metrics = rownames(DATA_CORR),
-                         Correlation = DATA_CORR[, input$combo_DT_Metric],
-                         absCorr = abs(DATA_CORR[, input$combo_DT_Metric]))
+        dt <- data.table(Metrics = rownames(data_corr),
+                         Correlation = data_corr[, input$combo_DT_Metric],
+                         absCorr = abs(data_corr[, input$combo_DT_Metric]))
         
         setorder(dt, -absCorr)
         
