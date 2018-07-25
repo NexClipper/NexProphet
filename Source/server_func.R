@@ -214,7 +214,8 @@ load_metric_from_cluster <- function(period, groupby, metric_list) {
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
-                               unit, node_ip, agent_id) {
+                               unit, node_ip, agent_id,
+                               mount = 'null') {
   # For forecasting, anomaly detection, read only one metric
   # host : host or task name
 
@@ -243,8 +244,8 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   query <- "select mean(%s) as metric
             from %s
-            where time > now() - %s and %s = '%s' and agent_id = '%s' %s
-            group by time(%s), %s, agent_id %s
+            where time > now() - %s and %s = '%s' and agent_id = '%s' %s %s
+            group by time(%s), %s, agent_id %s %s
             fill(none)
             order by time desc"
 
@@ -271,20 +272,30 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
     by_node <- ', node_ip'
 
   }
+  
+  mount_name <- ''
+  
+  if (mount != 'null') {
+    
+    mount_name <- ', mount_name'
+    
+    mount <- "and mount_name = '%s'" %>% sprintf(mount)
+    
+  } else {mount <- ''}
 
   query <- sprintf(query,
                    metric,
                    measurement,
-                   period, tag, host, agent_id, node_ip,
-                   groupby, tag, by_node)
+                   period, tag, host, agent_id, node_ip, mount,
+                   groupby, tag, by_node, mount_name)
 
-  cat(query)
+  cat('\n', query, '\n')
   raw_data <- influx_query(connector,
                            db = dbname,
                            query = query,
                            simplifyList = T,
                            return_xts = F)[[1]]
-
+  browser()
   if (!('metric' %in% names(raw_data)))
     return(default_time_seqeunce(period, groupby))
   # browser()
@@ -352,7 +363,7 @@ load_metric_from_host <- function(period, groupby,
   query <- sprintf(query, 
                    period, agent_id, host_ip,
                    groupby)
-  cat(query)
+  cat('\n', query, '\n')
   res_host <- influx_query(con,
                            db = dbname,
                            query = query,
@@ -492,7 +503,7 @@ load_metric_from_task <- function(period, groupby,
                    'task', 
                    period, agent_id, task,
                    groupby)
-  cat(query)
+  cat('\n', query, '\n')
   res_task <- influx_query(con,
                            db = dbname,
                            query = query,
@@ -585,7 +596,7 @@ load_metric_from_docker <- function(period, groupby,
   query <- sprintf(query, 
                    period, agent_id, task_id,
                    groupby)
-  cat(query)
+  cat('\n', query, '\n')
   res_container <- influx_query(con,
                                 db = dbname,
                                 query = query,
@@ -791,8 +802,9 @@ default_time_seqeunce <- function(period, groupby) {
 }
 
 
-load_metric_list <- function(measurement) {
+load_metric_list <- function(measurement, agent_id='') {
   # measurement <- 'host, host_disk, host_net'; measurement <- 'task'; measurement <- 'docker'
+  # agent_id <- 27
   connector <- connect()
   
   con <- connector$connector
@@ -814,13 +826,49 @@ load_metric_list <- function(measurement) {
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
-    as.data.frame() %>% 
+    as.data.frame()
+  
+  if (str_detect(measurement, 'host')) {
+    
+    res[res$series_names == 'host_disk', 'fieldKey'] <-
+      paste0('disk_', res[res$series_names == 'host_disk', 'fieldKey'])
+    
+    disk_metric <- res[res$series_names == 'host_disk', 'fieldKey']
+    
+    query <- "show tag values
+              from host_disk
+              with key = mount_name
+              where agent_id =~ /%s/" %>% 
+      sprintf(agent_id)
+    
+    mount_path <- influx_query(con,
+                               dbname,
+                               query,
+                               return_xts = F)[[1]] %>%
+      as.data.frame() %>%
+      select(value) %>% 
+      t() %>% 
+      as.vector()
+    
+  } 
+  
+  res <- res %>%
     select(fieldKey) %>% 
     t() %>% 
     as.vector() %>% 
     setdiff('timestamp')
   
-  if (str_detect(measurement, 'host')) res <- res[!str_detect(res, '_per$')]
+  if (str_detect(measurement, 'host')) {
+    
+    res <- res[!str_detect(res, '_per$')]
+    
+    disk_metric <- disk_metric[!str_detect(disk_metric, '_per$')]
+    
+    return(list('host' = res,
+                'disk' = disk_metric,
+                'mount' = mount_path))
+    
+  } 
   
   return(res)
   
@@ -1161,10 +1209,11 @@ draw_forecast_dygraph <- function(tb_, fcst, maxDate) {
 
 
 render_forecast <- function(resource, host, metric, period, groupby,
-                            pred_period, unit, node_ip, agent_id) {
+                            pred_period, unit, node_ip, agent_id,
+                            mount) {
   
   tb_ <- load_single_metric(resource, host, metric, period, groupby, unit,
-                            node_ip, agent_id)
+                            node_ip, agent_id, mount)
   
   forecast_result <- forecasting(tb_, groupby, pred_period, unit)
   
