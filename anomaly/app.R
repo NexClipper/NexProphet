@@ -50,15 +50,21 @@ ui <- fluidPage(
           inline = T
         ),
         
-        pickerInput(
+        selectizeInput(
           inputId = 'resource_assist',
           label = 'Select Host',
-          choices = '',
-          choicesOpt = list(style = '{max-width: 300px}'),
-          options = list(
-            `live-search` = TRUE,
-            size = 8)
+          choices = ''
         ),
+        
+        # pickerInput(
+        #   inputId = 'resource_assist',
+        #   label = 'Select Host',
+        #   choices = '',
+        #   choicesOpt = list(style = '{max-width: 300px}'),
+        #   options = list(
+        #     `live-search` = TRUE,
+        #     size = 8)
+        # ),
         
         conditionalPanel(
           condition = "input.resource == 'task'",
@@ -76,26 +82,36 @@ ui <- fluidPage(
         
         conditionalPanel(
           condition = "input.merge == '0' & input.resource == 'task'",
-          pickerInput(
+          selectizeInput(
             inputId = 'host_for_task',
             label = 'Select Host',
-            choices = '',
-            choicesOpt = list(style = '{max-width: 300px}'),
-            options = list(
-              `live-search` = TRUE,
-              size = 8)
+            choices = ''
           )
+          # pickerInput(
+          #   inputId = 'host_for_task',
+          #   label = 'Select Host',
+          #   choices = '',
+          #   choicesOpt = list(style = '{max-width: 300px}'),
+          #   options = list(
+          #     `live-search` = TRUE,
+          #     size = 8)
+          # )
         ),
         
-        pickerInput(
+        selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
-          choices = '',
-          choicesOpt = list(style = '{max-width: 300px}'),
-          options = list(
-            `live-search` = TRUE,
-            size = 8)
+          choices = ''
         )
+        # pickerInput(
+        #   inputId = 'single_metric',
+        #   label = 'Select Metric',
+        #   choices = '',
+        #   choicesOpt = list(style = '{max-width: 300px}'),
+        #   options = list(
+        #     `live-search` = TRUE,
+        #     size = 8)
+        # )
         
       ),
       
@@ -158,7 +174,9 @@ ui <- fluidPage(
     mainPanel(
       
       width = 9,
+      
       tags$body(class = 'body_alter'),
+      
       fluidRow(
         
         column(
@@ -166,7 +184,9 @@ ui <- fluidPage(
           width = 8,
           
           fluidRow(
+            
             class = 'graph_panel_ano',
+            
             br(),
             
             h4(class = 'h4_alter', "Anomaly Detection Chart"),
@@ -174,6 +194,7 @@ ui <- fluidPage(
             hr(),
             
             plotOutput("monitoring", height = 500)
+            
           ),
           
           fluidRow(
@@ -187,6 +208,7 @@ ui <- fluidPage(
           fluidRow(
             
             class = 'graph_panel_ano',
+            
             br(),
             
             h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
@@ -194,11 +216,13 @@ ui <- fluidPage(
             hr(),
             
             imageOutput("modeling_img", height = '70%', width = '100%')
+            
           )
           
         ),
         
         column(
+          
           width = 4,
           
           fluidRow(
@@ -227,13 +251,27 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  observeEvent(session$clientData$url_search, {
+    
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    # AGENT_ID <<- agent[2]
+    AGENT_ID <<- 27
+    
+  })
+  
+  
   observeEvent(c(input$resource_assist, input$merge), {
     
     if (input$merge == "0" & input$resource == 'task') {
       
       choices_ <- load_host_list_for_task(input$resource_assist)
       
-      updatePickerInput(
+      updateSelectizeInput(
         session = session,
         inputId = 'host_for_task',
         choices = choices_
@@ -241,7 +279,7 @@ server <- function(input, output, session) {
       
     } else {
       
-      updatePickerInput(
+      updateSelectizeInput(
         session = session,
         inputId = 'host_for_task',
         choices = ''
@@ -251,20 +289,6 @@ server <- function(input, output, session) {
     
   })
 
-    
-  # observeEvent(session$clientData$url_search, {
-  #   
-  #   url_search <- session$clientData$url_search
-  #   
-  #   agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-  #     strsplit('=') %>%
-  #     unlist()
-  #   
-  #   # agent_id <<- agent[2]
-  #   agent_id <<- 60
-  #   
-  # })
-  
   
   observeEvent(input$unit, {
     
@@ -305,15 +329,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$resource, {
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    agent_id <- agent[2]
-    # agent_id <- 60
-    
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
                      'task' = 'Select Task Name',
@@ -321,11 +336,11 @@ server <- function(input, output, session) {
     # browser()
     if (is.null(HOST_TAG_LIST)) {
       
-      HOST_TAG_LIST <<- load_tag_list('host', agent_id)
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
       
-      TASK_TAG_LIST <<- load_tag_list('task', agent_id)
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
       
-      DOCKER_TAG_LIST <<- load_tag_list('docker', agent_id)
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
       
       HOST_METRIC_LIST <<- load_metric_list('host')
       
@@ -345,32 +360,38 @@ server <- function(input, output, session) {
                       'task' = TASK_METRIC_LIST,
                       'docker' = DOCKER_METRIC_LIST)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'resource_assist',
       label = label_,
       choices = resource_assist)
     
-    updatePickerInput(
+    updateSelectizeInput(
       session = session,
       inputId = 'single_metric',
       choices = metrics
     )
     
+    if (input$resource != 'task') {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'merge',
+        selected = '1'
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        selected = ''
+      )
+      
+    }
+    
   })
   
   
   observe({
-  # observeEvent(input$single_metric, {
-    
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    agent_id <- agent[2]
-    # agent_id <- 60
     
     if (input$single_metric != "") {
       
@@ -394,11 +415,11 @@ server <- function(input, output, session) {
       
       if (node_ip != '') {
         
-        dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
+        dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
         
       } else {
         
-        dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
+        dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
         
       }
       
@@ -415,7 +436,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, agent_id) %>% 
+                                       unit, node_ip, AGENT_ID) %>% 
             as.data.table()
           # invalidateLater(groupby * 1000)
           
@@ -450,7 +471,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, agent_id) %>% 
+                                       unit, node_ip, AGENT_ID) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -494,11 +515,11 @@ server <- function(input, output, session) {
           
           if (node_ip != '') {
             
-            dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
+            dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
             
           } else {
             
-            dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
+            dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
             
           }
           
@@ -539,15 +560,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    agent_id <- agent[2]
-    # agent_id <- 60
-    
     resource <- input$resource
     
     host <- input$resource_assist
@@ -565,11 +577,11 @@ server <- function(input, output, session) {
     # 모델 이름 결정
     if (node_ip != '') {
       
-      dir.name <-  paste("../Model", agent_id, resource, host, node_ip, metric, sep = "/")
+      dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
       
     } else {
       
-      dir.name <-  paste("../Model", agent_id, resource, host, metric, sep = "/")
+      dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
       
     }
     
@@ -579,19 +591,8 @@ server <- function(input, output, session) {
     
     if (metric != "") {
       
-      # 모형 새로 개발
-      # mseries <- ifx_getGroupBy(DB_HOST, DB_PORT, DB,
-      #                           table,
-      #                           metric,
-      #                           paste0(input$slide_Anomaly_Period, "h"),
-      #                           group_by = paste0(input$slide_Anomaly_Time, "s"),
-      #                           addWhere = "", #input$itext_Anomaly_Where)
-      #                           limit = 100000)
-      # mseries <- as.data.table(mseries)
-      # names(mseries) <- c("ds", "y")
-      # browser()
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip, agent_id) %>% 
+                                    unit, node_ip, AGENT_ID) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,
