@@ -22,9 +22,6 @@ AGENT_ID <- NULL
 # total data
 data_corr <- NULL
 
-# setup logging
-setLogFile("correlation_log.json")
-loggit("INFO", "app has started", app = "start")
 
 ui <- fluidPage(
   
@@ -192,12 +189,6 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  
-  session$onSessionEnded(function() {
-    
-    loggit("INFO", "app has stopped", app = "stop")
-    
-  })
   
   observeEvent(session$clientData$url_search, {
     

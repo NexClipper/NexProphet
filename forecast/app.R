@@ -1,6 +1,5 @@
 #### FORECAST ####
 
-rm(list = ls())
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
@@ -18,11 +17,6 @@ TASK_METRIC_LIST <- NULL
 DOCKER_TAG_LIST <- NULL
 
 DOCKER_METRIC_LIST <- NULL
-
-
-# setup logging
-setLogFile("forecast.json")
-loggit("INFO", "app has started", app = "start")
 
 
 ui <- fluidPage(
@@ -241,12 +235,6 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  
-  session$onSessionEnded(function() {
-    
-    loggit("INFO", "app has stopped", app = "stop")
-    
-  })
   
   observeEvent(session$clientData$url_search, {
     
@@ -515,3 +503,4 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
+rm(list = ls())
