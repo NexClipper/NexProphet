@@ -5,7 +5,7 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-AGENT_ID <- NULL
+# AGENT_ID <- NULL
 
 HOST_TAG_LIST <- NULL
 
@@ -236,22 +236,30 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  session$allowReconnect(T)
-  observeEvent(session$clientData$url_search, {
+  
+  # observeEvent(session$clientData$url_search, {
+  #   
+  #   url_search <- session$clientData$url_search
+  #   
+  #   agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+  #     strsplit('=') %>%
+  #     unlist()
+  # 
+  #   AGENT_ID <<- agent[2]
+  #   # AGENT_ID <<- 27
+  #   
+  # })
+  
+  
+  observeEvent(input$resource, {
     
     url_search <- session$clientData$url_search
     
     agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
-
-    AGENT_ID <<- agent[2]
-    # AGENT_ID <<- 27
     
-  })
-  
-  
-  observeEvent(input$resource, {
+    AGENT_ID <- agent[2]
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
@@ -334,6 +342,14 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$resource_assist, {
+    
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    AGENT_ID <- agent[2]
     
     if (input$resource == 'host') {
       # print('mount path!')
@@ -430,6 +446,12 @@ server <- function(input, output, session) {
     
     if (input$single_metric == "") return()
     
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    AGENT_ID <- agent[2]
+    
     resource <- input$resource
     
     host <- input$resource_assist
@@ -468,6 +490,12 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$execute, {
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    AGENT_ID <- agent[2]
     
     resource <- input$resource
     
