@@ -5,15 +5,13 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-# CLIENT = "nexcloud"
-
 global_series = NULL
 
 global_pData = NULL
 
 numVar = NULL
 
-# agent_id <- NULL
+AGENT_ID <- NULL
 
 HOST_TAG_LIST <- NULL
 
@@ -102,6 +100,15 @@ ui <- fluidPage(
           inputId = 'single_metric',
           label = 'Select Metric',
           choices = ''
+        ),
+        
+        conditionalPanel(
+          condition = "input.resource == 'host'",
+          selectizeInput(
+            inputId = 'mount_path',
+            label = 'Select Mount Path',
+            choices = ''
+          )
         )
         # pickerInput(
         #   inputId = 'single_metric',
@@ -265,68 +272,6 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(c(input$resource_assist, input$merge), {
-    
-    if (input$merge == "0" & input$resource == 'task') {
-      
-      choices_ <- load_host_list_for_task(input$resource_assist)
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = choices_
-      )
-      
-    } else {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = ''
-      )
-      
-    }
-    
-  })
-
-  
-  observeEvent(input$unit, {
-    
-    if (input$unit == '0') {
-      
-      updateSliderInput(
-        session = session,
-        inputId = 'period',
-        label = 'Select Data Period (Days)',
-        min = 3, max = 30, value = 6
-      )
-      
-      updatePrettyRadioButtons(
-        session = session,
-        inputId = 'groupby',
-        selected = '1h'
-      )
-      
-    } else {
-      
-      updateSliderInput(
-        session = session,
-        inputId = 'period',
-        label = 'Select Data Period (Hours)',
-        value = 6, min = 1, max = 60
-      )
-      
-      updatePrettyRadioButtons(
-        session = session,
-        inputId = 'groupby',
-        selected = '10m'
-      )
-      
-    }
-    
-  })
-  
-  
   observeEvent(input$resource, {
     
     label_ <- switch(input$resource,
@@ -391,6 +336,86 @@ server <- function(input, output, session) {
   })
   
   
+  observeEvent(input$resource_assist, {
+    
+    if (input$resource == 'host') {
+      # print('mount path!')
+      # print(input$resource_assist)
+      HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
+                                                   AGENT_ID)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'mount_path',
+        choices = HOST_MOUNT_PATH
+      )
+      
+    }
+  })
+  
+  
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$merge == "0" & input$resource == 'task') {
+      
+      choices_ <- load_host_list_for_task(input$resource_assist)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = choices_
+      )
+      
+    } else {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        choices = ''
+      )
+      
+    }
+    
+  })
+
+  
+  observeEvent(input$unit, {
+    
+    if (input$unit == '0') {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Days)',
+        value = 3, min = 1, max = 60
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '1h'
+      )
+      
+    } else {
+      
+      updateSliderInput(
+        session = session,
+        inputId = 'period',
+        label = 'Select Data Period (Hours)',
+        value = 6, min = 1, max = 60
+      )
+      
+      updatePrettyRadioButtons(
+        session = session,
+        inputId = 'groupby',
+        selected = '10m'
+      )
+      
+    }
+    
+  })
+  
+  
   observe({
     
     if (input$single_metric != "") {
@@ -409,17 +434,19 @@ server <- function(input, output, session) {
       
       node_ip <- input$host_for_task
       
+      mount <- input$mount_path
+      
       renewal <- input$renewal
       
       renewal_time <- renew(renewal)
       
       if (node_ip != '') {
         
-        dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
         
       } else {
         
-        dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
+        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
         
       }
       
@@ -436,7 +463,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID) %>% 
+                                       unit, node_ip, AGENT_ID, mount) %>% 
             as.data.table()
           # invalidateLater(groupby * 1000)
           
@@ -471,7 +498,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID) %>% 
+                                       unit, node_ip, AGENT_ID, mount) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -515,11 +542,11 @@ server <- function(input, output, session) {
           
           if (node_ip != '') {
             
-            dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
             
           } else {
             
-            dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
+            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
             
           }
           
@@ -574,14 +601,16 @@ server <- function(input, output, session) {
     
     node_ip <- input$host_for_task
     
+    mount <- input$mount_path
+    
     # 모델 이름 결정
     if (node_ip != '') {
       
-      dir.name <-  paste("../Model", AGENT_ID, resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
       
     } else {
       
-      dir.name <-  paste("../Model", AGENT_ID, resource, host, paste0('unit_', unit), metric, sep = "/")
+      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
       
     }
     
@@ -592,7 +621,7 @@ server <- function(input, output, session) {
     if (metric != "") {
       
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip, AGENT_ID) %>% 
+                                    unit, node_ip, AGENT_ID, mount) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,
