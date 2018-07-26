@@ -11,8 +11,6 @@ global_pData = NULL
 
 numVar = NULL
 
-AGENT_ID <- NULL
-
 HOST_TAG_LIST <- NULL
 
 HOST_METRIC_LIST <- NULL
@@ -258,7 +256,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(session$clientData$url_search, {
+  AGENT_ID <- reactive({
     
     url_search <- session$clientData$url_search
     
@@ -266,8 +264,67 @@ server <- function(input, output, session) {
       strsplit('=') %>%
       unlist()
     
-    AGENT_ID <<- agent[2]
-    # AGENT_ID <<- 27
+    agent[2]
+    
+  })
+  
+  
+  observeEvent(AGENT_ID(), {
+    
+    label_ <- switch(input$resource,
+                     'host' = 'Select Host Name',
+                     'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
+    
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    
+    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'resource_assist',
+      label = label_,
+      choices = resource_assist)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'single_metric',
+      choices = metrics
+    )
+    
+    if (input$resource != 'task') {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'merge',
+        selected = '1'
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        selected = ''
+      )
+      
+    }
     
   })
   
@@ -279,21 +336,21 @@ server <- function(input, output, session) {
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     # browser()
-    # if (is.null(HOST_TAG_LIST)) {
+    if (is.null(HOST_TAG_LIST)) {
       
-    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
-    
-    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
-    
-    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
-    
-    HOST_METRIC_LIST <<- load_metric_list('host')
-    
-    TASK_METRIC_LIST <<- load_metric_list('task')
-    
-    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
       
-    # }
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+      
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+      
+      HOST_METRIC_LIST <<- load_metric_list('host')
+      
+      TASK_METRIC_LIST <<- load_metric_list('task')
+      
+      DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      
+    }
     
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
@@ -342,7 +399,7 @@ server <- function(input, output, session) {
       # print('mount path!')
       # print(input$resource_assist)
       HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
-                                                   AGENT_ID)
+                                                   AGENT_ID())
       
       updateSelectizeInput(
         session = session,
@@ -442,11 +499,11 @@ server <- function(input, output, session) {
       
       if (node_ip != '') {
         
-        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
         
       } else {
         
-        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
+        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
         
       }
       
@@ -463,7 +520,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID, mount) %>% 
+                                       unit, node_ip, AGENT_ID(), mount) %>% 
             as.data.table()
           # invalidateLater(groupby * 1000)
           
@@ -498,7 +555,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID, mount) %>% 
+                                       unit, node_ip, AGENT_ID(), mount) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -542,11 +599,11 @@ server <- function(input, output, session) {
           
           if (node_ip != '') {
             
-            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
             
           } else {
             
-            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
+            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
             
           }
           
@@ -606,11 +663,11 @@ server <- function(input, output, session) {
     # 모델 이름 결정
     if (node_ip != '') {
       
-      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
+      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
       
     } else {
       
-      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID), resource, host, paste0('unit_', unit), metric, sep = "/")
+      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
       
     }
     
@@ -621,7 +678,7 @@ server <- function(input, output, session) {
     if (metric != "") {
       
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip, AGENT_ID, mount) %>% 
+                                    unit, node_ip, AGENT_ID(), mount) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,

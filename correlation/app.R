@@ -17,8 +17,6 @@ DOCKER_TAG_LIST <- NULL
 
 DOCKER_METRIC_LIST <- NULL
 
-AGENT_ID <- NULL
-
 # total data
 data_corr <- NULL
 
@@ -190,28 +188,26 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(session$clientData$url_search, {
+  AGENT_ID <- reactive({
     
-    agent <- session$clientData$url_search %>%
-      str_extract('agent_id=\\d+') %>%
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
     
-    AGENT_ID <<- agent[2]
-    # AGENT_ID <<-  27
+    agent[2]
     
   })
   
   
-  observeEvent(AGENT_ID, {
+  observeEvent(AGENT_ID(), {
     
-    # if (!is.null(AGENT_ID)) {
-      
-    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
     
-    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
     
-    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
     
     HOST_METRIC_LIST <<- load_metric_list('host')
     
@@ -255,21 +251,10 @@ server <- function(input, output, session) {
       choices = DOCKER_METRIC_LIST
     )
       
-    # }
-    
   })
   
   
   observeEvent(input$execute, {
-    
-    # url_search <- session$clientData$url_search
-    # 
-    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-    #   strsplit('=') %>%
-    #   unlist()
-    # 
-    # agent_id <- agent[2]
-    # agent_id <- 27
     
     period <- input$period
     
@@ -287,7 +272,7 @@ server <- function(input, output, session) {
                                              groupby = groupby,
                                              host_list = host_list,
                                              metric_list = metric_list,
-                                             AGENT_ID) %>%
+                                             AGENT_ID()) %>%
       select(-time) %>% 
       select_if(~sum(!is.na(.)) > 0) %>% 
       select_if(~ sd(., na.rm = T) != 0) %>% 
