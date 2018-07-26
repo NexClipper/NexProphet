@@ -21,7 +21,7 @@ DOCKER_METRIC_LIST <- NULL
 
 
 # setup logging
-setLogFile("loggit.json")
+setLogFile("forecast.json")
 loggit("INFO", "app has started", app = "start")
 
 
