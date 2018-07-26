@@ -446,6 +446,8 @@ server <- function(input, output, session) {
     
     if (input$single_metric == "") return()
     
+    url_search <- session$clientData$url_search
+    
     agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
@@ -490,6 +492,8 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$execute, {
+    
+    url_search <- session$clientData$url_search
     
     agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
