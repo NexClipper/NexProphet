@@ -76,6 +76,15 @@ ui <- fluidPage(
           inputId = 'single_metric',
           label = 'Select Metric',
           choices = ''
+        ),
+        
+        conditionalPanel(
+          condition = "input.resource == 'host'",
+          selectizeInput(
+            inputId = 'mount_path',
+            label = 'Select Mount Path',
+            choices = ''
+          )
         )
         
       ),
@@ -301,8 +310,44 @@ server <- function(input, output, session) {
         selected = ''
       )
       
+      # if (input$resource == 'host') {
+      #   
+      #   updateSelectInput(
+      #     session = session,
+      #     inputId = 'mount_path',
+      #     choices = HOST_MOUNT_PATH
+      #   )
+      #   
+      # } else {
+      #   
+      #   updateSelectInput(
+      #     session = session,
+      #     inputId = 'mount_path',
+      #     selected = ''
+      #   )
+      #   
+      # }
+      
     }
     
+  })
+  
+  
+  observeEvent(input$resource_assist, {
+    
+    if (input$resource == 'host') {
+      # print('mount path!')
+      # print(input$resource_assist)
+      HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
+                                                   AGENT_ID)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'mount_path',
+        choices = HOST_MOUNT_PATH
+      )
+      
+    }
   })
   
   
@@ -399,6 +444,8 @@ server <- function(input, output, session) {
     
     node_ip <- input$host_for_task
     
+    mount <- input$mount_path
+    
     output$predicted_plot <- renderDygraph({})
     
     output$component_plot <- renderPlot({})
@@ -406,7 +453,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip, AGENT_ID)
+                                   unit, node_ip, AGENT_ID, mount)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -438,8 +485,11 @@ server <- function(input, output, session) {
     
     node_ip <- input$host_for_task
     
+    mount <- input$mount_path
+    
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit, node_ip, AGENT_ID)
+                                     pred_period, unit, node_ip,
+                                     AGENT_ID, mount)
     
     forecast_result <- render_result$forecast_result
     
