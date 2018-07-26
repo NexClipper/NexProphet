@@ -11,10 +11,6 @@ HOST_TAG_LIST <- NULL
 
 HOST_METRIC_LIST <- NULL
 
-HOST_METRIC_DISK <- NULL
-
-HOST_MOUNT_PATH <- NULL
-
 TASK_TAG_LIST <- NULL
 
 TASK_METRIC_LIST <- NULL
@@ -82,10 +78,13 @@ ui <- fluidPage(
           choices = ''
         ),
         
-        selectizeInput(
-          inputId = 'mount_path',
-          label = 'Select Mount Path',
-          choices = ''
+        conditionalPanel(
+          condition = "input.resource == 'host'",
+          selectizeInput(
+            inputId = 'mount_path',
+            label = 'Select Mount Path',
+            choices = ''
+          )
         )
         
       ),
@@ -267,13 +266,7 @@ server <- function(input, output, session) {
       
       DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
       
-      HOST_METRIC <- load_metric_list('host', AGENT_ID)
-      
-      HOST_METRIC_LIST <<- HOST_METRIC$host
-      
-      HOST_METRIC_DISK <<- HOST_METRIC$disk
-      
-      HOST_MOUNT_PATH <<- c('null', HOST_METRIC$mount)
+      HOST_METRIC_LIST <<- load_metric_list('host')
       
       TASK_METRIC_LIST <<- load_metric_list('task')
       
@@ -317,26 +310,44 @@ server <- function(input, output, session) {
         selected = ''
       )
       
-      if (input$resource == 'host') {
-        
-        updateSelectInput(
-          session = session,
-          inputId = 'mount_path',
-          choices = HOST_MOUNT_PATH
-        )
-        
-      } else {
-        
-        updateSelectInput(
-          session = session,
-          inputId = 'mount_path',
-          selected = ''
-        )
-        
-      }
+      # if (input$resource == 'host') {
+      #   
+      #   updateSelectInput(
+      #     session = session,
+      #     inputId = 'mount_path',
+      #     choices = HOST_MOUNT_PATH
+      #   )
+      #   
+      # } else {
+      #   
+      #   updateSelectInput(
+      #     session = session,
+      #     inputId = 'mount_path',
+      #     selected = ''
+      #   )
+      #   
+      # }
       
     }
     
+  })
+  
+  
+  observeEvent(input$resource_assist, {
+    
+    if (input$resource == 'host') {
+      # print('mount path!')
+      # print(input$resource_assist)
+      HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
+                                                   AGENT_ID)
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'mount_path',
+        choices = HOST_MOUNT_PATH
+      )
+      
+    }
   })
   
   

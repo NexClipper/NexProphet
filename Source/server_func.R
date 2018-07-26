@@ -21,23 +21,6 @@ connect <- function() {
 }
 
 
-# extract_field <- function(df) {
-#     
-#     # select numeric fields
-#     num_var = names(df)[sapply(df, class) == "numeric"]
-#     
-#     # select fields such that stddev is not equal to zero
-#     not0var = names(df[,num_var])[sapply(df[,num_var], var) != 0]
-#     
-#     # delete timestamp
-#     not0var = setdiff(not0var, "timestamp")
-#     
-#     extracted_df <- df %>% select(c(not0var, 'time'))
-#     
-#     return(extracted_df)
-# }
-
-
 standardization <- function(mtx) {
   
   col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
@@ -49,168 +32,166 @@ standardization <- function(mtx) {
 }
 
 
-## will be deleted
-load_metric_from_cluster <- function(period, groupby, metric_list) {
+load_single_metric_from_mount_path <- function(host, metric, period, groupby,
+                                               unit, agent_id, mount) {
+  # host='192.168.0.168';metric='cpu_used_percent';period=2;groupby='1h';unit='0';agent_id=27;mount='/'
+  con <- connect()
   
-  # metric_list <- list()
-  # metric_list$cluster <- c("cpu_used", "mem_used_percent") 
-  # metric_list$cluster <- NULL
-  # 
-  # period = 5
-  # groupby = "1h"
+  connector <- con$connector
   
-  connector <- connect()
-  con <- connector$connector
-  dbname <- connector$dbname
+  dbname <- con$dbname
   
-  period <- paste0(period, 'd')
+  if (unit == '0') {
+    
+    period <- paste0(period, 'd')
+    
+  } else {
+    
+    period <- paste0(period, 'h')
+    
+  }
   
-  
-  # browser()
-  
-  
-  #### Cluster ####
   query <- "select mean(*)
-  from %s
-  where time > now() - %s
-  group by time(%s)
-  fill(none)"
+            from host, host_net, host_disk
+            where time > now() - %s and host_ip = '%s' and agent_id = '%s'
+            group by time(%s), host_ip, agent_id, mount_name
+            fill(none)
+            order by time asc" %>% 
+    sprintf(period, host, agent_id,
+            groupby)
   
-  query <- sprintf(query, 
-                   'cluster', 
-                   period,
-                   groupby)
+  cat('\n', query, '\n')
+  # if (host == '192.168.0.160' & metric == 'used_percent')
+  #   browser()
+  res <- influx_query(connector,
+                      db = dbname,
+                      query = query,
+                      simplifyList = T,
+                      return_xts = F)[[1]] %>% 
+    as.data.frame()
   
-  res_cluster <- influx_query(con,
-                              db = dbname,
-                              query = query,
-                              simplifyList = T,
-                              return_xts = F)[[1]]
+  host_split <- split(res[, -2], res[, 2])
   
-  names(res_cluster) <- gsub('mean_', '', names(res_cluster))
+  host_ <- host_split$host %>% 
+    select_if(~sum(!is.na(.)) > 0) %>%
+    select(c(-1:-5, -mean_timestamp))
   
-  res_cluster <- res_cluster %>% select(c('time', metric_list))
+  names(host_) <- gsub('mean_', '', names(host_))
   
-  ts <- seq.POSIXt(min(res_cluster$time),
-                   max(res_cluster$time),
-                   by = posixt_helper_func(str_sub(groupby, -1)))
+  host_net <- host_split$host_net %>% 
+    select_if(~sum(!is.na(.)) > 0) %>%
+    select(c(-1:-5, -mean_timestamp))
   
-  df <- tibble(time = ts)
+  names(host_net) <- gsub('mean_', '', names(host_net))
   
-  res_cluster <- full_join(df, res_cluster)
+  host_disk <- host_split$host_disk %>% 
+    select_if(~sum(!is.na(.)) > 0) %>% 
+    subset(mount_name == mount, select = c(-1:-5, -mean_timestamp))
+    
+  names(host_disk) <- gsub('mean_', '', names(host_disk))
   
-  names(res_cluster) <- paste0(names(res_cluster), '_cluster')
+  result_host <- inner_join(host_, host_net, by = 'time') %>% 
+    inner_join(host_disk, by = 'time')
+  # browser()
+  result_host <- result_host[, c('time', metric)]
   
-  names(res_cluster) <- gsub('time_cluster', 'time', names(res_cluster))
-  print('Cluster OK!')
+  unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
-  return(res_cluster)
+  by <- str_extract(groupby, '\\d+') %>% paste(unit)
+  
+  ts <- seq.POSIXt(min(result_host$time),
+                   max(result_host$time),
+                   by = by)
+  
+  df <- tibble(ds = ts)
+  
+  tb <- full_join(df, result_host, by = c('ds' = 'time'))
+  
+  names(tb) <- c("ds", "y")
+  
+  tb$y <- na.approx(tb$y)
+  
+  return(tb)
   
 }
 
 
-
-# will be deleted
-# load_single_metric <- function(measurement, host, metric, period, groupby,
-#                                unit, node_ip, agent_id) {
-#   
-#   single_metric <- switch(measurement,
-#                           'host' = load_metric_from_host(period, groupby,
-#                                                          c(host), c(metric),
-#                                                          agent_id,
-#                                                          single = T, unit),
-#                           
-#                           'task' = load_metric_from_task_for_single(period, groupby,
-#                                                                     host, metric,
-#                                                                     agent_id, unit,
-#                                                                     node_ip),
-#                           
-#                           'docker' = load_metric_from_docker(period, groupby,
-#                                                              c(host), c(metric),
-#                                                              agent_id,
-#                                                              single = T, unit))
-#   browser()
-#   single_metric$y <- na.approx(single_metric$y)
-#   
-#   return(single_metric)
-#   
-# }
-
-
-# will be deleted
-# load_metric_from_task_for_single <- function(period, groupby,
-#                                              task, metric,
-#                                              agent_id, unit,
-#                                              node_ip) {
-#   # period <- 3;groupby <- '1h';task <- 'agent.nexcloud'
-#   # metric <- 'cpu_used_percent';agent_id <- 27;unit <- '0';
-#   # node_ip <- ''
-#   
-#   con <- connect()
-#   
-#   connector <- con$connector
-#   
-#   dbname <- con$dbname
-#   
-#   if (unit == '0') {
-#     
-#     period <- paste0(period, 'd')
-#     
-#   } else {
-#     
-#     period <- paste0(period, 'h')
-#     
-#   }
-#   
-#   query <- "select mean(%s) as metric
-#             from task
-#             where time > now() - %s and task = '%s' and agent_id = '%s' %s
-#             group by time(%s), task, agent_id%s
-#             fill(none)
-#             order by time desc"
-#   
-#   by_node <- ''
-#   
-#   if (node_ip != "") {
-#     
-#     node_ip <- sprintf("and node_ip = '%s'", node_ip)
-#     by_node <- ', node_ip'
-#     
-#   }
-#   # browser()
-#   query <- query %>%
-#     sprintf(metric,
-#             period, task, agent_id, node_ip,
-#             groupby, by_node)
-#   cat(query)
-#   raw_data <- influx_query(connector,
-#                            db = dbname,
-#                            query = query,
-#                            simplifyList = T,
-#                            return_xts = F)[[1]]
-#   
-#   if (!('metric' %in% names(raw_data)))
-#     
-#     return(default_time_seqeunce(period, groupby))
-#   
-#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-#   
-#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
-#   
-#   ts <- seq.POSIXt(min(raw_data$time),
-#                    max(raw_data$time),
-#                    by = by)
-#   
-#   df <- tibble(ds = ts)
-#   
-#   tb <- select(raw_data, c(time, metric)) %>% 
-#     full_join(df, by = c('time' = 'ds'))
-#   
-#   names(tb) <- c("ds", "y")
-#   
-#   return(tb)
-#   
-# }
+load_single_metric_from_docker <- function(host, metric, period, groupby,
+                                           unit, agent_id) {
+  # host = 'redis.0529f75a-8697-11e8-80dc-664d329f843c';
+  # metric='cpu_used_percent'; period=2; groupby='1h';unit='0';agent_id=27
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  if (unit == '0') {
+    
+    period <- paste0(period, 'd')
+    
+  } else {
+    
+    period <- paste0(period, 'h')
+    
+  }
+  
+  query <- "select mean(%s) as metric
+            from docker_container
+            where time > now() - %s and agent_id = '%s' and task_id = '%s'
+            group by time(%s), agent_id, task_id" %>% 
+    sprintf(metric,
+            period, agent_id, host,
+            groupby)
+  
+  res_docker <- influx_query(connector,
+                             db = dbname,
+                             query = query,
+                             simplifyList = T,
+                             return_xts = F)[[1]] %>% 
+    as.data.frame()
+  
+  if (!('metric' %in% names(res_docker))) {
+    
+    query <- "select mean(%s) as metric
+              from docker_network
+              where time > now() - %s and agent_id = '%s'
+                    and task_id = '%s'
+              group by time(%s), agent_id, task_id" %>% 
+      sprintf(metric,
+              period, agent_id, host,
+              groupby)
+    
+    res_docker <- influx_query(connector,
+                               db = dbname,
+                               query = query,
+                               simplifyList = T,
+                               return_xts = F)[[1]] %>% 
+      as.data.frame()
+  }
+  
+  res_docker <- res_docker %>% 
+    select(c(time, metric))
+  
+  unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
+  
+  by <- str_extract(groupby, '\\d+') %>% paste(unit)
+  
+  ts <- seq.POSIXt(min(res_docker$time),
+                   max(res_docker$time),
+                   by = by)
+  
+  df <- tibble(ds = ts)
+  
+  tb <- full_join(df, res_docker, by = c('ds' = 'time'))
+  
+  tb$metric <- na.approx(tb$metric)
+  
+  names(tb) <- c("ds", "y")
+  
+  return(tb)
+    
+}
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
@@ -231,6 +212,11 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   connector <- con$connector
 
   dbname <- con$dbname
+  
+  if (measurement == 'host' & mount != 'null')
+    
+    return(load_single_metric_from_mount_path(host, metric, period, groupby,
+                                              unit, agent_id, mount))
 
   if (unit == '0') {
 
@@ -244,10 +230,10 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   query <- "select mean(%s) as metric
             from %s
-            where time > now() - %s and %s = '%s' and agent_id = '%s' %s %s
-            group by time(%s), %s, agent_id %s %s
+            where time > now() - %s and %s = '%s' and agent_id = '%s' %s
+            group by time(%s), %s, agent_id %s
             fill(none)
-            order by time desc"
+            order by time asc"
 
   tag <- switch(measurement,
                 'host' = 'host_ip',
@@ -273,32 +259,24 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   }
   
-  mount_name <- ''
-  
-  if (mount != 'null') {
-    
-    mount_name <- ', mount_name'
-    
-    mount <- "and mount_name = '%s'" %>% sprintf(mount)
-    
-  } else {mount <- ''}
 
   query <- sprintf(query,
                    metric,
                    measurement,
-                   period, tag, host, agent_id, node_ip, mount,
-                   groupby, tag, by_node, mount_name)
+                   period, tag, host, agent_id, node_ip,
+                   groupby, tag, by_node)
 
   cat('\n', query, '\n')
+  
   raw_data <- influx_query(connector,
                            db = dbname,
                            query = query,
                            simplifyList = T,
                            return_xts = F)[[1]]
-  browser()
+  
   if (!('metric' %in% names(raw_data)))
     return(default_time_seqeunce(period, groupby))
-  # browser()
+  
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
 
   by <- str_extract(groupby, '\\d+') %>% paste(unit)
@@ -324,8 +302,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
 load_metric_from_host <- function(period, groupby,
                                   host_list, metric_list,
-                                  agent_id,
-                                  single = F, unit = '0') {
+                                  agent_id) {
   
   # metric_list <- c("cpu_idle_per", "cpu_idle_percent", 'used_percent')
   # host_list <- c("192.168.0.160", "192.168.0.161")
@@ -464,8 +441,7 @@ load_metric_from_host <- function(period, groupby,
 
 load_metric_from_task <- function(period, groupby,
                                   host_list, metric_list,
-                                  agent_id,
-                                  single = F, unit = '0') {
+                                  agent_id) {
   
   # metric_list <- c("cpu_used_percent", "mem_used_percent")
   # host_list <- c('kafka', 'agent.nexcloud')
@@ -555,8 +531,7 @@ load_metric_from_task <- function(period, groupby,
 
 load_metric_from_docker <- function(period, groupby,
                                     host_list, metric_list,
-                                    agent_id,
-                                    single = F, unit = '0') {
+                                    agent_id) {
   
   # metric_list <- c("cpu_used_percent", "mem_used_percent")
   # host_list <- c('influxdb.86876958-898f-11e8-80dc-664d329f843c',
@@ -802,7 +777,7 @@ default_time_seqeunce <- function(period, groupby) {
 }
 
 
-load_metric_list <- function(measurement, agent_id='') {
+load_metric_list <- function(measurement) {
   # measurement <- 'host, host_disk, host_net'; measurement <- 'task'; measurement <- 'docker'
   # agent_id <- 27
   connector <- connect()
@@ -826,51 +801,42 @@ load_metric_list <- function(measurement, agent_id='') {
                       dbname,
                       query,
                       return_xts = F)[[1]] %>%
-    as.data.frame()
+    as.data.frame() %>%
+    select(c(series_names, fieldKey)) %>% 
+    subset(fieldKey != 'timestamp' & !str_detect(fieldKey, '_per$'))
   
-  if (str_detect(measurement, 'host')) {
-    
-    res[res$series_names == 'host_disk', 'fieldKey'] <-
-      paste0('disk_', res[res$series_names == 'host_disk', 'fieldKey'])
-    
-    disk_metric <- res[res$series_names == 'host_disk', 'fieldKey']
-    
-    query <- "show tag values
+  metric <- split(res$fieldKey, res$series_names)
+  
+  return(metric)
+  
+}
+
+
+load_host_disk_mount_path <- function(host_ip, agent_id) {
+  
+  # host_ip='192.168.0.160'
+  connector <- connect()
+  
+  con <- connector$connector
+  
+  dbname <- connector$dbname
+  
+  query <- "show tag values
               from host_disk
               with key = mount_name
-              where agent_id =~ /%s/" %>% 
-      sprintf(agent_id)
-    
-    mount_path <- influx_query(con,
-                               dbname,
-                               query,
-                               return_xts = F)[[1]] %>%
-      as.data.frame() %>%
-      select(value) %>% 
-      t() %>% 
-      as.vector()
-    
-  } 
+              where host_ip =~ /%s/ and agent_id =~ /%s/" %>% 
+    sprintf(host_ip, agent_id)
   
-  res <- res %>%
-    select(fieldKey) %>% 
+  mount_path <- influx_query(con,
+                             dbname,
+                             query,
+                             return_xts = F)[[1]] %>%
+    as.data.frame() %>%
+    select(value) %>% 
     t() %>% 
-    as.vector() %>% 
-    setdiff('timestamp')
+    as.vector()
   
-  if (str_detect(measurement, 'host')) {
-    
-    res <- res[!str_detect(res, '_per$')]
-    
-    disk_metric <- disk_metric[!str_detect(disk_metric, '_per$')]
-    
-    return(list('host' = res,
-                'disk' = disk_metric,
-                'mount' = mount_path))
-    
-  } 
-  
-  return(res)
+  return(c('null', mount_path))
   
 }
 
@@ -1708,3 +1674,182 @@ select_lags <- function(x, y, max.lag) {
 
 # res <- select_lags(chick, egg, 5)
 # res
+
+
+
+#### will be deleted ####
+# extract_field <- function(df) {
+#     
+#     # select numeric fields
+#     num_var = names(df)[sapply(df, class) == "numeric"]
+#     
+#     # select fields such that stddev is not equal to zero
+#     not0var = names(df[,num_var])[sapply(df[,num_var], var) != 0]
+#     
+#     # delete timestamp
+#     not0var = setdiff(not0var, "timestamp")
+#     
+#     extracted_df <- df %>% select(c(not0var, 'time'))
+#     
+#     return(extracted_df)
+# }
+
+# will be deleted
+# load_metric_from_cluster <- function(period, groupby, metric_list) {
+#   
+#   # metric_list <- list()
+#   # metric_list$cluster <- c("cpu_used", "mem_used_percent") 
+#   # metric_list$cluster <- NULL
+#   # 
+#   # period = 5
+#   # groupby = "1h"
+#   
+#   connector <- connect()
+#   con <- connector$connector
+#   dbname <- connector$dbname
+#   
+#   period <- paste0(period, 'd')
+#   
+#   
+#   # browser()
+#   
+#   
+#   #### Cluster ####
+#   query <- "select mean(*)
+#   from %s
+#   where time > now() - %s
+#   group by time(%s)
+#   fill(none)"
+#   
+#   query <- sprintf(query, 
+#                    'cluster', 
+#                    period,
+#                    groupby)
+#   
+#   res_cluster <- influx_query(con,
+#                               db = dbname,
+#                               query = query,
+#                               simplifyList = T,
+#                               return_xts = F)[[1]]
+#   
+#   names(res_cluster) <- gsub('mean_', '', names(res_cluster))
+#   
+#   res_cluster <- res_cluster %>% select(c('time', metric_list))
+#   
+#   ts <- seq.POSIXt(min(res_cluster$time),
+#                    max(res_cluster$time),
+#                    by = posixt_helper_func(str_sub(groupby, -1)))
+#   
+#   df <- tibble(time = ts)
+#   
+#   res_cluster <- full_join(df, res_cluster)
+#   
+#   names(res_cluster) <- paste0(names(res_cluster), '_cluster')
+#   
+#   names(res_cluster) <- gsub('time_cluster', 'time', names(res_cluster))
+#   print('Cluster OK!')
+#   
+#   return(res_cluster)
+#   
+# }
+
+# will be deleted
+# load_single_metric <- function(measurement, host, metric, period, groupby,
+#                                unit, node_ip, agent_id) {
+#   
+#   single_metric <- switch(measurement,
+#                           'host' = load_metric_from_host(period, groupby,
+#                                                          c(host), c(metric),
+#                                                          agent_id,
+#                                                          single = T, unit),
+#                           
+#                           'task' = load_metric_from_task_for_single(period, groupby,
+#                                                                     host, metric,
+#                                                                     agent_id, unit,
+#                                                                     node_ip),
+#                           
+#                           'docker' = load_metric_from_docker(period, groupby,
+#                                                              c(host), c(metric),
+#                                                              agent_id,
+#                                                              single = T, unit))
+#   browser()
+#   single_metric$y <- na.approx(single_metric$y)
+#   
+#   return(single_metric)
+#   
+# }
+
+# will be deleted
+# load_metric_from_task_for_single <- function(period, groupby,
+#                                              task, metric,
+#                                              agent_id, unit,
+#                                              node_ip) {
+#   # period <- 3;groupby <- '1h';task <- 'agent.nexcloud'
+#   # metric <- 'cpu_used_percent';agent_id <- 27;unit <- '0';
+#   # node_ip <- ''
+#   
+#   con <- connect()
+#   
+#   connector <- con$connector
+#   
+#   dbname <- con$dbname
+#   
+#   if (unit == '0') {
+#     
+#     period <- paste0(period, 'd')
+#     
+#   } else {
+#     
+#     period <- paste0(period, 'h')
+#     
+#   }
+#   
+#   query <- "select mean(%s) as metric
+#             from task
+#             where time > now() - %s and task = '%s' and agent_id = '%s' %s
+#             group by time(%s), task, agent_id%s
+#             fill(none)
+#             order by time desc"
+#   
+#   by_node <- ''
+#   
+#   if (node_ip != "") {
+#     
+#     node_ip <- sprintf("and node_ip = '%s'", node_ip)
+#     by_node <- ', node_ip'
+#     
+#   }
+#   # browser()
+#   query <- query %>%
+#     sprintf(metric,
+#             period, task, agent_id, node_ip,
+#             groupby, by_node)
+#   cat(query)
+#   raw_data <- influx_query(connector,
+#                            db = dbname,
+#                            query = query,
+#                            simplifyList = T,
+#                            return_xts = F)[[1]]
+#   
+#   if (!('metric' %in% names(raw_data)))
+#     
+#     return(default_time_seqeunce(period, groupby))
+#   
+#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
+#   
+#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
+#   
+#   ts <- seq.POSIXt(min(raw_data$time),
+#                    max(raw_data$time),
+#                    by = by)
+#   
+#   df <- tibble(ds = ts)
+#   
+#   tb <- select(raw_data, c(time, metric)) %>% 
+#     full_join(df, by = c('time' = 'ds'))
+#   
+#   names(tb) <- c("ds", "y")
+#   
+#   return(tb)
+#   
+# }
