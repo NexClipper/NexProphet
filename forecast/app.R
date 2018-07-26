@@ -5,7 +5,7 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-AGENT_ID <- NULL
+# AGENT_ID <- NULL
 
 HOST_TAG_LIST <- NULL
 
@@ -237,30 +237,100 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(session$clientData$url_search, {
-
+  # observeEvent(session$clientData$url_search, {
+  # 
+  #   url_search <- session$clientData$url_search
+  # 
+  #   agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+  #     strsplit('=') %>%
+  #     unlist()
+  # 
+  #   AGENT_ID <<- agent[2]
+  #   # AGENT_ID <<- 27
+  # 
+  # })
+  
+  AGENT_ID <- reactive({
+    
     url_search <- session$clientData$url_search
-
+    
     agent <- str_extract(url_search, 'agent_id=\\d+') %>%
       strsplit('=') %>%
       unlist()
-
-    AGENT_ID <<- agent[2]
-    # AGENT_ID <<- 27
-
+    
+    agent[2]
+    
   })
   
+  observeEvent(AGENT_ID(), {
+    
+    label_ <- switch(input$resource,
+                     'host' = 'Select Host Name',
+                     'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
+    
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    
+    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'resource_assist',
+      label = label_,
+      choices = resource_assist)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'single_metric',
+      choices = metrics
+    )
+    
+    if (input$resource != 'task') {
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'merge',
+        selected = '1'
+      )
+      
+      updateSelectizeInput(
+        session = session,
+        inputId = 'host_for_task',
+        selected = ''
+      )
+      
+    }
+    
+  })
   
   
   observeEvent(input$resource, {
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    AGENT_ID <- agent[2]
+    # url_search <- session$clientData$url_search
+    # 
+    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+    #   strsplit('=') %>%
+    #   unlist()
+    # 
+    # AGENT_ID <- agent[2]
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
@@ -269,11 +339,11 @@ server <- function(input, output, session) {
     
     if (is.null(HOST_TAG_LIST)) {
       
-      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
       
-      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
       
-      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
       
       HOST_METRIC_LIST <<- load_metric_list('host')
       
@@ -319,24 +389,6 @@ server <- function(input, output, session) {
         selected = ''
       )
       
-      # if (input$resource == 'host') {
-      #   
-      #   updateSelectInput(
-      #     session = session,
-      #     inputId = 'mount_path',
-      #     choices = HOST_MOUNT_PATH
-      #   )
-      #   
-      # } else {
-      #   
-      #   updateSelectInput(
-      #     session = session,
-      #     inputId = 'mount_path',
-      #     selected = ''
-      #   )
-      #   
-      # }
-      
     }
     
   })
@@ -344,19 +396,19 @@ server <- function(input, output, session) {
   
   observeEvent(input$resource_assist, {
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    AGENT_ID <- agent[2]
+    # url_search <- session$clientData$url_search
+    # 
+    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+    #   strsplit('=') %>%
+    #   unlist()
+    # 
+    # AGENT_ID <- agent[2]
     
     if (input$resource == 'host') {
       # print('mount path!')
       # print(input$resource_assist)
       HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
-                                                   AGENT_ID)
+                                                   AGENT_ID())
       
       updateSelectizeInput(
         session = session,
@@ -447,13 +499,13 @@ server <- function(input, output, session) {
     
     if (input$single_metric == "") return()
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    AGENT_ID <- agent[2]
+    # url_search <- session$clientData$url_search
+    # 
+    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+    #   strsplit('=') %>%
+    #   unlist()
+    # 
+    # AGENT_ID <- agent[2]
     
     resource <- input$resource
     
@@ -478,7 +530,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip, AGENT_ID, mount)
+                                   unit, node_ip, AGENT_ID(), mount)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -494,13 +546,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
-    url_search <- session$clientData$url_search
-    
-    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
-      strsplit('=') %>%
-      unlist()
-    
-    AGENT_ID <- agent[2]
+    # url_search <- session$clientData$url_search
+    # 
+    # agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+    #   strsplit('=') %>%
+    #   unlist()
+    # 
+    # AGENT_ID <- agent[2]
     
     resource <- input$resource
     
@@ -522,7 +574,7 @@ server <- function(input, output, session) {
     
     render_result <- render_forecast(resource, host, metric, period, groupby,
                                      pred_period, unit, node_ip,
-                                     AGENT_ID, mount)
+                                     AGENT_ID(), mount)
     
     forecast_result <- render_result$forecast_result
     
