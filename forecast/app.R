@@ -236,7 +236,7 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  
+  session$restoreContext$reset()
   # observeEvent(session$clientData$url_search, {
   #   
   #   url_search <- session$clientData$url_search
