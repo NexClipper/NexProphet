@@ -205,57 +205,57 @@ server <- function(input, output, session) {
   
   observeEvent(AGENT_ID, {
     
-    if (!is.null(AGENT_ID)) {
+    # if (!is.null(AGENT_ID)) {
       
-      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
-
-      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
-
-      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
-
-      HOST_METRIC_LIST <<- load_metric_list('host')
-
-      TASK_METRIC_LIST <<- load_metric_list('task')
-
-      DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
+    
+    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'host_list',
+      choices = HOST_TAG_LIST
+    )
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'task_list',
+      choices = TASK_TAG_LIST
+    )
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'docker_list',
+      choices = DOCKER_TAG_LIST
+    )
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'host_metrics',
+      choices = HOST_METRIC_LIST
+    )
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'task_metrics',
+      choices = TASK_METRIC_LIST
+    )
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'docker_metrics',
+      choices = DOCKER_METRIC_LIST
+    )
       
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_list',
-        choices = HOST_TAG_LIST
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'task_list',
-        choices = TASK_TAG_LIST
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'docker_list',
-        choices = DOCKER_TAG_LIST
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_metrics',
-        choices = HOST_METRIC_LIST
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'task_metrics',
-        choices = TASK_METRIC_LIST
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'docker_metrics',
-        choices = DOCKER_METRIC_LIST
-      )
-      
-    }
+    # }
     
   })
   

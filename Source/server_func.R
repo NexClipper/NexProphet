@@ -761,7 +761,7 @@ load_metric_list <- function(measurement) {
 
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
-  # host_ip='192.168.0.160'
+  # host_ip='172.17.0.1';agent_id='60'
   connector <- connect()
   
   con <- connector$connector
@@ -802,7 +802,7 @@ load_tag_list <- function(measurement, agent_id) {
 
 
 load_host_tag_list <- function(agent_id) {
-  # agent_id <- 60
+  # agent_id <- '60'
   connector <- connect()
   
   con <- connector$con
