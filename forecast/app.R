@@ -258,21 +258,21 @@ server <- function(input, output, session) {
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
-    # if (is.null(HOST_TAG_LIST)) {
+    if (is.null(HOST_TAG_LIST)) {
       
-    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
-    
-    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
-    
-    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
-    
-    HOST_METRIC_LIST <<- load_metric_list('host')
-    
-    TASK_METRIC_LIST <<- load_metric_list('task')
-    
-    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID)
       
-    # }
+      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID)
+      
+      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID)
+      
+      HOST_METRIC_LIST <<- load_metric_list('host')
+      
+      TASK_METRIC_LIST <<- load_metric_list('task')
+      
+      DOCKER_METRIC_LIST <<- load_metric_list('docker')
+      
+    }
     
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
