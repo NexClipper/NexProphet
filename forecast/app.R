@@ -20,6 +20,11 @@ DOCKER_TAG_LIST <- NULL
 DOCKER_METRIC_LIST <- NULL
 
 
+# setup logging
+setLogFile("loggit.json")
+loggit("INFO", "app has started", app = "start")
+
+
 ui <- fluidPage(
   
   includeCSS("../www/custom.css"),
@@ -236,6 +241,12 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
+  
+  session$onSessionEnded(function() {
+    
+    loggit("INFO", "app has stopped", app = "stop")
+    
+  })
   
   observeEvent(session$clientData$url_search, {
     

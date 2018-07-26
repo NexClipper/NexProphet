@@ -316,15 +316,7 @@ load_metric_from_host <- function(period, groupby,
   
   dbname <- connector$dbname
   
-  if (single & unit == '1') {
-    
-    period <- paste0(period, 'h')
-    
-  } else {
-    
-    period <- paste0(period, 'd')
-    
-  }
+  period <- paste0(period, 'd')
   
   host_ip <- paste('host_ip', "'%s'", sep = ' = ') %>%
     sprintf(host_list) %>% 
@@ -418,16 +410,6 @@ load_metric_from_host <- function(period, groupby,
   
   res_host <- full_join(df, res_host, by = 'time')
   
-  if (single) {
-    
-    res_host <- res_host %>% select(-host_ip)
-    
-    names(res_host) <- c('ds', 'y')
-    
-    return(res_host)
-    
-  }
-  
   res_host <- gather(res_host, var, value, c(-time, -host_ip)) %>% 
     unite(var_new, host_ip, var, sep = ', ') %>% 
     spread(var_new, value)
@@ -455,15 +437,8 @@ load_metric_from_task <- function(period, groupby,
   
   dbname <- connector$dbname
   
-  if (single & unit == '1') {
-    
-    period <- paste0(period, 'h')
-    
-  } else {
-    
-    period <- paste0(period, 'd')
-    
-  }
+  period <- paste0(period, 'd')
+  
   # browser()
   task <- paste('task', "'%s'", sep = ' = ') %>%
     sprintf(host_list) %>% 
@@ -508,16 +483,6 @@ load_metric_from_task <- function(period, groupby,
   
   res_task <- full_join(df, res_task, by = 'time')
   
-  if (single) {
-    
-    res_task <- res_task %>% select(c(-task, -node_ip))
-    
-    names(res_task) <- c('ds', 'y')
-    
-    return(res_task)
-    
-  }
-  
   res_task <- gather(res_task, var, value, c(-time, -task, -node_ip)) %>% 
     unite(var_new, task, node_ip, var, sep = ', ') %>% 
     spread(var_new, value)
@@ -547,15 +512,7 @@ load_metric_from_docker <- function(period, groupby,
   
   dbname <- connector$dbname
   
-  if (single & unit == '1') {
-    
-    period <- paste0(period, 'h')
-    
-  } else {
-    
-    period <- paste0(period, 'd')
-    
-  }
+  period <- paste0(period, 'd')
   
   task_id <- paste('task_id', "'%s'", sep = ' = ') %>%
     sprintf(host_list) %>% 
@@ -628,16 +585,6 @@ load_metric_from_docker <- function(period, groupby,
   df <- tibble(time = ts)
   
   res_docker <- full_join(df, res_docker, by = 'time')
-  
-  if (single) {
-    
-    res_docker <- res_docker %>% select(-task_id)
-    
-    names(res_docker) <- c('ds', 'y')
-    
-    return(res_docker)
-    
-  }
   
   res_docker <- gather(res_docker, var, value, c(-time, -task_id)) %>% 
     unite(var_new, task_id, var, sep = ', ') %>% 

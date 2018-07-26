@@ -31,3 +31,7 @@ bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot',
 
 # machine learning
 bs.Library(c("prophet", 'lmtest'))
+
+
+# logging
+bs.Library(c('loggit'))
