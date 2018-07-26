@@ -1,4 +1,5 @@
 #### FORECAST ####
+rm(list = ls())
 
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
@@ -503,4 +504,3 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
-rm(list = ls())
