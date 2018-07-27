@@ -313,7 +313,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'docker_metrics',
-                           selected = DOCKER_METRIC_LIST)
+                           selected = unlist(DOCKER_METRIC_LIST))
       
     } else {
       
@@ -332,7 +332,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'host_metrics',
-                           selected = HOST_METRIC_LIST)
+                           selected = unlist(HOST_METRIC_LIST))
       
     } else {
       
@@ -351,7 +351,7 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'task_metrics',
-                           selected = TASK_METRIC_LIST)
+                           selected = unlist(TASK_METRIC_LIST))
       
     } else {
       
