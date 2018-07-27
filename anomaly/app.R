@@ -1,5 +1,4 @@
 #### Anomaly ####
-rm(list = ls())
 
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
@@ -14,6 +13,8 @@ numVar = NULL
 HOST_TAG_LIST <- NULL
 
 HOST_METRIC_LIST <- NULL
+
+HOST_MOUNT_PATH <- NULL
 
 TASK_TAG_LIST <- NULL
 
@@ -52,16 +53,6 @@ ui <- fluidPage(
           choices = ''
         ),
         
-        # pickerInput(
-        #   inputId = 'resource_assist',
-        #   label = 'Select Host',
-        #   choices = '',
-        #   choicesOpt = list(style = '{max-width: 300px}'),
-        #   options = list(
-        #     `live-search` = TRUE,
-        #     size = 8)
-        # ),
-        
         conditionalPanel(
           condition = "input.resource == 'task'",
           helpText("Note : if task name is same and host is seperated, Merge = No.\
@@ -83,15 +74,7 @@ ui <- fluidPage(
             label = 'Select Host',
             choices = ''
           )
-          # pickerInput(
-          #   inputId = 'host_for_task',
-          #   label = 'Select Host',
-          #   choices = '',
-          #   choicesOpt = list(style = '{max-width: 300px}'),
-          #   options = list(
-          #     `live-search` = TRUE,
-          #     size = 8)
-          # )
+          
         ),
         
         selectizeInput(
@@ -100,23 +83,7 @@ ui <- fluidPage(
           choices = ''
         ),
         
-        conditionalPanel(
-          condition = "input.resource == 'host'",
-          selectizeInput(
-            inputId = 'mount_path',
-            label = 'Select Mount Path',
-            choices = ''
-          )
-        )
-        # pickerInput(
-        #   inputId = 'single_metric',
-        #   label = 'Select Metric',
-        #   choices = '',
-        #   choicesOpt = list(style = '{max-width: 300px}'),
-        #   options = list(
-        #     `live-search` = TRUE,
-        #     size = 8)
-        # )
+        uiOutput('mount')
         
       ),
       
@@ -288,6 +255,9 @@ server <- function(input, output, session) {
     
     DOCKER_METRIC_LIST <<- load_metric_list('docker')
     
+    HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                  AGENT_ID())
+    
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
                               'task' = TASK_TAG_LIST,
@@ -335,22 +305,6 @@ server <- function(input, output, session) {
                      'host' = 'Select Host Name',
                      'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
-    # browser()
-    if (is.null(HOST_TAG_LIST)) {
-      
-      HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
-      
-      TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
-      
-      DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
-      
-      HOST_METRIC_LIST <<- load_metric_list('host')
-      
-      TASK_METRIC_LIST <<- load_metric_list('task')
-      
-      DOCKER_METRIC_LIST <<- load_metric_list('docker')
-      
-    }
     
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
@@ -393,25 +347,53 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$resource_assist, {
+  observeEvent(input$single_metric, {
     
     if (input$resource == 'host') {
-      # print('mount path!')
-      # print(input$resource_assist)
-      HOST_MOUNT_PATH <- load_host_disk_mount_path(input$resource_assist,
-                                                   AGENT_ID())
       
-      updateSelectizeInput(
+      if (input$single_metric %in% HOST_METRIC_LIST$host_disk) {
+        
+        output$mount <- renderUI({
+          
+          selectizeInput(
+            'mount_path',
+            'Select Mount Path',
+            choices = HOST_MOUNT_PATH
+          )
+        })
+        
+      } else {
+        
+        output$mount <- renderUI({
+          
+          conditionalPanel(
+            condition = 'false',
+            selectizeInput(
+              'mount_path',
+              'Select Mount Path',
+              choices = 'null'
+            )
+          )
+        })
+        
+      }
+    }
+  })
+  
+  
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$resource == 'host' & input$resource_assist != '') {
+      
+      HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                    AGENT_ID())
+      updateSelectInput(
         session = session,
         inputId = 'mount_path',
         choices = HOST_MOUNT_PATH
       )
       
     }
-  })
-  
-  
-  observeEvent(c(input$resource_assist, input$merge), {
     
     if (input$merge == "0" & input$resource == 'task') {
       

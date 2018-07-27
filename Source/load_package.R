@@ -25,10 +25,9 @@ bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
 
 
 # visualization
-bs.Library(c("dygraphs", "visNetwork", 'plotly', 'ggcorrplot',
-             'd3heatmap'))
+bs.Library(c("dygraphs", "visNetwork", 'd3heatmap',
+             'ggplot2', 'grid', 'RColorBrewer'))
 
 
 # machine learning
-bs.Library(c("prophet", 'lmtest'))
-
+bs.Library(c("prophet", 'lmtest', 'quantmod', 'PerformanceAnalytics'))

@@ -762,6 +762,7 @@ load_metric_list <- function(measurement) {
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
   # host_ip='172.17.0.1';agent_id='60'
+  # host_ip='192.168.0.162';agent_id='27'
   connector <- connect()
   
   con <- connector$connector
@@ -1213,6 +1214,58 @@ renew <- function(renewal) {
 }
 
 
+
+#### METRIC CORRELATION ####
+horizon.panel.ggplot <- function(df,  add_text=NULL) {
+  
+  #df parameter should be in form of date (x), grouping, and a value (y)
+  colnames(df) <- c("date","grouping","y")
+  #get some decent colors from RColorBrewer
+  #we will use colors on the edges so 2:4 for red and 7:9 for blue
+  
+  col.brew <- brewer.pal(name="RdBu", n=10)
+  
+  
+  lv <- levels(df$grouping)
+  
+  if (is.null(add_text)) {
+    
+    add_text = ""
+    
+  } else {
+    add_text = paste0(" (", add_text, ")")  
+  }
+  
+  labeli2 <- function(variable, value){
+    value <- droplevels(value)
+    names_li <- as.list(paste0(lv, add_text)) 
+    names(names_li) <- lv
+    
+    return(names_li[value])
+  }
+  
+  #use ggplot to produce an area plot
+  p <- ggplot(data=df) +
+    geom_line(aes(x = date, y = y), size=0.5, color = "darkgoldenrod") + 
+    # scale_fill_manual(values=c("ypos1"=col.brew[7],  #assign the colors to each of the bands; colors get darker as values increase
+    #                            "ypos2"=col.brew[8],
+    #                            "ypos3"=col.brew[9],
+    #                            "yneg1"=col.brew[4],
+    #                            "yneg2"=col.brew[3],
+    #                            "yneg3"=col.brew[2])) +
+    # ylim(origin,horizonscale) +   #limit plot to origin and horizonscale
+    facet_grid(grouping ~ ., labeller = labeli2) +    #do new subplot for each group
+    theme_bw() +                  #this is optional, but I prefer to default
+    theme(legend.position = "none",    #remove legend
+          strip.text.y = element_text(angle = 0),#rotate strip text to horizontal
+          strip.background = element_rect(fill = 'grey95'),
+          axis.text.y = element_blank(),#remove y axis labels
+          axis.ticks.y = element_blank(), #remove tick marks
+          axis.title.y = element_blank(),#remove title for the y axis
+          axis.title.x = element_blank()
+    )
+  return(p)
+}
 #### METRIC CASUALITY ####
 
 get_node_edge_df <- function(mtx, lag) {

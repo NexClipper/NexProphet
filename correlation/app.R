@@ -1,6 +1,5 @@
 #### Metric Correlation ####
 
-rm(list = ls())
 source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
@@ -18,6 +17,9 @@ DOCKER_TAG_LIST <- NULL
 DOCKER_METRIC_LIST <- NULL
 
 # total data
+multiple_metrics <- NULL
+
+# metric correlation
 data_corr <- NULL
 
 
@@ -36,6 +38,10 @@ ui <- fluidPage(
       
       wellPanel(
         
+        actionButton("host_list_all",
+                     "Select All",
+                     Height = 40),
+        
         selectizeInput("host_list",
                        "Select Host to inspect :", 
                        choices = '',
@@ -44,7 +50,7 @@ ui <- fluidPage(
 
         br(),
 
-        actionButton("host_all",
+        actionButton("host_metric_all",
                      "Select All",
                      Height = 40),
         
@@ -58,6 +64,10 @@ ui <- fluidPage(
       
       wellPanel(
         
+        actionButton("task_list_all",
+                     "Select All",
+                     Height = 40),
+        
         selectizeInput("task_list",
                        "Select Task to inspect :", 
                        choices = "",
@@ -66,7 +76,7 @@ ui <- fluidPage(
         
         br(),
         
-        actionButton("task_all",
+        actionButton("task_metric_all",
                      "Select All",
                      Height = 40),
         
@@ -80,6 +90,10 @@ ui <- fluidPage(
       
       wellPanel(
         
+        actionButton("docker_list_all",
+                     "Select All",
+                     Height = 40),
+        
         selectizeInput("docker_list",
                        "Select Docker to inspect :", 
                        choices = "",
@@ -88,7 +102,7 @@ ui <- fluidPage(
         
         br(),
         
-        actionButton("docker_all",
+        actionButton("docker_metric_all",
                      "Select All",
                      Height = 40),
         
@@ -137,7 +151,7 @@ ui <- fluidPage(
       
       column(
         
-        width = 8,
+        width = 12,
         
         fluidRow(
           
@@ -149,7 +163,31 @@ ui <- fluidPage(
           
           hr(),
           
-          d3heatmapOutput('correlation_plot', height = '500px')
+          d3heatmapOutput('correlation_plot', height = '700px')
+          
+        )
+        
+      ),
+      
+      column(
+        
+        width = 8,
+        
+        fluidRow(
+          
+          class = 'graph_panel',
+          
+          br(),
+          
+          h4(class = 'h4_alter', "Show metrics similar to metric you select"),
+          
+          hr(),
+          
+          selectizeInput("combo_metric",
+                         "Select Metric :", 
+                         choices = '', selected = ""),
+          
+          plotOutput('similar_plot')
           
         )
         
@@ -187,6 +225,16 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
+  
+  # observeEvent(input$combo_metric, {
+  # 
+  #   output$similar_plot <- renderPlot({
+  #     
+  #     horizon.panel.ggplot(df,  add_text=NULL)
+  #     
+  #   })
+  #   
+  # })
   
   AGENT_ID <- reactive({
     
@@ -268,27 +316,22 @@ server <- function(input, output, session) {
                         'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
     
-    multiple_metrics <- load_multiple_metric(period = period,
-                                             groupby = groupby,
-                                             host_list = host_list,
-                                             metric_list = metric_list,
-                                             AGENT_ID()) %>%
-      select(-time) %>% 
+    multiple_metrics <<- load_multiple_metric(period = period,
+                                              groupby = groupby,
+                                              host_list = host_list,
+                                              metric_list = metric_list,
+                                              AGENT_ID()) %>% 
       select_if(~sum(!is.na(.)) > 0) %>% 
-      select_if(~ sd(., na.rm = T) != 0) %>% 
+      select_if(~ sd(., na.rm = T) != 0)
+    
+    multiple_metrics_for_corr <- multiple_metrics  %>% 
+      select(-time) %>% 
       as.matrix() %>% 
       standardization()
     
-    data_corr <<- multiple_metrics %>%
-      cor(use = 'pairwise.complete.obs')
-    
-    # all.na.idx <- sapply(multiple_metrics, function(x) all(is.na(x)))
-    
-    # multiple_metrics %>% 
-    #   as.matrix() %>%
-    #   standardization()
-    
     # browser()
+    data_corr <<- multiple_metrics_for_corr %>%
+      cor(use = 'pairwise.complete.obs')
     
     output$correlation_plot <- renderD3heatmap({
       
@@ -301,24 +344,27 @@ server <- function(input, output, session) {
     
     updateSelectInput(session,
                       "combo_DT_Metric",
-                      choices = rownames(data_corr),
-                      selected = NULL)
+                      choices = rownames(data_corr))
+    
+    updateSelectInput(session,
+                      "combo_metric",
+                      choices = rownames(data_corr))
    
   })
   
   
-  observeEvent(input$docker_all, {
+  observeEvent(input$host_list_all, {
     
-    if (is.null(input$docker_metrics)) {
+    if (is.null(input$host_list)) {
       
       updateSelectizeInput(session,
-                           inputId = 'docker_metrics',
-                           selected = unlist(DOCKER_METRIC_LIST))
+                           inputId = 'host_list',
+                           selected = unlist(HOST_TAG_LIST))
       
     } else {
       
       updateSelectizeInput(session,
-                           inputId = 'docker_metrics',
+                           inputId = 'host_list',
                            selected = '')
       
     }
@@ -326,7 +372,45 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$host_all, {
+  observeEvent(input$task_list_all, {
+    
+    if (is.null(input$task_list)) {
+      
+      updateSelectizeInput(session,
+                           inputId = 'task_list',
+                           selected = unlist(TASK_TAG_LIST))
+      
+    } else {
+      
+      updateSelectizeInput(session,
+                           inputId = 'task_list',
+                           selected = '')
+      
+    }
+    
+  })
+  
+  
+  observeEvent(input$docker_list_all, {
+    
+    if (is.null(input$docker_list)) {
+      
+      updateSelectizeInput(session,
+                           inputId = 'docker_list',
+                           selected = unlist(DOCKER_TAG_LIST))
+      
+    } else {
+      
+      updateSelectizeInput(session,
+                           inputId = 'docker_list',
+                           selected = '')
+      
+    }
+    
+  })
+  
+  
+  observeEvent(input$host_metric_all, {
     
     if (is.null(input$host_metrics)) {
       
@@ -345,7 +429,7 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$task_all, {
+  observeEvent(input$task_metric_all, {
     
     if (is.null(input$task_metrics)) {
       
@@ -357,6 +441,25 @@ server <- function(input, output, session) {
       
       updateSelectizeInput(session,
                            inputId = 'task_metrics',
+                           selected = '')
+      
+    }
+    
+  })
+  
+  
+  observeEvent(input$docker_metric_all, {
+    
+    if (is.null(input$docker_metrics)) {
+      
+      updateSelectizeInput(session,
+                           inputId = 'docker_metrics',
+                           selected = unlist(DOCKER_METRIC_LIST))
+      
+    } else {
+      
+      updateSelectizeInput(session,
+                           inputId = 'docker_metrics',
                            selected = '')
       
     }
@@ -377,7 +480,7 @@ server <- function(input, output, session) {
         
         output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
                                                     options = list(scrollX  = TRUE,
-                                                                   pageLength = 13))
+                                                                   pageLength = 10))
       }
       
     })
