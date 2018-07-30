@@ -1223,8 +1223,9 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
   #get some decent colors from RColorBrewer
   #we will use colors on the edges so 2:4 for red and 7:9 for blue
   
-  col.brew <- brewer.pal(name="RdBu", n=10)
+  col.brew <- brewer.pal(name = "RdBu", n = 10)
   
+  df$grouping <- as.factor(df$grouping)
   
   lv <- levels(df$grouping)
   
@@ -1235,18 +1236,20 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
   } else {
     add_text = paste0(" (", add_text, ")")  
   }
-  
-  labeli2 <- function(variable, value){
+  # browser()
+  labeli2 <- function(variable, value) {
+    
     value <- droplevels(value)
-    names_li <- as.list(paste0(lv, add_text)) 
+    names_li <- as.list(paste0(lv, add_text))
     names(names_li) <- lv
     
     return(names_li[value])
+    
   }
   
   #use ggplot to produce an area plot
-  p <- ggplot(data=df) +
-    geom_line(aes(x = date, y = y), size=0.5, color = "darkgoldenrod") + 
+  p <- ggplot(data = df) +
+    geom_line(aes(x = date, y = y), size = 0.75, color = "darkgoldenrod") + 
     # scale_fill_manual(values=c("ypos1"=col.brew[7],  #assign the colors to each of the bands; colors get darker as values increase
     #                            "ypos2"=col.brew[8],
     #                            "ypos3"=col.brew[9],
@@ -1254,7 +1257,7 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
     #                            "yneg2"=col.brew[3],
     #                            "yneg3"=col.brew[2])) +
     # ylim(origin,horizonscale) +   #limit plot to origin and horizonscale
-    facet_grid(grouping ~ ., labeller = labeli2) +    #do new subplot for each group
+    facet_grid(grouping ~ ., labeller = labeli2, scales="free_y") +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
           strip.text.y = element_text(angle = 0),#rotate strip text to horizontal
@@ -1264,8 +1267,13 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
           axis.title.y = element_blank(),#remove title for the y axis
           axis.title.x = element_blank()
     )
+  
   return(p)
+  
 }
+
+
+
 #### METRIC CASUALITY ####
 
 get_node_edge_df <- function(mtx, lag) {

@@ -187,7 +187,7 @@ ui <- fluidPage(
                          "Select Metric :", 
                          choices = '', selected = ""),
           
-          plotOutput('similar_plot')
+          plotOutput('similar_plot', height = '500px')
           
         )
         
@@ -472,6 +472,7 @@ server <- function(input, output, session) {
     output$correlation_table <- renderDataTable({
       
       if (input$combo_DT_Metric != "") {
+        
         dt <- data.table(Metrics = rownames(data_corr),
                          Correlation = data_corr[, input$combo_DT_Metric],
                          absCorr = abs(data_corr[, input$combo_DT_Metric]))
@@ -481,6 +482,33 @@ server <- function(input, output, session) {
         output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
                                                     options = list(scrollX  = TRUE,
                                                                    pageLength = 10))
+      }
+      
+    })
+    
+  })
+  
+  
+  observeEvent(input$combo_metric, {
+    
+    output$similar_plot <- renderPlot({
+      
+      if (input$combo_metric != "") {
+        
+        dt <- data.table(Metrics = rownames(data_corr),
+                         Correlation = round(data_corr[, input$combo_metric], 4),
+                         absCorr = abs(data_corr[, input$combo_metric]))
+        
+        setorder(dt, -absCorr)
+        # browser()
+        
+        multiple_metrics %>%
+          select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
+          na.omit() %>% 
+          gather(key, value, -1) %>% 
+          as.data.frame() %>% 
+          horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])
+        
       }
       
     })
