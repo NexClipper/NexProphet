@@ -7,7 +7,7 @@ bs.Library <- function(pkg, add = T) {
   
   if (length(new.pkg))
     
-    install.packages(new.pkg, dependencies = TRUE)
+    install.packages(new.pkg, dependencies = F)
   
   if (add == TRUE)
     
