@@ -1223,8 +1223,6 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
   #get some decent colors from RColorBrewer
   #we will use colors on the edges so 2:4 for red and 7:9 for blue
   
-  col.brew <- brewer.pal(name = "RdBu", n = 10)
-  
   df$grouping <- as.factor(df$grouping)
   
   lv <- levels(df$grouping)
@@ -1250,13 +1248,6 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
   #use ggplot to produce an area plot
   p <- ggplot(data = df) +
     geom_line(aes(x = date, y = y), size = 0.75, color = "darkgoldenrod") + 
-    # scale_fill_manual(values=c("ypos1"=col.brew[7],  #assign the colors to each of the bands; colors get darker as values increase
-    #                            "ypos2"=col.brew[8],
-    #                            "ypos3"=col.brew[9],
-    #                            "yneg1"=col.brew[4],
-    #                            "yneg2"=col.brew[3],
-    #                            "yneg3"=col.brew[2])) +
-    # ylim(origin,horizonscale) +   #limit plot to origin and horizonscale
     facet_grid(grouping ~ ., labeller = labeli2, scales="free_y") +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
