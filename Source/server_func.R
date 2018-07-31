@@ -1234,13 +1234,13 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
     add_text = ""
     
   } else {
-    add_text = paste0(" (", add_text, ")")  
+    add_text = paste0("(", add_text, ")")  
   }
   # browser()
   labeli2 <- function(variable, value) {
     
     value <- droplevels(value)
-    names_li <- as.list(paste0(lv, add_text))
+    names_li <- as.list(paste(lv, add_text, sep = '\n'))
     names(names_li) <- lv
     
     return(names_li[value])

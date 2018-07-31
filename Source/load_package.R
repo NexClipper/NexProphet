@@ -17,7 +17,7 @@ bs.Library <- function(pkg, add = T) {
 
 
 # shiny
-bs.Library(c("shiny", "shinyWidgets", 'shinyjs'))
+bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders'))
 
 
 # data manipulation
@@ -25,8 +25,7 @@ bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
 
 
 # visualization
-bs.Library(c("dygraphs", "visNetwork", 'd3heatmap',
-             'ggplot2', 'grid', 'RColorBrewer'))
+bs.Library(c("dygraphs", 'd3heatmap', 'grid', 'RColorBrewer'))
 
 
 # machine learning

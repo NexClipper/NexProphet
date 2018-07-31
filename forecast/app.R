@@ -151,7 +151,8 @@ ui <- fluidPage(
                            dygraphOutput(
                              'trend_plot',
                              width = "100%",
-                             height = "300px")
+                             height = "300px") %>% 
+                             withSpinner()
                          )
                          
                   ),
@@ -171,7 +172,8 @@ ui <- fluidPage(
                            dygraphOutput(
                              'predicted_plot',
                              width = "100%",
-                             height = "300px")
+                             height = "300px") %>% 
+                             withSpinner()
                            
                          )
                          
@@ -196,7 +198,8 @@ ui <- fluidPage(
             
             hr(),
             
-            plotOutput('component_plot', height = "350px")
+            plotOutput('component_plot', height = "350px") %>% 
+              withSpinner()
             
           )
           

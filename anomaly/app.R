@@ -165,7 +165,8 @@ ui <- fluidPage(
             
             hr(),
             
-            plotOutput("monitoring", height = 500)
+            plotOutput("monitoring", height = 500) %>% 
+              withSpinner()
             
           ),
           
@@ -187,7 +188,8 @@ ui <- fluidPage(
             
             hr(),
             
-            imageOutput("modeling_img", height = '70%', width = '100%')
+            imageOutput("modeling_img", height = '70%', width = '100%') %>% 
+              withSpinner()
             
           )
           
@@ -207,7 +209,8 @@ ui <- fluidPage(
             
             hr(),
             
-            dataTableOutput('anomaly_table')
+            dataTableOutput('anomaly_table') %>% 
+              withSpinner()
           )
           
         )

@@ -16,12 +16,6 @@ DOCKER_TAG_LIST <- NULL
 
 DOCKER_METRIC_LIST <- NULL
 
-# total data
-multiple_metrics <- NULL
-
-# metric correlation
-data_corr <- NULL
-
 
 ui <- fluidPage(
   
@@ -163,8 +157,9 @@ ui <- fluidPage(
           
           hr(),
           
-          d3heatmapOutput('correlation_plot', height = '700px')
-          
+          # uiOutput('plot1')
+          d3heatmapOutput('correlation_plot', height = '700px') %>% 
+            withSpinner()
         )
         
       ),
@@ -187,7 +182,8 @@ ui <- fluidPage(
                          "Select Metric :", 
                          choices = '', selected = ""),
           
-          plotOutput('similar_plot', height = '500px')
+          plotOutput('similar_plot', height = '500px') %>% 
+            withSpinner()
           
         )
         
@@ -211,7 +207,8 @@ ui <- fluidPage(
                          "Select Metric to inspect :", 
                          choices = c(""), selected = ""),
           
-          dataTableOutput('correlation_table')
+          dataTableOutput('correlation_table') %>% 
+            withSpinner()
           
         )
         
@@ -226,16 +223,6 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  # observeEvent(input$combo_metric, {
-  # 
-  #   output$similar_plot <- renderPlot({
-  #     
-  #     horizon.panel.ggplot(df,  add_text=NULL)
-  #     
-  #   })
-  #   
-  # })
-  
   AGENT_ID <- reactive({
     
     url_search <- session$clientData$url_search
@@ -247,6 +234,9 @@ server <- function(input, output, session) {
     agent[2]
     
   })
+  
+  
+  output$correlation_plot <- renderD3heatmap({})
   
   
   observeEvent(AGENT_ID(), {
@@ -304,10 +294,32 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
+    output$correlation_plot <- renderD3heatmap({
+      
+      d3heatmap(data_corr(), colors = "Blues", scale = "none",
+                dendrogram = "both", k_row = 3, height = '600px',
+                xaxis_font_size = '8px', yaxis_font_size = '8px')
+      
+      
+    })
+    
+    updateSelectInput(session,
+                      "combo_DT_Metric",
+                      choices = rownames(data_corr()))
+    
+    updateSelectInput(session,
+                      "combo_metric",
+                      choices = rownames(data_corr()))
+   
+  })
+  
+  
+  multiple_metrics <- eventReactive(input$execute, {
+    
     period <- input$period
     
     groupby <- input$groupby
-
+    
     host_list <- list('host' = input$host_list,
                       'task' = input$task_list,
                       'docker' = input$docker_list)
@@ -316,40 +328,74 @@ server <- function(input, output, session) {
                         'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
     
-    multiple_metrics <<- load_multiple_metric(period = period,
-                                              groupby = groupby,
-                                              host_list = host_list,
-                                              metric_list = metric_list,
-                                              AGENT_ID()) %>% 
+    load_multiple_metric(period = period,
+                         groupby = groupby,
+                         host_list = host_list,
+                         metric_list = metric_list,
+                         AGENT_ID()) %>% 
       select_if(~sum(!is.na(.)) > 0) %>% 
       select_if(~ sd(., na.rm = T) != 0)
     
-    multiple_metrics_for_corr <- multiple_metrics  %>% 
-      select(-time) %>% 
-      as.matrix() %>% 
-      standardization()
+  })
+  
+  
+  data_corr <- reactive({
     
-    # browser()
-    data_corr <<- multiple_metrics_for_corr %>%
+    multiple_metrics() %>% 
+      select(-time) %>%
+      as.matrix() %>%
+      standardization() %>% 
       cor(use = 'pairwise.complete.obs')
     
-    output$correlation_plot <- renderD3heatmap({
+  })
+  
+  
+  observeEvent(input$combo_DT_Metric, {
+    
+    output$correlation_table <- renderDataTable({
       
-      d3heatmap(data_corr, colors = "Blues", scale = "none",
-                dendrogram = "both", k_row = 3, height = '600px',
-                xaxis_font_size = '8px', yaxis_font_size = '8px')
+      if (input$combo_DT_Metric != "") {
+        
+        dt <- data.table(Metrics = rownames(data_corr()),
+                         Correlation = data_corr()[, input$combo_DT_Metric],
+                         absCorr = abs(data_corr()[, input$combo_DT_Metric]))
+        
+        setorder(dt, -absCorr)
+        
+        output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
+                                                    options = list(scrollX  = TRUE,
+                                                                   pageLength = 10))
+      }
       
     })
     
+  })
+  
+  
+  observeEvent(input$combo_metric, {
     
-    updateSelectInput(session,
-                      "combo_DT_Metric",
-                      choices = rownames(data_corr))
+    output$similar_plot <- renderPlot({
+      
+      if (input$combo_metric != "") {
+        
+        dt <- data.table(Metrics = rownames(data_corr()),
+                         Correlation = round(data_corr()[, input$combo_metric], 4),
+                         absCorr = abs(data_corr()[, input$combo_metric]))
+        
+        setorder(dt, -absCorr)
+        # browser()
+        
+        multiple_metrics() %>%
+          select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
+          na.omit() %>% 
+          gather(key, value, -1) %>% 
+          as.data.frame() %>% 
+          horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])
+        
+      }
+      
+    })
     
-    updateSelectInput(session,
-                      "combo_metric",
-                      choices = rownames(data_corr))
-   
   })
   
   
@@ -463,55 +509,6 @@ server <- function(input, output, session) {
                            selected = '')
       
     }
-    
-  })
-  
-  
-  observeEvent(input$combo_DT_Metric, {
-    
-    output$correlation_table <- renderDataTable({
-      
-      if (input$combo_DT_Metric != "") {
-        
-        dt <- data.table(Metrics = rownames(data_corr),
-                         Correlation = data_corr[, input$combo_DT_Metric],
-                         absCorr = abs(data_corr[, input$combo_DT_Metric]))
-        
-        setorder(dt, -absCorr)
-        
-        output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
-                                                    options = list(scrollX  = TRUE,
-                                                                   pageLength = 10))
-      }
-      
-    })
-    
-  })
-  
-  
-  observeEvent(input$combo_metric, {
-    
-    output$similar_plot <- renderPlot({
-      
-      if (input$combo_metric != "") {
-        
-        dt <- data.table(Metrics = rownames(data_corr),
-                         Correlation = round(data_corr[, input$combo_metric], 4),
-                         absCorr = abs(data_corr[, input$combo_metric]))
-        
-        setorder(dt, -absCorr)
-        # browser()
-        
-        multiple_metrics %>%
-          select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
-          na.omit() %>% 
-          gather(key, value, -1) %>% 
-          as.data.frame() %>% 
-          horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])
-        
-      }
-      
-    })
     
   })
   
