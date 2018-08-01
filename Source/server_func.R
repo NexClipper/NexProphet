@@ -868,7 +868,7 @@ load_docker_tag_list <- function(agent_id) {
                                 'host_ip' = names(docker[grep('containers.Labels.MESOS_TASK_ID', names(docker))]),
                                 stringsAsFactors = F)
   
-  mesos_name_list$host_ip <- str_extract(mesos_names_list$host_ip, '\\d+.\\d+.\\d+.\\d+')
+  mesos_name_list$host_ip <- str_extract(mesos_name_list$host_ip, '\\d+.\\d+.\\d+.\\d+')
   
   docker_name_list <- rbind(docker_name_list, mesos_name_list)
   
