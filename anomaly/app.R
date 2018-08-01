@@ -53,29 +53,29 @@ ui <- fluidPage(
           choices = ''
         ),
         
-        conditionalPanel(
-          condition = "input.resource == 'task'",
-          helpText("Note : if task name is same and host is seperated, Merge = No.\
-                           if host is seperated for same task, Merge = Yes."),
-          prettyRadioButtons(
-            inputId = 'merge',
-            label = 'Merge or Not',
-            choices = list('Yes' = 1,
-                           'No' = 0),
-            selected = 1,
-            inline = T
-          )
-        ),
-        
-        conditionalPanel(
-          condition = "input.merge == '0' & input.resource == 'task'",
-          selectizeInput(
-            inputId = 'host_for_task',
-            label = 'Select Host',
-            choices = ''
-          )
-          
-        ),
+        # conditionalPanel(
+        #   condition = "input.resource == 'task'",
+        #   helpText("Note : if task name is same and host is seperated, Merge = No.\
+        #                    if host is seperated for same task, Merge = Yes."),
+        #   prettyRadioButtons(
+        #     inputId = 'merge',
+        #     label = 'Merge or Not',
+        #     choices = list('Yes' = 1,
+        #                    'No' = 0),
+        #     selected = 1,
+        #     inline = T
+        #   )
+        # ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.merge == '0' & input.resource == 'task'",
+        #   selectizeInput(
+        #     inputId = 'host_for_task',
+        #     label = 'Select Host',
+        #     choices = ''
+        #   )
+        #   
+        # ),
         
         selectizeInput(
           inputId = 'single_metric',
@@ -283,21 +283,21 @@ server <- function(input, output, session) {
       choices = metrics
     )
     
-    if (input$resource != 'task') {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'merge',
-        selected = '1'
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        selected = ''
-      )
-      
-    }
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
     
   })
   
@@ -331,21 +331,21 @@ server <- function(input, output, session) {
       choices = metrics
     )
     
-    if (input$resource != 'task') {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'merge',
-        selected = '1'
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        selected = ''
-      )
-      
-    }
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
     
   })
   
@@ -398,25 +398,25 @@ server <- function(input, output, session) {
       
     }
     
-    if (input$merge == "0" & input$resource == 'task') {
-      
-      choices_ <- load_host_list_for_task(input$resource_assist)
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = choices_
-      )
-      
-    } else {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = ''
-      )
-      
-    }
+    # if (input$merge == "0" & input$resource == 'task') {
+    #   
+    #   choices_ <- load_host_list_for_task(input$resource_assist)
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = choices_
+    #   )
+    #   
+    # } else {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = ''
+    #   )
+    #   
+    # }
     
   })
 
@@ -474,7 +474,7 @@ server <- function(input, output, session) {
       
       groupby <- input$groupby
       
-      node_ip <- input$host_for_task
+      # node_ip <- input$host_for_task
       
       mount <- input$mount_path
       
@@ -482,16 +482,8 @@ server <- function(input, output, session) {
       
       renewal_time <- renew(renewal)
       
-      if (node_ip != '') {
+      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
         
-        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
-        
-      } else {
-        
-        dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
-        
-      }
-      
       modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
       
       figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
@@ -503,15 +495,9 @@ server <- function(input, output, session) {
         
         output$monitoring <- renderPlot({
           
-          # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID(), mount) %>% 
+                                       unit, AGENT_ID(), mount) %>% 
             as.data.table()
-          # invalidateLater(groupby * 1000)
-          
-          # # anomaly 차트용 데이터 
-          # global_series <<- load_single_metric(table, host, metric, period, groupby,
-          #                                      limit = 100, type = 'anomaly')
           
           ggplot(series, aes(ds, y)) + geom_point() + geom_line() +
             ylab(metric) + xlab("Time")
@@ -540,7 +526,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip, AGENT_ID(), mount) %>% 
+                                       unit, AGENT_ID(), mount) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -582,15 +568,7 @@ server <- function(input, output, session) {
         
         output$modeling_img <- renderImage({
           
-          if (node_ip != '') {
-            
-            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
-            
-          } else {
-            
-            dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
-            
-          }
+          dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
           
           figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
           
@@ -641,20 +619,12 @@ server <- function(input, output, session) {
     
     unit <- input$unit
     
-    node_ip <- input$host_for_task
+    # node_ip <- input$host_for_task
     
     mount <- input$mount_path
     
     # 모델 이름 결정
-    if (node_ip != '') {
-      
-      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, node_ip, paste0('unit_', unit), metric, sep = "/")
-      
-    } else {
-      
-      dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
-      
-    }
+    dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
     
     modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
     
@@ -663,7 +633,7 @@ server <- function(input, output, session) {
     if (metric != "") {
       
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip, AGENT_ID(), mount) %>% 
+                                    unit, AGENT_ID(), mount) %>% 
         as.data.table()
       
       fcastModel <- prophet(mseries,

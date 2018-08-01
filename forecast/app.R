@@ -47,29 +47,29 @@ ui <- fluidPage(
           label = 'Select Host',
           choices = ''
         ),
-        
-        conditionalPanel(
-          condition = "input.resource == 'task'",
-          helpText("Note : if task name is same and host is seperated, Merge = No.\
-                           if host is seperated for same task, Merge = Yes."),
-          prettyRadioButtons(
-            inputId = 'merge',
-            label = 'Merge or Not',
-            choices = list('Yes' = 1,
-                           'No' = 0),
-            selected = 1,
-            inline = T
-          )
-        ),
-        
-        conditionalPanel(
-          condition = "input.merge == '0' & input.resource == 'task'",
-          selectizeInput(
-            inputId = 'host_for_task',
-            label = 'Select Host',
-            choices = ''
-          )
-        ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.resource == 'task'",
+        #   helpText("Note : if task name is same and host is seperated, Merge = No.\
+        #                    if host is seperated for same task, Merge = Yes."),
+        #   prettyRadioButtons(
+        #     inputId = 'merge',
+        #     label = 'Merge or Not',
+        #     choices = list('Yes' = 1,
+        #                    'No' = 0),
+        #     selected = 1,
+        #     inline = T
+        #   )
+        # ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.merge == '0' & input.resource == 'task'",
+        #   selectizeInput(
+        #     inputId = 'host_for_task',
+        #     label = 'Select Host',
+        #     choices = ''
+        #   )
+        # ),
         
         selectizeInput(
           inputId = 'single_metric',
@@ -285,22 +285,22 @@ server <- function(input, output, session) {
       inputId = 'single_metric',
       choices = metrics
     )
-    
-    if (input$resource != 'task') {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'merge',
-        selected = '1'
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        selected = ''
-      )
-      
-    }
+
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
     
   })
   
@@ -334,21 +334,21 @@ server <- function(input, output, session) {
       choices = metrics
     )
     
-    if (input$resource != 'task') {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'merge',
-        selected = '1'
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        selected = ''
-      )
-      
-    }
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
     
   })
   
@@ -387,7 +387,7 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(c(input$resource_assist, input$merge), {
+  observeEvent(input$resource_assist, {
     
     if (input$resource == 'host' & input$resource_assist != '') {
       
@@ -401,25 +401,25 @@ server <- function(input, output, session) {
       
     }
     
-    if (input$merge == "0" & input$resource == 'task') {
-      
-      choices_ <- load_host_list_for_task(input$resource_assist)
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = choices_
-      )
-      
-    } else {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = ''
-      )
-      
-    }
+    # if (input$merge == "0" & input$resource == 'task') {
+    #   
+    #   choices_ <- load_host_list_for_task(input$resource_assist)
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = choices_
+    #   )
+    #   
+    # } else {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = ''
+    #   )
+    #   
+    # }
     
   })
   
@@ -490,7 +490,7 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
-    node_ip <- input$host_for_task
+    # node_ip <- input$host_for_task
     
     mount <- input$mount_path
     
@@ -501,7 +501,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip, AGENT_ID(), mount)
+                                   unit, AGENT_ID(), mount)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -531,13 +531,12 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
-    node_ip <- input$host_for_task
+    # node_ip <- input$host_for_task
     
     mount <- input$mount_path
     
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit, node_ip,
-                                     AGENT_ID(), mount)
+                                     pred_period, unit, AGENT_ID(), mount)
     
     forecast_result <- render_result$forecast_result
     
