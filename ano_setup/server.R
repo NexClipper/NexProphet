@@ -14,7 +14,7 @@ getMetricRule <- function(agent_id) {
                    host = host, 
                    port = port)
   
-  query <- "select * from temp_monitoring_metric where agent_id = %s" %>% 
+  query <- "select * from monitoring_metric where agent_id = %s" %>% 
     sprintf(agent_id)
   
   # 룰셋을 읽어온다. 
@@ -24,8 +24,8 @@ getMetricRule <- function(agent_id) {
   dbDisconnect(con)
   
   list(
-    table = anomalySet[,-(1:2)],
-    textVector =  apply(anomalySet[, -(1:2)],1, paste, collapse=", ")
+    table = anomalySet[, -1:-2],
+    textVector =  apply(anomalySet[, -1:-2], 1, paste, collapse=", ")
   )
 }
 
@@ -89,6 +89,34 @@ getAnomalyCount <- function(agent_id) {
   
 }
 
+get_model_info <- function(resource, target, metric, agent_id) {
+  # resource <- 'host';target <- '192.168.0.160';metric <- 'cpu_stolen_percent';agent_id <- 27
+  db_info <- read_json('../Source/mysql_info.json')
+  
+  con <- dbConnect(MySQL(), 
+                   user = db_info$user, 
+                   password = db_info$password,
+                   dbname = db_info$dbname,
+                   host = db_info$host, 
+                   port = db_info$port)
+  
+  query <- "select *
+            from model_info
+            where resource = '%s' and target = '%s' and metric = '%s' and agent_id = '%s'
+            order by id desc
+            limit 1" %>% 
+    sprintf(resource, target, metric, agent_id)
+  
+  rs = dbSendQuery(con, query)
+  
+  result <- fetch(rs, n=-1)
+  
+  dbDisconnect(con)
+  
+  return(result)
+  
+}
+
 server <- function(input, output, session){
   
   AGENT_ID <- reactive({
@@ -113,7 +141,98 @@ server <- function(input, output, session){
   metricMonitoringModal <- function(failed = FALSE) {
     modalDialog(size = "l", easyClose = T, 
                 
-                plotOutput("metricMonitoring", height = "600px"),
+                # plotOutput("metricMonitoring", height = "600px"),
+                renderPlot({
+                  # browser()
+                  resultRule <- input$selMetricRule %>%
+                    strsplit(', ') %>%
+                    unlist()
+                  
+                  model_info <- get_model_info(resultRule[1],
+                                               resultRule[2],
+                                               resultRule[3],
+                                               27)
+                  if (nrow(model_info) == 0)
+                    return('Modeling not yet')
+                  
+                  resource <- model_info$resource
+                  
+                  host <- model_info$target
+                  
+                  metric <- model_info$metric
+                  
+                  period <- 3
+                  
+                  unit <- model_info$unit
+                  
+                  groupby <- '5m'
+                  
+                  mount <- model_info$mount
+                  
+                  developed_at <- model_info$developed_at
+                  
+                  developed_at <- gsub(':', '-', developed_at)
+                  
+                  if (mount == 'null') {
+                    
+                    dir.name <-  paste("../Model",
+                                       paste0('agent_id_', 27),
+                                       resource, host,
+                                       paste0('unit_', unit),
+                                       metric, gsub(':', '-', developed_at), sep = "/")
+                    
+                  } else {
+                    
+                    dir.name <-  paste("../Model",
+                                       paste0('agent_id_', AGENT_ID()),
+                                       resource, host,
+                                       paste0('unit_', unit),
+                                       metric,
+                                       paste0('mount_', mount),
+                                       gsub(':', '-', developed_at), sep = "/")
+                  }
+                  
+                  modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
+                  
+                  figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
+                  
+                  series <- load_single_metric(resource, host, metric, period, groupby,
+                                               unit, 27, mount) %>% 
+                    as.data.table()
+                  
+                  load(modelFile.name)
+                  
+                  # Forecastring 결과에 따라 Anomaly 탐지
+                  future <- data.frame(ds = seq(min(series$ds),
+                                                max(series$ds),
+                                                by = posixt_helper_func(str_sub(groupby, -1))))
+                  
+                  fcst <- predict(fcastModel, future)
+                  
+                  pData <- merge(series, fcst, by = "ds", all.x = T)[, .(ds, y, yhat_lower, yhat_upper)]
+                  
+                  pData[, anomaly := y]
+                  
+                  pData[, anomaly := ifelse(y > yhat_upper | y < yhat_lower, y, NA)]
+                  
+                  anom_count <- pData[, sum(anomaly, na.rm = T)]
+                  
+                  g <- ggplot(pData, aes(ds, y)) + geom_point() +
+                    geom_ribbon(aes(ymin = yhat_lower,
+                                    ymax = yhat_upper),
+                                alpha = 0.1) + 
+                    xlim(c(min(pData$ds), max(pData$ds))) +
+                    ylab(metric) +
+                    xlab("Time")
+                  
+                  if (anom_count > 0) {
+                    
+                    g <- g + geom_point(aes(y = anomaly),
+                                        size = 5, alpha = 0.5, color = "red") 
+                  } 
+                  
+                  g
+                }),
                 
                 if (failed)
                   div(tags$b("Invalid Metric Information", style = "color: red;")),
@@ -122,6 +241,41 @@ server <- function(input, output, session){
                   modalButton("Close")
                 )
     )
+    
+    # output$metricMonitoring <- renderPlot({
+    #   browser()
+    #   resultRule <- input$selMetricRule %>% strsplit(', ') %>% na.omit()
+    #   
+    #   resource <- input$resource
+    #   
+    #   host <- input$resource_assist
+    #   
+    #   metric <- input$single_metric
+    #   
+    #   period <- input$period
+    #   
+    #   unit <- input$unit
+    #   
+    #   groupby <- input$groupby
+    #   
+    #   # mount <- input$mount_path
+    #   
+    #   developed_time <- Sys.time() %>%
+    #     strptime(format = '%Y-%m-%d %H-%M') %>% 
+    #     as.character()
+    #   
+    #   developed_time <- gsub(':', '-', developed_time)
+    #   
+    #   dir.name <-  paste("../Model",
+    #                      paste0('agent_id_', AGENT_ID()),
+    #                      resource, host,
+    #                      paste0('unit_', unit),
+    #                      metric, developed_time, sep = "/")
+    #   
+    #   modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
+    #   
+    #   figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
+    # })
   }
   
   # Modal Window  -- Metric Chart ------------------------------------------------------------------
@@ -132,7 +286,9 @@ server <- function(input, output, session){
         
         br(),
         radioButtons("duringHour", "Select Chart Period : ", 
-                     choices = c("1 hour", "3 hours", "6 hours"), inline = T)
+                     choices = c("1 hour" = 1,
+                                 "3 hours" = 3,
+                                 "6 hours" = 6), inline = T)
           
       ),
       
@@ -140,7 +296,33 @@ server <- function(input, output, session){
       
       fluidRow(style ="padding-left: 30px; padding-right: 30px",
         renderDygraph({
-          dygraph(iris, aes(Sepal.Length, Sepal.Width)) + geom_point(size = 3) + geom_line()
+          
+          metric <- input$selMetric
+          
+          host <- switch(input$anomType,
+                         'service' = input$selService,
+                         'host' = input$selHost,
+                         'task' = input$selTask,
+                         'docker' = input$selDocker)
+          
+          # if (input$anomType == 'host') {
+          #   
+          #   host_tag_list <- load_host_tag_list(27)
+          #   
+          #   host <- host_tag_list[host][[1]][1]
+          #   
+          # }
+          # browser()
+          series <- load_single_metric(input$anomType, host, metric, input$duringHour, '5m',
+                                       '1', 27)
+          
+          ts <- xts(series$y,
+                    order.by = series$ds,
+                    tzone = Sys.getenv("TZ"))
+          
+          dygraph(ts) %>%
+            dyRangeSelector(height = 30)
+          # dygraph(iris, aes(Sepal.Length, Sepal.Width)) + geom_point(size = 3) + geom_line()
           
         })
       ), 
@@ -313,6 +495,7 @@ server <- function(input, output, session){
       # Mysql에서 룰 읽어와서 저장 ---------------------
       
       if(!bRuleTable) {
+        # browser()
         output$datatableAllList <- renderDataTable(metricRules$table,
                                                    filter = 'bottom', class = "compact",
                                                    rownames = F,
@@ -320,7 +503,7 @@ server <- function(input, output, session){
                                                    options = list(
                                                      dom = 'rtp',
                                                      pageLength = 5,
-                                                     columnDefs = list(list(className = 'dt-center', targets = 0:6))))
+                                                     columnDefs = list(list(className = 'dt-center', targets = 0:4))))
         
         bRuleTable <<- T
       }
@@ -356,8 +539,11 @@ server <- function(input, output, session){
     
     # anomaly type
     updateRadioButtons(session, "anomType", label =  "Select anomaly detection type : ", 
-                       choices = c("Service", "Host", "Task", "Docker"), inline = T, 
-                       selected = str_to_title(metricRules$table[ss, 1]))
+                       # choices = c("Service" = 'service',
+                       #             "Host" = 'host',
+                       #             "Task" = 'task',
+                       #             "Docker" = 'docker'), inline = T, 
+                       selected = metricRules$table[ss, 1])
     
   })
   
@@ -378,22 +564,22 @@ server <- function(input, output, session){
     # anomaly type에 따라 ui가 변경되는 코드 -------------------------------------------------------
     output$anomInput <- renderUI({
       
-      if(input$anomType == "Service") {
+      if(input$anomType == "service") {
         tagList(
           selectizeInput("selService", "Select Service : ", choices = NULL, 1)
         )
         
-      } else if (input$anomType == "Host") {
+      } else if (input$anomType == "host") {
         tagList(
           selectizeInput("selHost", "Select Host : ", choices = NULL, 1)
         )
         
-      } else if (input$anomType == "Task") {
+      } else if (input$anomType == "task") {
         tagList(
           selectizeInput("selTask", "Select Task : ", choices = NULL, 1)
         )      
         
-      } else if (input$anomType == "Docker") {
+      } else if (input$anomType == "docker") {
         tagList(
           selectizeInput("selDocker", "Select Docker : ", choices = NULL, 1)
         )      
@@ -407,29 +593,27 @@ server <- function(input, output, session){
       
       output$redefineMent <- renderText("Go to Next Step to revise metric monitoring conditions!")
       
-      updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monior :", 
-                           choices = metricRules$table[ss, 5])
+      updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :", 
+                           choices = metricRules$table[ss, 3])
       
-      if(input$anomType == "Service") {
+      if(input$anomType == "service") {
         updateSelectizeInput(session, "selService", label =  "Select Service : ",
-                             choices = metricRules$table[ss, 6],
-                             selected = metricRules$table[ss, 6])
+                             choices = metricRules$table[ss, 4],
+                             selected = metricRules$table[ss, 4])
 
-      } else if(input$anomType == "Host") {
+      } else if(input$anomType == "host") {
         
         updateSelectizeInput(session, "selHost", label =  "Select Host : ",
                              choices = metricRules$table[ss, 2])
-      } else if(input$anomType == "Task") {
+      } else if(input$anomType == "task") {
         
-
-        print(metricRules$table[ss, 3])
         updateSelectizeInput(session, "selTask", label =  "Select Task : ",
-                             choices = metricRules$table[ss, 3])
+                             choices = metricRules$table[ss, 2])
 
-      } else if(input$anomType == "Docker") {
+      } else if(input$anomType == "docker") {
         updateSelectizeInput(session, "selDocker", label =  "Select Docker : ",
-                             choices = metricRules$table[ss, 4],
-                             selected = metricRules$table[ss, 4])
+                             choices = metricRules$table[ss, 2],
+                             selected = metricRules$table[ss, 2])
       }
 
       
@@ -439,10 +623,10 @@ server <- function(input, output, session){
       # updateSelectizeInput(session, "selMetricRule", label =  "Selecte a exsisting Rule : ", 
       #                      choices = "")
       
-      updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monior ----:", 
-                           choices = "")
-      
-      updateSelectizeInput(session, "selMetric", "Select a Metric to Monior : ", choices = NULL, 1)
+      # updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monior ----:", 
+      #                      choices = "")
+      # 
+      updateSelectizeInput(session, "selMetric", "Select a Metric to Monitor : ", choices = NULL, 1)
 
       output$redefineMent <- renderText("Choose the metric to revise")
       

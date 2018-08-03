@@ -21,7 +21,8 @@ bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders'))
 
 
 # data manipulation
-bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
+bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts',
+             'RMySQL'))
 
 
 # visualization
@@ -30,6 +31,7 @@ bs.Library(c("dygraphs", 'd3heatmap'))
 
 # machine learning
 bs.Library(c("prophet", 'lmtest'))
+
 
 # fetch resource list
 bs.Library(c('httr', 'jsonlite'))

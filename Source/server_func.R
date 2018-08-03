@@ -11,13 +11,18 @@ posixt_helper_func <- function(x) {
 
 
 connect <- function() {
-  con <- influx_connection(host = '192.168.0.162', port = 10091)
   
-  dbname <- 'nexclipper'
+  db_info <- read_json('../Source/influx_info.json')
+  
+  con <- influx_connection(host = db_info$host,
+                           port = db_info$port)
+  
+  dbname <- db_info$dbname
   
   conn <- list(connector = con, dbname = dbname)
   
   return(conn)
+  
 }
 
 
@@ -885,7 +890,7 @@ load_docker_tag_list <- function(agent_id) {
 
 
 load_host_tag_list <- function(agent_id) {
-  
+  # agent_id <- 27
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -1141,7 +1146,6 @@ load_host_tag_list <- function(agent_id) {
 # }
 
 
-
 #### FORECAST ####
 
 forecasting <- function(tb_, groupby, pred_period, unit, changepoint.prior.scale = 0.01) {
@@ -1270,31 +1274,45 @@ render_forecast_component <- function(result) {
 
 #### ANOMALY ####
 
-# will be deleted
-anomalization <- function(tb_,
-                          frequency = 'auto',
-                          method = 'stl',
-                          trend = 'auto') {
+
+save_model_info <- function(agent_id, resource, host, unit,
+                            metric, mount, developed_at,
+                            developed_during) {
   
-  decomposed <- time_decompose(tb_,
-                               y,
-                               method = method,
-                               frequency = frequency,
-                               trend = trend)
+  db_info <- read_json('../Source/mysql_info.json')
   
-  anomalized <- anomalize(decomposed,
-                          remainder,
-                          method = 'gesd',
-                          alpha = 0.05,
-                          max_anoms = 0.2,
-                          verbose = F)
+  developed_during <- developed_during %>% as.vector()
+  # browser()
+  con <- dbConnect(MySQL(), 
+                   user = db_info$user, 
+                   password = db_info$password,
+                   dbname = db_info$dbname,
+                   host = db_info$host, 
+                   port = db_info$port)
   
-  recomposed <- time_recompose(anomalized)
+  info <- data.frame('agent_id' = agent_id,
+                     'resource' = resource,
+                     'target' = host,
+                     'unit' = unit,
+                     'metric' = metric,
+                     'mount' = mount,
+                     'developed_at' = developed_at,
+                     'developed_during' = developed_during
+                     )
   
-  return(recomposed)
+  dbWriteTable(con, 
+               name = 'model_info', 
+               value = info,
+               row.names = F,
+               append = T)
+  
+  dbCommit(con)
+  
+  dbDisconnect(con)
+  
+  print('Success to save model information!')
   
 }
-
 
 renew <- function(renewal) {
   
@@ -1315,6 +1333,30 @@ renew <- function(renewal) {
 }
 
 
+# will be deleted
+# anomalization <- function(tb_,
+#                           frequency = 'auto',
+#                           method = 'stl',
+#                           trend = 'auto') {
+#   
+#   decomposed <- time_decompose(tb_,
+#                                y,
+#                                method = method,
+#                                frequency = frequency,
+#                                trend = trend)
+#   
+#   anomalized <- anomalize(decomposed,
+#                           remainder,
+#                           method = 'gesd',
+#                           alpha = 0.05,
+#                           max_anoms = 0.2,
+#                           verbose = F)
+#   
+#   recomposed <- time_recompose(anomalized)
+#   
+#   return(recomposed)
+#   
+# }
 
 #### METRIC CORRELATION ####
 horizon.panel.ggplot <- function(df,  add_text=NULL) {

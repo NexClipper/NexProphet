@@ -21,7 +21,7 @@ dashboardPage(
                  .iconNexBig {color: white; margin-right: 20px}
                  .iconNexSmall {color: white; margin-right: 10px}
                  .iconNexButton {color: black; margin-right: 10px}
-                 .nexSideMenu {background-color: #fafafa!important; padding-left: 30px; padding-top: 20px; padding-bottom: 10px;}
+                 .nexSideMenu {background-color: #fdfdfd!important; padding-left: 30px; padding-top: 20px; padding-bottom: 10px;}
                  .nexBody8 {padding-left: 40px; padding-top: 20px; padding-bottom: 20px;}'
 
               ),
@@ -81,13 +81,16 @@ dashboardPage(
                   
                   column(width = 4, class = "nexSideMenu",
                     radioButtons("anomType", "Select anomaly detection type :", 
-                                   c("Service", "Host", "Task", "Docker"), inline = T, width = "100%")
+                                   c("Service" = 'service',
+                                     "Host" = 'host',
+                                     "Task" = 'task',
+                                     "Docker" = 'docker'), inline = T, width = "100%")
                   ),
                   
                   column(width = 8, class = "nexBody8",
                          
                          uiOutput("anomInput"),
-                         selectizeInput("selMetric", "Select a Metric to Monior : ", choices = NULL, 1),
+                         selectizeInput("selMetric", "Select a Metric to Monitor : ", choices = NULL),
                          
                          br(),
                          
