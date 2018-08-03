@@ -1,3 +1,6 @@
+source('../Source/load_package.R')
+source('../Source/server_func.R')
+
 getMetricRule <- function(agent_id) {
   library(RMySQL)
   agent_id <- 27
