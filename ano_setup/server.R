@@ -45,7 +45,7 @@ getMetricResult <- function(agent_id) {
                    host = host, 
                    port = port)
   
-  query <- "select * from temp_monitoring_results where agent_id = %s" %>% 
+  query <- "select * from monitoring_results where agent_id = %s" %>% 
     sprintf(agent_id)
   
   # 룰셋을 읽어온다. 
@@ -75,7 +75,7 @@ getAnomalyCount <- function(agent_id) {
                    port = port)
   
   query <- "select count(agent_id) as count
-            from temp_monitoring_results
+            from monitoring_results
             where agent_id = %s" %>% 
     sprintf(agent_id)
   
@@ -136,6 +136,53 @@ server <- function(input, output, session){
   metricRules <- getMetricRule(AGENT_ID())          # DB에서 가져온 룰셋 데이터 
   bRuleTable <- F              # 테이블에 룰셋이 들어가 있는지
   metricResult <- getMetricResult(AGENT_ID())
+  
+  HOST_TAG_LIST <- NULL
+  
+  HOST_METRIC_LIST <- NULL
+  
+  TASK_TAG_LIST <- NULL
+  
+  TASK_METRIC_LIST <- NULL
+  
+  DOCKER_TAG_LIST <- NULL
+  
+  DOCKER_METRIC_LIST <- NULL
+  
+  observeEvent(AGENT_ID(), {
+    
+    HOST_TAG_LIST <<- load_tag_list('host', 27)
+    
+    TASK_TAG_LIST <<- load_tag_list('task', 27)
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', 27)
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    # updateSelectizeInput(
+    #   session = session,
+    #   inputId = 'selHost',
+    #   choices = HOST_TAG_LIST
+    # )
+    # 
+    # updateSelectizeInput(
+    #   session = session,
+    #   inputId = 'selTask',
+    #   choices = TASK_TAG_LIST
+    # )
+    # 
+    # updateSelectizeInput(
+    #   session = session,
+    #   inputId = 'selDocker',
+    #   choices = DOCKER_TAG_LIST
+    # )
+    
+  })
+  
 
   # Modal Window  -- Metric Monitoring Chart ------------------------------------------------------------------
   metricMonitoringModal <- function(failed = FALSE) {
@@ -242,40 +289,6 @@ server <- function(input, output, session){
                 )
     )
     
-    # output$metricMonitoring <- renderPlot({
-    #   browser()
-    #   resultRule <- input$selMetricRule %>% strsplit(', ') %>% na.omit()
-    #   
-    #   resource <- input$resource
-    #   
-    #   host <- input$resource_assist
-    #   
-    #   metric <- input$single_metric
-    #   
-    #   period <- input$period
-    #   
-    #   unit <- input$unit
-    #   
-    #   groupby <- input$groupby
-    #   
-    #   # mount <- input$mount_path
-    #   
-    #   developed_time <- Sys.time() %>%
-    #     strptime(format = '%Y-%m-%d %H-%M') %>% 
-    #     as.character()
-    #   
-    #   developed_time <- gsub(':', '-', developed_time)
-    #   
-    #   dir.name <-  paste("../Model",
-    #                      paste0('agent_id_', AGENT_ID()),
-    #                      resource, host,
-    #                      paste0('unit_', unit),
-    #                      metric, developed_time, sep = "/")
-    #   
-    #   modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
-    #   
-    #   figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
-    # })
   }
   
   # Modal Window  -- Metric Chart ------------------------------------------------------------------
@@ -322,7 +335,6 @@ server <- function(input, output, session){
           
           dygraph(ts) %>%
             dyRangeSelector(height = 30)
-          # dygraph(iris, aes(Sepal.Length, Sepal.Width)) + geom_point(size = 3) + geom_line()
           
         })
       ), 
@@ -336,6 +348,57 @@ server <- function(input, output, session){
       )
     )
   }
+  
+  observeEvent(input$save, {
+    
+    if (input$setType == "Define a new metric") {
+      
+      showAdvancedOption()
+      
+      target <- switch(input$anomType,
+                      'service' = input$selService,
+                      'host' = input$selHost,
+                      'task' = input$selTask,
+                      'docker' = input$selDocker)
+      # browser()
+      save_config <- data.frame('agent_id' = 27,
+                               'resource' = input$anomType,
+                               'target' = target,
+                               'metric' = input$selMetric,
+                               'modeling_period' = input$modelingInterval,
+                               'modeling_hour' = input$timeAt)
+      
+      db_info <- read_json('../Source/mysql_info.json')
+      
+      con <- dbConnect(MySQL(), 
+                       user = db_info$user, 
+                       password = db_info$password,
+                       dbname = db_info$dbname,
+                       host = db_info$host, 
+                       port = db_info$port)
+      
+      dbWriteTable(con, 
+                   name = 'monitoring_metric', 
+                   value = save_config,
+                   row.names = F,
+                   append = T)
+      
+      dbCommit(con)
+      
+      dbDisconnect(con)
+      
+      print('Success to save model configuration!')
+      
+      showModal(modalDialog(
+        title = "Success to save model configuration",
+        easyClose = TRUE,
+        footer = tagList(
+          modalButton("Close")
+        )
+      ))
+      
+    }
+  })
   
   # Modal Window  -- Advanced Option ------------------------------------------------------------------
   showAdvancedOption <- function(failed = FALSE) {
@@ -399,7 +462,16 @@ server <- function(input, output, session){
   
   
   # set type에 따라 ui가 변경되는 코드 -------------------------------------------------------
-  
+  observeEvent(input$anomType, {
+    
+    metric_list <- switch(input$anomType,
+                          'host' = HOST_METRIC_LIST,
+                          'task' = TASK_METRIC_LIST,
+                          'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(session, 'selMetric', choices = metric_list)
+    
+  })
   
   observeEvent(input$setType, {
     
@@ -414,6 +486,12 @@ server <- function(input, output, session){
         shinyjs::hide("actionDelete")
         
         shinyjs::show("step1_comment")
+        
+        updateRadioButtons(session, 'anomType', selected = 'host')
+        
+        updateSelectizeInput(session, 'selHost', selected = 1)
+        
+        updateSelectizeInput(session, 'selMetric', selected = 1)
 
       } else if(input$setType == "Redefine") {
         
@@ -505,6 +583,9 @@ server <- function(input, output, session){
                                                      pageLength = 5,
                                                      columnDefs = list(list(className = 'dt-center', targets = 0:4))))
         
+        updateSelectizeInput(session, "selMetricRule", label =  "Selecte a exsisting Rule : ", 
+                             choices = metricRules$textVector)
+        
         bRuleTable <<- T
       }
                                                  
@@ -527,14 +608,14 @@ server <- function(input, output, session){
     }
     
   })
-    
+  
   
   # datatable (룰)이 선택 될때마다 콤보 박스가 바뀌도록....
   observe({
     ss = input$datatableAllList_rows_selected
     # 선택된 룰에 따라 next step의 모든 정보 수정 한다 ------------------------------------------------------
     updateSelectizeInput(session, "selMetricRule", label =  "Selecte a exsisting Rule : ", 
-                         choices = metricRules$textVector, 
+                         # choices = metricRules$textVector, 
                          selected = metricRules$textVector[ss])
     
     # anomaly type
@@ -555,7 +636,7 @@ server <- function(input, output, session){
     
     # metric rule set
     updateSelectizeInput(session, "selMetricRule", label =  "Selecte a exsisting Rule : ", 
-                         choices = metricRules$textVector, 
+                         # choices = metricRules$textVector, 
                          selected = metricRules$textVector[ss])
 
 
@@ -566,23 +647,26 @@ server <- function(input, output, session){
       
       if(input$anomType == "service") {
         tagList(
-          selectizeInput("selService", "Select Service : ", choices = NULL, 1)
+          selectizeInput("selService", "Select Service : ", choices = NULL)
         )
         
       } else if (input$anomType == "host") {
         tagList(
-          selectizeInput("selHost", "Select Host : ", choices = NULL, 1)
+          selectizeInput("selHost", "Select Host : ", choices = HOST_TAG_LIST)
         )
+        
         
       } else if (input$anomType == "task") {
         tagList(
-          selectizeInput("selTask", "Select Task : ", choices = NULL, 1)
-        )      
+          selectizeInput("selTask", "Select Task : ", choices = TASK_TAG_LIST)
+        )
+        
         
       } else if (input$anomType == "docker") {
         tagList(
-          selectizeInput("selDocker", "Select Docker : ", choices = NULL, 1)
-        )      
+          selectizeInput("selDocker", "Select Docker : ", choices = DOCKER_TAG_LIST)
+        )
+        
         
       } 
       
@@ -593,31 +677,44 @@ server <- function(input, output, session){
       
       output$redefineMent <- renderText("Go to Next Step to revise metric monitoring conditions!")
       
-      updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :", 
-                           choices = metricRules$table[ss, 3])
+      # updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :", 
+      #                      selected = metricRules$table[ss, 3])
       
       if(input$anomType == "service") {
         updateSelectizeInput(session, "selService", label =  "Select Service : ",
-                             choices = metricRules$table[ss, 4],
+                             # choices = metricRules$table[ss, 4],
                              selected = metricRules$table[ss, 4])
 
       } else if(input$anomType == "host") {
         
         updateSelectizeInput(session, "selHost", label =  "Select Host : ",
-                             choices = metricRules$table[ss, 2])
+                             selected = metricRules$table[ss, 2])
+        
+        updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :",
+                             choices = HOST_METRIC_LIST,
+                             selected = metricRules$table[ss, 3])
+        
       } else if(input$anomType == "task") {
         
         updateSelectizeInput(session, "selTask", label =  "Select Task : ",
-                             choices = metricRules$table[ss, 2])
+                             selected = metricRules$table[ss, 2])
+        
+        updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :",
+                             choices = TASK_METRIC_LIST,
+                             selected = metricRules$table[ss, 3])
 
       } else if(input$anomType == "docker") {
         updateSelectizeInput(session, "selDocker", label =  "Select Docker : ",
-                             choices = metricRules$table[ss, 2],
+                             # choices = metricRules$table[ss, 2],
                              selected = metricRules$table[ss, 2])
+        
+        updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :",
+                             choices = DOCKER_METRIC_LIST,
+                             selected = metricRules$table[ss, 3])
       }
 
       
-    } else {
+    } #else {
       
 
       # updateSelectizeInput(session, "selMetricRule", label =  "Selecte a exsisting Rule : ", 
@@ -626,11 +723,11 @@ server <- function(input, output, session){
       # updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monior ----:", 
       #                      choices = "")
       # 
-      updateSelectizeInput(session, "selMetric", "Select a Metric to Monitor : ", choices = NULL, 1)
-
-      output$redefineMent <- renderText("Choose the metric to revise")
-      
-    }
+    #   updateSelectizeInput(session, "selMetric", "Select a Metric to Monitor : ", choices = NULL, 1)
+    # 
+    #   output$redefineMent <- renderText("Choose the metric to revise")
+    #   
+    # }
     
   })
 

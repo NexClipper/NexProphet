@@ -889,7 +889,7 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-load_host_tag_list <- function(agent_id) {
+load_host_tag_list <- function(agent_id, split_ = T) {
   # agent_id <- 27
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
@@ -903,8 +903,10 @@ load_host_tag_list <- function(agent_id) {
   host_name_list <- data.frame('name' = as.vector(host[grep('host_name', names(host))]),
                                'host_ip' = as.vector(host[grep('host_ip', names(host))]),
                                stringsAsFactors = F)
+  if (split_)
+    return(split(host_name_list$host_ip, host_name_list$name))
   
-  return(split(host_name_list$host_ip, host_name_list$name))
+  return(host_name_list)
   
 }
 
@@ -1313,6 +1315,7 @@ save_model_info <- function(agent_id, resource, host, unit,
   print('Success to save model information!')
   
 }
+
 
 renew <- function(renewal) {
   

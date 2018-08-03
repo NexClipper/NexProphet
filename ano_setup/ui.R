@@ -133,9 +133,10 @@ dashboardPage(
                          actionButton("adOptions", "Advanced Option", width = "250px",
                                       icon = icon("cog", class = "iconNexButton"))
                         
-                  ) 
-                  
+                  ), 
+                  actionButton('save', 'save')
                 )
+                
               )
               
 
