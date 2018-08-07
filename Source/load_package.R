@@ -17,12 +17,12 @@ bs.Library <- function(pkg, add = T) {
 
 
 # shiny
-bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders'))
-
+bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders',
+             'shinydashboard', 'shinyjqui'))
 
 # data manipulation
 bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts',
-             'RMySQL'))
+             'RMySQL', 'DT'))
 
 
 # visualization

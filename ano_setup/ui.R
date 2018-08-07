@@ -1,11 +1,6 @@
-library(shiny)
-library(shinyjs)
-library(shinydashboard)
-library(shinyjqui)
-library(ggplot2)
-library(tidyverse)
-library(DT)
-library(dygraphs)
+source('../Source/load_package.R')
+source('../Source/server_func.R')
+
 
 dashboardPage(
   dashboardHeader(title = "", disable = T),
@@ -20,7 +15,7 @@ dashboardPage(
                  .box {border-color: #97a6c1!important;}
                  .iconNexBig {color: white; margin-right: 20px}
                  .iconNexSmall {color: white; margin-right: 10px}
-                 .iconNexButton {color: black; margin-right: 10px}
+                 .iconNexButton {color: black; margin-right: 10px;}
                  .nexSideMenu {background-color: #fdfdfd!important; padding-left: 30px; padding-top: 20px; padding-bottom: 10px;}
                  .nexBody8 {padding-left: 40px; padding-top: 20px; padding-bottom: 20px;}'
 

@@ -22,7 +22,8 @@ connect <- function() {
   conn <- list(connector = con, dbname = dbname)
   
   return(conn)
-  
+  # res <- GET('http://13.77.154.37:10091/query?q=show databases') %>%
+  #   content('parsed')
 }
 
 
@@ -754,7 +755,9 @@ load_metric_list <- function(measurement) {
   # measurement <- 'host, host_disk, host_net'; measurement <- 'task'; measurement <- 'docker'
   # agent_id <- 27
   connector <- connect()
-  print('load metric list!')
+  'load %s metric list!' %>%
+    sprintf(measurement) %>%
+    print()
   con <- connector$connector
   
   dbname <- connector$dbname
@@ -829,11 +832,15 @@ load_tag_list <- function(measurement, agent_id) {
 
 
 load_task_tag_list <- function(agent_id) {
-  
+  # agent_id <- 11
   res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   task <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -850,11 +857,15 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 27
+  # agent_id <- 11
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   docker <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -890,18 +901,32 @@ load_docker_tag_list <- function(agent_id) {
 
 
 load_host_tag_list <- function(agent_id, split_ = T) {
-  # agent_id <- 27
+  # agent_id <- 11
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-  host_name_list <- data.frame('name' = as.vector(host[grep('host_name', names(host))]),
-                               'host_ip' = as.vector(host[grep('host_ip', names(host))]),
+  name <- as.vector(host[grep('host_name', names(host))])
+  
+  host_ip <- as.vector(host[grep('host_ip', names(host))])
+  
+  if (length(name) == 0) {
+    
+    name <- rep(NA, length(host_ip))
+    
+  }
+  
+  host_name_list <- data.frame('name' = name,
+                               'host_ip' = host_ip,
                                stringsAsFactors = F)
   if (split_)
     return(split(host_name_list$host_ip, host_name_list$name))
