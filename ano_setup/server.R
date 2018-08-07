@@ -900,7 +900,7 @@ server <- function(input, output, session){
   #  Model UI : Metric Chart 
   observeEvent(input$actionViewMetric, {
     showModal(metricChartModal())
-    jqui_draggable(ui = '.modal-content')
+    # jqui_draggable(ui = '.modal-content')
     
   })
   
