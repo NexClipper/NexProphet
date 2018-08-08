@@ -11,7 +11,7 @@ posixt_helper_func <- function(x) {
 
 
 connect <- function() {
-  con <- influx_connection(host = '192.168.0.162', port = 10091)
+  con <- influx_connection(host = '13.77.154.37', port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -86,14 +86,17 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
   
   host_disk <- host_split$host_disk %>% 
     select_if(~sum(!is.na(.)) > 0) %>% 
-    subset(mount_name == mount, select = c(-1:-5, -mean_timestamp))
-    
+    subset(mount_name == mount,
+           select = c(-1:-5, -mean_timestamp))
+  
   names(host_disk) <- gsub('mean_', '', names(host_disk))
   
   result_host <- inner_join(host_, host_net, by = 'time') %>% 
     inner_join(host_disk, by = 'time')
   # browser()
   result_host <- result_host[, c('time', metric)]
+  if (nrow(result_host) == 0)
+    return(default_time_seqeunce(period, groupby))
   
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
@@ -782,14 +785,14 @@ load_metric_list <- function(measurement) {
 
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
-  # host_ip='172.17.0.1';agent_id='60'
-  # host_ip='192.168.0.162';agent_id='27'
+  # host_ip='172.17.0.1';agent_id='11'
+  # host_ip='192.168.0.161';agent_id='5'
   connector <- connect()
   print('disk mount path')
   con <- connector$connector
   
   dbname <- connector$dbname
-  
+  # browser()
   query <- "show tag values
             from host_disk
             with key = mount_name
@@ -800,7 +803,12 @@ load_host_disk_mount_path <- function(host_ip, agent_id) {
                              dbname,
                              query,
                              return_xts = F)[[1]] %>%
-    as.data.frame() %>%
+    as.data.frame()
+  
+  if (!('value' %in% names(mount_path)))
+    return('null')
+  
+  mount_path <- mount_path %>% 
     select(value) %>% 
     t() %>% 
     as.vector()
@@ -823,38 +831,44 @@ load_tag_list <- function(measurement, agent_id) {
 }
 
 
-load_task_tag_list <- function(agent_id) {
-  
-  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  
-  task <- res$data %>%
-    fromJSON(simplifyVector = F, flatten = T) %>%
-    unlist()
-  
-  task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
-                               'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
-                               stringsAsFactors = F)
-  
-  return(split(task_name_list$executor_id,
-               task_name_list$node_ip))
-  
-}
+# load_task_tag_list <- function(agent_id) {
+#   
+#   res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+#              content_type_json(),
+#              add_headers('agent_id' = agent_id)) %>%
+#     content('parsed')
+#   
+#   task <- res$data %>%
+#     fromJSON(simplifyVector = F, flatten = T) %>%
+#     unlist()
+#   
+#   task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
+#                                'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
+#                                stringsAsFactors = F)
+#   
+#   return(split(task_name_list$executor_id,
+#                task_name_list$node_ip))
+#   
+# }
 
 
 load_docker_tag_list <- function(agent_id) {
   # agent_id <- 27
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
   
+  if ((res$status != 200) |
+      (res$data == '[]') |
+      (res$data == '{}'))
+    return(list('null' = 'null',
+                'null' = 'null'))
+  
   docker <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
-  
+  # browser()
   docker_name_list <- data.frame('name' = as.vector(docker[grep('containers.Names', names(docker))]),
                                  'type' = as.vector(docker[grep('containers.Type', names(docker))]),
                                  'host_ip' = names(docker[grep('containers.Names', names(docker))]),
@@ -885,18 +899,32 @@ load_docker_tag_list <- function(agent_id) {
 
 
 load_host_tag_list <- function(agent_id) {
-  
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  # agent_id = 5
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # browser()
+  if ((res$status != 200) | (res$data == '[]'))
+    return(list('null' = 'null',
+                'null' = 'null'))
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-  host_name_list <- data.frame('name' = as.vector(host[grep('host_name', names(host))]),
-                               'host_ip' = as.vector(host[grep('host_ip', names(host))]),
+  name <- as.vector(host[grep('host_name', names(host))])
+  
+  host_ip <- as.vector(host[grep('host_ip', names(host))])
+  
+  if (length(name) == 0) {
+    
+    name <- rep('null', length(host_ip))
+    
+  }
+  
+  host_name_list <- data.frame('name' = name,
+                               'host_ip' = host_ip,
                                stringsAsFactors = F)
   
   return(split(host_name_list$host_ip, host_name_list$name))

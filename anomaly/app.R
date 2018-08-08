@@ -16,9 +16,9 @@ HOST_METRIC_LIST <- NULL
 
 HOST_MOUNT_PATH <- NULL
 
-TASK_TAG_LIST <- NULL
-
-TASK_METRIC_LIST <- NULL
+# TASK_TAG_LIST <- NULL
+# 
+# TASK_METRIC_LIST <- NULL
 
 DOCKER_TAG_LIST <- NULL
 
@@ -41,7 +41,7 @@ ui <- fluidPage(
           inputId = 'resource',
           label = 'Select Resource',
           choices = list('Host' = 'host',
-                         'Task' = 'task',
+                         # 'Task' = 'task',
                          'Docker' = 'docker'),
           selected = 'host',
           inline = T
@@ -243,32 +243,40 @@ server <- function(input, output, session) {
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
-                     'task' = 'Select Task Name',
+                     # 'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
     HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
     
-    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
     
     DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
     
     HOST_METRIC_LIST <<- load_metric_list('host')
     
-    TASK_METRIC_LIST <<- load_metric_list('task')
+    # TASK_METRIC_LIST <<- load_metric_list('task')
     
     DOCKER_METRIC_LIST <<- load_metric_list('docker')
     
-    HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
-                                                  AGENT_ID())
+    if (sum(unlist(HOST_TAG_LIST) == 'null') == 2) {
+      
+      HOST_MOUNT_PATH <<- c('null')
+      
+    } else {
+      
+      HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                    AGENT_ID())
+      
+    }
     
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
-                              'task' = TASK_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
                               'docker' = DOCKER_TAG_LIST)
     
     metrics <- switch(input$resource,
                       'host' = HOST_METRIC_LIST,
-                      'task' = TASK_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
                       'docker' = DOCKER_METRIC_LIST)
     
     updateSelectizeInput(
@@ -306,17 +314,17 @@ server <- function(input, output, session) {
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
-                     'task' = 'Select Task Name',
+                     # 'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
     resource_assist <- switch(input$resource,
                               'host' = HOST_TAG_LIST,
-                              'task' = TASK_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
                               'docker' = DOCKER_TAG_LIST)
     
     metrics <- switch(input$resource,
                       'host' = HOST_METRIC_LIST,
-                      'task' = TASK_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
                       'docker' = DOCKER_METRIC_LIST)
     
     updateSelectizeInput(
@@ -352,34 +360,32 @@ server <- function(input, output, session) {
   
   observeEvent(input$single_metric, {
     
-    if (input$resource == 'host') {
+    if ((input$resource == 'host') &
+        (input$single_metric %in% HOST_METRIC_LIST$host_disk)) {
       
-      if (input$single_metric %in% HOST_METRIC_LIST$host_disk) {
+      output$mount <- renderUI({
         
-        output$mount <- renderUI({
-          
+        selectizeInput(
+          'mount_path',
+          'Select Mount Path',
+          choices = HOST_MOUNT_PATH
+        )
+      })
+      
+    } else {
+      
+      output$mount <- renderUI({
+        
+        conditionalPanel(
+          condition = 'false',
           selectizeInput(
             'mount_path',
             'Select Mount Path',
-            choices = HOST_MOUNT_PATH
+            choices = 'null'
           )
-        })
-        
-      } else {
-        
-        output$mount <- renderUI({
-          
-          conditionalPanel(
-            condition = 'false',
-            selectizeInput(
-              'mount_path',
-              'Select Mount Path',
-              choices = 'null'
-            )
-          )
-        })
-        
-      }
+        )
+      })
+      
     }
   })
   
