@@ -2,6 +2,7 @@
 #### COMMON FUNCTION ####
 
 posixt_helper_func <- function(x) {
+  
   switch(x,
          's' = 'sec',
          'm' = 'min',
@@ -11,13 +12,16 @@ posixt_helper_func <- function(x) {
 
 
 connect <- function() {
-  con <- influx_connection(host = '192.168.0.162', port = 10091)
+  
+  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
+                           port = 8086)
   
   dbname <- 'nexclipper'
   
   conn <- list(connector = con, dbname = dbname)
   
   return(conn)
+  
 }
 
 
@@ -95,7 +99,9 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
     inner_join(host_disk, by = 'time')
   # browser()
   result_host <- result_host[, c('time', metric)]
+  
   if (nrow(result_host) == 0)
+    
     return(default_time_seqeunce(period, groupby))
   
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
