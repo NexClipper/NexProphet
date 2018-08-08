@@ -570,11 +570,10 @@ load_metric_from_docker <- function(period, groupby,
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, agent_id, host_ip
             fill(none)"
-  cat('\n', query, '\n')
   query <- sprintf(query, 
                    period, agent_id, task_id, host_ip,
                    groupby)
-  
+  cat('\n', query, '\n')
   res_network <- influx_query(con,
                               db = dbname,
                               query = query,
@@ -592,9 +591,21 @@ load_metric_from_docker <- function(period, groupby,
     return(tibble(ds = NA, y = NA))
   
   #### inner join res_container with res_network ####
-  res_docker <- full_join(res_container,
-                          res_network,
-                          by = c('time', 'task_id', 'host_ip'))
+  if (length(names(res_network)) == 0) {
+    
+    res_docker <- res_container
+    
+  } else if (length(names(res_container)) == 0) {
+    
+    res_docker <- res_network
+    
+  } else {
+    
+    res_docker <- full_join(res_container,
+                            res_network,
+                            by = c('time', 'task_id', 'host_ip'))
+    
+  }
   
   res_docker$task_id <- str_extract(res_docker$task_id, '[[:alpha:]\\d-_]+')
   
