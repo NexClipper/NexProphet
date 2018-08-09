@@ -321,11 +321,11 @@ server <- function(input, output, session) {
     groupby <- input$groupby
     
     host_list <- list('host' = input$host_list,
-                      'task' = input$task_list,
+                      # 'task' = input$task_list,
                       'docker' = input$docker_list)
     
     metric_list <- list('host' = input$host_metrics,
-                        'task' = input$task_metrics,
+                        # 'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
     
     load_multiple_metric(period = period,

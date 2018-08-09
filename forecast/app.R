@@ -249,7 +249,7 @@ server <- function(input, output, session) {
     
     label_ <- switch(input$resource,
                      'host' = 'Select Host Name',
-                     'task' = 'Select Task Name',
+                     # 'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
     HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
