@@ -840,7 +840,7 @@ load_tag_list <- function(measurement, agent_id) {
   
   tag_list <- switch(measurement,
                      'host' = load_host_tag_list(agent_id),
-                     'task' = load_task_tag_list(agent_id),
+                     # 'task' = load_task_tag_list(agent_id),
                      'docker' = load_docker_tag_list(agent_id))
   
   return(tag_list)
