@@ -139,6 +139,8 @@ server <- function(input, output, session){
   metricRules <- getMetricRule(AGENT_ID())          # DB에서 가져온 룰셋 데이터 
   bRuleTable <- F              # 테이블에 룰셋이 들어가 있는지
   metricResult <- getMetricResult(AGENT_ID())
+  # con <- NULL
+  query <- NULL
   
   HOST_TAG_LIST <- NULL
   
@@ -339,6 +341,28 @@ server <- function(input, output, session){
     )
   }
   
+  observeEvent(input$confirm, {
+    # browser()
+    
+    uid = "admin"
+    password = "password"
+    dbname = "defaultdb"
+    host = "192.168.0.166"
+    port = 27604
+    
+    con <- dbConnect(MySQL(), 
+                     user = uid, 
+                     password = password,
+                     dbname = dbname,
+                     host = host, 
+                     port = port)
+    
+    dbGetQuery(con, query)
+    
+    removeModal()
+    
+  })
+  
   observeEvent(input$save, {
     
     target <- switch(input$anomType,
@@ -360,7 +384,19 @@ server <- function(input, output, session){
                      host = host, 
                      port = port)
     
-    ss <- match(input$selMetricRule, metricRules$textVector)
+    if (is.null(input$modelingInterval)) {
+      
+      modelingInterval <- 'Every Day'
+      
+      timeAt <- 3
+      
+    } else {
+      
+      modelingInterval <- input$modelingInterval
+      
+      timeAt <- input$modeling_hour
+      
+    }
     
     if (input$setType == "Define a new metric") {
       
@@ -382,7 +418,7 @@ server <- function(input, output, session){
       
       if (result[1, 1] == 1) {
         
-        query <- "select id
+        query <- "select *
                   from monitoring_metric
                   where agent_id = '%s' and
                         resource = '%s' and
@@ -394,26 +430,49 @@ server <- function(input, output, session){
                   target,
                   input$selMetric)
         
-        id <- dbGetQuery(con, query)[1, 1]
-        
+        old <- dbGetQuery(con, query)
+        # browser()
         query <- "update monitoring_metric
                   set modeling_period = '%s',
                       modeling_hour = %d
                   where id = '%s'"  %>% 
-          sprintf(input$modelingInterval,
-                  input$timeAt,
-                  id,
+          sprintf(modelingInterval,
+                  timeAt,
+                  old$id,
                   27)
         # browser()
-        dbGetQuery(con, query)
+        # dbGetQuery(con, query)
+        # con <<- con
+        
+        query <<- query
+        # browser()
+        new <- old
+        
+        new$modeling_period <- modelingInterval
+        new$modeling_hour <- timeAt
+        
+        old <- old[, c(-1, -2, -8)] %>%
+          gather(type, Old)
+        
+        new <- new[, c(-1, -2, -8)] %>%
+          gather(type, New)
+        
+        message <- old %>%
+          inner_join(new, by = 'type') %>% 
+          unite(message, c('Old', 'New'), sep = ' -> ') %>% 
+          unite(message, c('type', 'message'), sep = ' : ') %>% 
+          apply(1, function(x) paste('<br>', x, '</br>')) %>% 
+          HTML()
         
         print('Update the anomaly rule due to existing rule')
         
         showModal(modalDialog(
           title = "Update the anomaly rule due to existing rule",
+          message,
           easyClose = TRUE,
           footer = tagList(
-            modalButton("Close")
+            modalButton("Close"),
+            actionButton("confirm", 'Confirm')
           )
         ))
         
@@ -423,8 +482,14 @@ server <- function(input, output, session){
                                   'resource' = input$anomType,
                                   'target' = target,
                                   'metric' = input$selMetric,
-                                  'modeling_period' = input$modelingInterval,
-                                  'modeling_hour' = input$timeAt)
+                                  'modeling_period' = modelingInterval,
+                                  'modeling_hour' = timeAt)
+        
+        message <- save_config[, -1] %>%
+          gather(type, message) %>% 
+          unite(message, c('type', 'message'), sep = ' : ') %>% 
+          apply(1, function(x) paste('<br>', x, '</br>')) %>% 
+          HTML()
         
         dbWriteTable(con, 
                      name = 'monitoring_metric', 
@@ -434,9 +499,11 @@ server <- function(input, output, session){
         
         showModal(modalDialog(
           title = "Success to save model configuration",
+          message,
           easyClose = TRUE,
           footer = tagList(
-            modalButton("Close")
+            modalButton("Close"),
+            actionButton("confirm", 'Confirm')
           )
         ))
         
@@ -446,6 +513,8 @@ server <- function(input, output, session){
       
     } else if (input$setType == "Redefine") {
       # browser()
+      ss <- match(input$selMetricRule, metricRules$textVector)
+      
       id <- metricRules$table$id[ss]
       
       query <- "update monitoring_metric
@@ -458,20 +527,34 @@ server <- function(input, output, session){
         sprintf(input$anomType,
                 target,
                 input$selMetric,
-                input$modelingInterval,
-                input$timeAt,
+                modelingInterval,
+                timeAt,
                 id)
       
-      dbGetQuery(con, query)
+      # dbGetQuery(con, query)
+      query <<- query
+      
+      message <- metricRules$table[ss, -1] %>% 
+        gather(type, Old) %>% 
+        inner_join(data.frame('type' = c('resource', 'target', 'metirc',
+                                         'modeling_period', 'modeling_hour'),
+                              'New' = c(input$anomType, target, input$selMetric,
+                                          modelingInterval, timeAt),
+                              stringsAsFactors = F), by = 'type') %>% 
+        unite(message, c('Old', 'New'), sep = ' -> ') %>% 
+        unite(message, c('type', 'message'), sep = ' : ') %>% 
+        apply(2, function(x) paste('<br>', x, '</br>')) %>% 
+        HTML()
       
       print('Update the anomaly rule')
       
       showModal(modalDialog(
         title = "Update the anomaly rule",
+        meassge,
         easyClose = TRUE,
         footer = tagList(
           modalButton("Close"),
-          modalButton('confirm')
+          actionButton("confirm", 'Confirm')
         )
       ))
       
