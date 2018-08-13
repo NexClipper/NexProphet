@@ -91,14 +91,19 @@ getAnomalyCount <- function(agent_id) {
 
 get_model_info <- function(resource, target, metric, agent_id) {
   # resource <- 'host';target <- '192.168.0.160';metric <- 'cpu_stolen_percent';agent_id <- 27
-  db_info <- read_json('../Source/mysql_info.json')
+  
+  uid = "admin"
+  password = "password"
+  dbname = "defaultdb"
+  host = "192.168.0.166"
+  port = 27604
   
   con <- dbConnect(MySQL(), 
-                   user = db_info$user, 
-                   password = db_info$password,
-                   dbname = db_info$dbname,
-                   host = db_info$host, 
-                   port = db_info$port)
+                   user = uid, 
+                   password = password,
+                   dbname = dbname,
+                   host = host, 
+                   port = port)
   
   query <- "select *
             from model_info
@@ -139,9 +144,9 @@ server <- function(input, output, session){
   
   HOST_METRIC_LIST <- NULL
   
-  TASK_TAG_LIST <- NULL
-  
-  TASK_METRIC_LIST <- NULL
+  # TASK_TAG_LIST <- NULL
+  # 
+  # TASK_METRIC_LIST <- NULL
   
   DOCKER_TAG_LIST <- NULL
   
@@ -151,13 +156,13 @@ server <- function(input, output, session){
     
     HOST_TAG_LIST <<- load_tag_list('host', 27)
     
-    TASK_TAG_LIST <<- load_tag_list('task', 27)
+    # TASK_TAG_LIST <<- load_tag_list('task', 27)
     
     DOCKER_TAG_LIST <<- load_tag_list('docker', 27)
     
     HOST_METRIC_LIST <<- load_metric_list('host')
     
-    TASK_METRIC_LIST <<- load_metric_list('task')
+    # TASK_METRIC_LIST <<- load_metric_list('task')
     
     DOCKER_METRIC_LIST <<- load_metric_list('docker')
     
@@ -290,9 +295,11 @@ server <- function(input, output, session){
         
         br(),
         radioButtons("duringHour", "Select Chart Period : ", 
-                     choices = c("1 hour" = 1,
-                                 "3 hours" = 3,
-                                 "6 hours" = 6), inline = T)
+                     choices = c("3 hour" = 3,
+                                 "6 hours" = 6,
+                                 "12 hours" = 12,
+                                 '24 hours' = 24,
+                                 '36 hours' = 36), inline = T)
           
       ),
       
@@ -306,7 +313,7 @@ server <- function(input, output, session){
           host <- switch(input$anomType,
                          'service' = input$selService,
                          'host' = input$selHost,
-                         'task' = input$selTask,
+                         # 'task' = input$selTask,
                          'docker' = input$selDocker)
           
           series <- load_single_metric(input$anomType, host, metric, input$duringHour, '5m',
@@ -337,17 +344,21 @@ server <- function(input, output, session){
     target <- switch(input$anomType,
                      'service' = input$selService,
                      'host' = input$selHost,
-                     'task' = input$selTask,
+                     # 'task' = input$selTask,
                      'docker' = input$selDocker)
     
-    db_info <- read_json('../Source/mysql_info.json')
+    uid = "admin"
+    password = "password"
+    dbname = "defaultdb"
+    host = "192.168.0.166"
+    port = 27604
     
     con <- dbConnect(MySQL(), 
-                     user = db_info$user, 
-                     password = db_info$password,
-                     dbname = db_info$dbname,
-                     host = db_info$host, 
-                     port = db_info$port)
+                     user = uid, 
+                     password = password,
+                     dbname = dbname,
+                     host = host, 
+                     port = port)
     
     ss <- match(input$selMetricRule, metricRules$textVector)
     
@@ -459,7 +470,8 @@ server <- function(input, output, session){
         title = "Update the anomaly rule",
         easyClose = TRUE,
         footer = tagList(
-          modalButton("Close")
+          modalButton("Close"),
+          modalButton('confirm')
         )
       ))
       
@@ -561,7 +573,7 @@ server <- function(input, output, session){
       
       metric_list <- switch(input$anomType,
                             'host' = HOST_METRIC_LIST,
-                            'task' = TASK_METRIC_LIST,
+                            # 'task' = TASK_METRIC_LIST,
                             'docker' = DOCKER_METRIC_LIST)
       
       updateSelectizeInput(session, 'selMetric', choices = metric_list)
@@ -809,10 +821,10 @@ server <- function(input, output, session){
         )
         
         
-      } else if (input$anomType == "task") {
-        tagList(
-          selectizeInput("selTask", "Select Task : ", choices = TASK_TAG_LIST)
-        )
+      # } else if (input$anomType == "task") {
+      #   tagList(
+      #     selectizeInput("selTask", "Select Task : ", choices = TASK_TAG_LIST)
+      #   )
         
         
       } else if (input$anomType == "docker") {
@@ -847,14 +859,14 @@ server <- function(input, output, session){
                              choices = HOST_METRIC_LIST,
                              selected = metricRules$table[ss, 4])
         
-      } else if(input$anomType == "task") {
-        
-        updateSelectizeInput(session, "selTask", label =  "Select Task : ",
-                             selected = metricRules$table[ss, 3])
-        
-        updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :",
-                             choices = TASK_METRIC_LIST,
-                             selected = metricRules$table[ss, 4])
+      # } else if(input$anomType == "task") {
+      #   
+      #   updateSelectizeInput(session, "selTask", label =  "Select Task : ",
+      #                        selected = metricRules$table[ss, 3])
+      #   
+      #   updateSelectizeInput(session, "selMetric", label =  "Select a Metric to Monitor :",
+      #                        choices = TASK_METRIC_LIST,
+      #                        selected = metricRules$table[ss, 4])
 
       } else if(input$anomType == "docker") {
         updateSelectizeInput(session, "selDocker", label =  "Select Docker : ",

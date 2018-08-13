@@ -12,12 +12,10 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  db_info <- read_json('../Source/influx_info.json')
+  con <- influx_connection(host = '192.168.0.162',
+                           port = 10091)
   
-  con <- influx_connection(host = db_info$host,
-                           port = db_info$port)
-  
-  dbname <- db_info$dbname
+  dbname <- 'nexclipper'
   
   conn <- list(connector = con, dbname = dbname)
   
@@ -857,7 +855,7 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 11
+  # agent_id <- 27
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%

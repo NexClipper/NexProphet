@@ -12,12 +12,12 @@ dashboardPage(
                 type = 'text/css', 
                 '.bg-aqua {background-color: #97a6c1!important; } 
                  .box-header {background-color: #97a6c1!important; padding-left: 15px;  padding-top:15px;padding-bottom: 5px; }
-                 .box {border-color: #97a6c1!important;}
-                 .iconNexBig {color: white; margin-right: 20px}
-                 .iconNexSmall {color: white; margin-right: 10px}
-                 .iconNexButton {color: black; margin-right: 10px;}
-                 .nexSideMenu {background-color: #fdfdfd!important; padding-left: 30px; padding-top: 20px; padding-bottom: 10px;}
-                 .nexBody8 {padding-left: 40px; padding-top: 20px; padding-bottom: 20px;}'
+                .box {border-color: #97a6c1!important;}
+                .iconNexBig {color: white; margin-right: 20px}
+                .iconNexSmall {color: white; margin-right: 10px}
+                .iconNexButton {color: black; margin-right: 10px}
+                .nexSideMenu {background-color: #fbfbfb!important; padding-left: 30px; padding-top: 20px; padding-bottom: 10px;}
+                .nexBody8 {padding-left: 40px; padding-top: 20px; padding-bottom: 20px;}'
 
               ),
               
@@ -78,7 +78,7 @@ dashboardPage(
                     radioButtons("anomType", "Select anomaly detection type :", 
                                    c("Service" = 'service',
                                      "Host" = 'host',
-                                     "Task" = 'task',
+                                     # "Task" = 'task',
                                      "Docker" = 'docker'), inline = T, width = "100%")
                   ),
                   
