@@ -5,8 +5,8 @@ getMetricRule <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.166"
-  port = 27604
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -36,8 +36,8 @@ getMetricResult <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.166"
-  port = 27604
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -65,8 +65,8 @@ getAnomalyCount <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.166"
-  port = 27604
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -95,8 +95,8 @@ get_model_info <- function(resource, target, metric, agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.166"
-  port = 27604
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -361,6 +361,16 @@ server <- function(input, output, session){
     
     removeModal()
     
+    dbCommit(con)
+    
+    dbDisconnect(con)
+    
+  })
+  
+  observeEvent(input$confirm_db, {
+    
+    removeModal()
+    
   })
   
   observeEvent(input$save, {
@@ -503,11 +513,15 @@ server <- function(input, output, session){
           easyClose = TRUE,
           footer = tagList(
             modalButton("Close"),
-            actionButton("confirm", 'Confirm')
+            actionButton("confirm_db", 'Confirm')
           )
         ))
         
         print('Success to save model configuration!')
+        
+        # dbCommit(con)
+        # 
+        # dbDisconnect(con)
         
       }
       
@@ -561,7 +575,7 @@ server <- function(input, output, session){
     }
     
     dbCommit(con)
-    
+
     dbDisconnect(con)
     
     metricRules <- getMetricRule(AGENT_ID())
