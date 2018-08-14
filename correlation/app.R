@@ -182,7 +182,7 @@ ui <- fluidPage(
                          "Select Metric :", 
                          choices = '', selected = ""),
           
-          plotOutput('similar_plot', height = '500px') %>% 
+          plotOutput('similar_plot', height = '700px') %>% 
             withSpinner()
           
         )
@@ -418,23 +418,23 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$task_list_all, {
-    
-    if (is.null(input$task_list)) {
-      
-      updateSelectizeInput(session,
-                           inputId = 'task_list',
-                           selected = unlist(TASK_TAG_LIST))
-      
-    } else {
-      
-      updateSelectizeInput(session,
-                           inputId = 'task_list',
-                           selected = '')
-      
-    }
-    
-  })
+  # observeEvent(input$task_list_all, {
+  #   
+  #   if (is.null(input$task_list)) {
+  #     
+  #     updateSelectizeInput(session,
+  #                          inputId = 'task_list',
+  #                          selected = unlist(TASK_TAG_LIST))
+  #     
+  #   } else {
+  #     
+  #     updateSelectizeInput(session,
+  #                          inputId = 'task_list',
+  #                          selected = '')
+  #     
+  #   }
+  #   
+  # })
   
   
   observeEvent(input$docker_list_all, {

@@ -1,4 +1,3 @@
-# .libPaths('C:/Users/yunseop/Documents/R/win-library/3.5')
 
 # Check library existance
 bs.Library <- function(pkg, add = T) {
@@ -17,11 +16,12 @@ bs.Library <- function(pkg, add = T) {
 
 
 # shiny
-bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders'))
-
+bs.Library(c("shiny", "shinyWidgets", 'shinyjs', 'shinycssloaders',
+             'shinydashboard', 'shinyjqui'))
 
 # data manipulation
-bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts'))
+bs.Library(c('tidyverse', "data.table", "influxdbr", 'xts',
+             'RMySQL', 'DT'))
 
 
 # visualization
@@ -30,6 +30,7 @@ bs.Library(c("dygraphs", 'd3heatmap'))
 
 # machine learning
 bs.Library(c("prophet", 'lmtest'))
+
 
 # fetch resource list
 bs.Library(c('httr', 'jsonlite'))
