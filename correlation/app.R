@@ -158,7 +158,7 @@ ui <- fluidPage(
           hr(),
           
           # uiOutput('plot1')
-          d3heatmapOutput('correlation_plot', height = '700px') %>% 
+          d3heatmapOutput('correlation_plot', height = '800px') %>% 
             withSpinner()
         )
         
