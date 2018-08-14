@@ -822,7 +822,7 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-load_host_tag_list <- function(agent_id) {
+load_host_tag_list <- function(agent_id, split_=T) {
   # agent_id = 5
   res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
