@@ -148,9 +148,9 @@ server <- function(input, output, session){
   
   # Session 내 global 변수 ----------------------------------------
   viewTalbeYN = F              # 테이블 보기를 하고 있는 상태인지
-  metricRules <- getMetricRule(AGENT_ID())          # DB에서 가져온 룰셋 데이터 
+  metricRules <- NULL
+  metricResult <- NULL
   bRuleTable <- F              # 테이블에 룰셋이 들어가 있는지
-  metricResult <- getMetricResult(AGENT_ID())
   # con <- NULL
   query <- NULL
   
@@ -179,6 +179,10 @@ server <- function(input, output, session){
     # TASK_METRIC_LIST <<- load_metric_list('task')
     
     DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    metricRules <<- getMetricRule(AGENT_ID())   
+    
+    metricResult <<- getMetricResult(AGENT_ID())
     
   })
   
@@ -342,7 +346,6 @@ server <- function(input, output, session){
                            
                          })
                 ), 
-                
                 
                 if (failed)
                   div(tags$b("Invalid Metric Information", style = "color: red;")),
