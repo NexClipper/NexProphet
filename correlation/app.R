@@ -238,6 +238,7 @@ server <- function(input, output, session) {
   
   output$correlation_plot <- renderD3heatmap({})
   
+  output$correlation_table <- renderDataTable({})
   
   observeEvent(AGENT_ID(), {
     
@@ -335,7 +336,7 @@ server <- function(input, output, session) {
                          AGENT_ID())
     
     bdd <- (mtx %>% nrow() * 0.7) %>% as.integer()
-    print(bdd)
+    # print(bdd)
     mtx %>% 
       select_if(~ sum(is.na(.)) < bdd) %>% 
       subset(complete.cases(.)) %>% 
@@ -360,8 +361,8 @@ server <- function(input, output, session) {
     if (input$combo_DT_Metric != "") {
       # browser()
       dt <- data.table(Metrics = rownames(data_corr()),
-                       Correlation = data_corr()[, input$combo_DT_Metric],
-                       absCorr = abs(data_corr()[, input$combo_DT_Metric]))
+                       Correlation = round(data_corr()[, input$combo_DT_Metric], 4),
+                       absCorr = abs(round(data_corr()[, input$combo_DT_Metric], 4)))
       
       setorder(dt, -absCorr)
       
@@ -381,16 +382,20 @@ server <- function(input, output, session) {
         
         dt <- data.table(Metrics = rownames(data_corr()),
                          Correlation = round(data_corr()[, input$combo_metric], 4),
-                         absCorr = abs(data_corr()[, input$combo_metric]))
+                         absCorr = abs(round(data_corr()[, input$combo_metric], 4)))
         
         setorder(dt, -absCorr)
-        # browser()
         
-        multiple_metrics() %>%
+        # browser()
+        mtx <- multiple_metrics() %>%
           select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
-          na.omit() %>% 
-          gather(key, value, -1) %>% 
-          as.data.frame() %>% 
+          # na.omit() %>% 
+          gather(grouping, y, -1) %>% 
+          as.data.frame()
+        
+        mtx$grouping <- factor(mtx$grouping, levels = dt$Metrics[1:min(10, nrow(dt))])
+        
+        mtx %>% 
           horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])
         
       }

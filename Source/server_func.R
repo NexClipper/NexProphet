@@ -1056,37 +1056,32 @@ renew <- function(renewal) {
 #### METRIC CORRELATION ####
 horizon.panel.ggplot <- function(df,  add_text=NULL) {
   
-  #df parameter should be in form of date (x), grouping, and a value (y)
-  colnames(df) <- c("date","grouping","y")
-  #get some decent colors from RColorBrewer
-  #we will use colors on the edges so 2:4 for red and 7:9 for blue
-  
-  df$grouping <- as.factor(df$grouping)
-  
   lv <- levels(df$grouping)
   
   if (is.null(add_text)) {
-    
+
     add_text = ""
-    
+
   } else {
-    add_text = paste0("(", add_text, ")")  
+    add_text = paste0("(", add_text, ")")
   }
-  # browser()
+  
   labeli2 <- function(variable, value) {
-    
+
     value <- droplevels(value)
+    
     names_li <- as.list(paste(lv, add_text, sep = ' '))
+    
     names(names_li) <- lv
     
     return(names_li[value])
-    
+
   }
   
   #use ggplot to produce an area plot
-  p <- ggplot(data = df) +
-    geom_line(aes(x = date, y = y), size = 0.75, color = "darkgoldenrod") + 
-    facet_wrap(grouping ~ ., labeller = labeli2, scales = "free_y", ncol = 1) +    #do new subplot for each group
+  ggplot(data = df) +
+    geom_line(aes(x = time, y = y), size = 0.75, color = "darkgoldenrod") + 
+    facet_wrap(. ~ grouping, labeller = labeli2, scales = "free_y", ncol = 1) +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
           strip.text = element_text(size = 15),
@@ -1095,10 +1090,7 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
           axis.text.y = element_blank(),#remove y axis labels
           axis.ticks.y = element_blank(), #remove tick marks
           axis.title.y = element_blank(),#remove title for the y axis
-          axis.title.x = element_blank()
-    )
-  
-  return(p)
+          axis.title.x = element_blank())
   
 }
 
