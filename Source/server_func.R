@@ -13,8 +13,8 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-                           port = 8086)
+  con <- influx_connection(host = '13.77.154.37',
+                           port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -776,14 +776,14 @@ load_task_tag_list <- function(agent_id) {
 
 load_docker_tag_list <- function(agent_id) {
   # agent_id <- 27
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
@@ -826,7 +826,11 @@ load_docker_tag_list <- function(agent_id) {
 
 load_host_tag_list <- function(agent_id, split_=T) {
   # agent_id = 5
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')

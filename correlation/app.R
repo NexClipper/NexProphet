@@ -327,13 +327,14 @@ server <- function(input, output, session) {
     metric_list <- list('host' = input$host_metrics,
                         # 'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
-    
+    # browser()
     load_multiple_metric(period = period,
                          groupby = groupby,
                          host_list = host_list,
                          metric_list = metric_list,
-                         AGENT_ID()) %>% 
-      select_if(~sum(!is.na(.)) > 0) %>% 
+                         AGENT_ID()) %>%  
+      select_if(~ sum(is.na(.)) < 30) %>% 
+      subset(complete.cases(.)) %>% 
       select_if(~ sd(., na.rm = T) != 0)
     
   })
@@ -352,23 +353,19 @@ server <- function(input, output, session) {
   
   observeEvent(input$combo_DT_Metric, {
     
-    output$correlation_table <- renderDataTable({
+    if (input$combo_DT_Metric != "") {
+      # browser()
+      dt <- data.table(Metrics = rownames(data_corr()),
+                       Correlation = data_corr()[, input$combo_DT_Metric],
+                       absCorr = abs(data_corr()[, input$combo_DT_Metric]))
       
-      if (input$combo_DT_Metric != "") {
-        
-        dt <- data.table(Metrics = rownames(data_corr()),
-                         Correlation = data_corr()[, input$combo_DT_Metric],
-                         absCorr = abs(data_corr()[, input$combo_DT_Metric]))
-        
-        setorder(dt, -absCorr)
-        
-        output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
-                                                    options = list(scrollX  = TRUE,
-                                                                   pageLength = 10))
-      }
+      setorder(dt, -absCorr)
       
-    })
-    
+      output$correlation_table <- renderDataTable(dt[, 1:2, with = F],
+                                                  options = list(scrollX  = TRUE,
+                                                                 pageLength = 10))
+    }
+      
   })
   
   
