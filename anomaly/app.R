@@ -489,17 +489,22 @@ server <- function(input, output, session) {
       if (renewal_time > 0)
         invalidateLater(renewal_time * 1000)
       
-      developed_time <- Sys.time() %>%
-        strptime(format = '%Y-%m-%d %H-%M') %>% 
-        as.character()
-      
-      developed_time <- gsub(':', '-', developed_time)
-      
-      dir.name <-  paste("../Model",
-                         paste0('agent_id_', AGENT_ID()),
-                         resource, host,
-                         paste0('unit_', unit),
-                         metric, developed_time, sep = "/")
+      # developed_time <- Sys.time() %>%
+      #   strptime(format = '%Y-%m-%d %H-%M') %>% 
+      #   as.character()
+      # 
+      # developed_time <- gsub(':', '-', developed_time)
+      # 
+      # dir.name <-  paste("../Model",
+      #                    paste0('agent_id_', AGENT_ID()),
+      #                    resource, host,
+      #                    paste0('unit_', unit),
+      #                    metric, developed_time, sep = "/")
+      dir.name <- paste("../Model",
+                        paste0('agent_id_', AGENT_ID()),
+                        resource, host,
+                        paste0('unit_', unit),
+                        metric, sep = '/')
         
       modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
       
@@ -582,7 +587,11 @@ server <- function(input, output, session) {
         
         output$modeling_img <- renderImage({
           
-          dir.name <-  paste("../Model", paste0('agent_id_', AGENT_ID()), resource, host, paste0('unit_', unit), metric, sep = "/")
+          dir.name <-  paste("../Model",
+                             paste0('agent_id_', AGENT_ID()),
+                             resource, host,
+                             paste0('unit_', unit),
+                             metric, sep = "/")
           
           figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
           
@@ -635,16 +644,34 @@ server <- function(input, output, session) {
     
     mount <- input$mount_path
     
-    developed_at <- Sys.time() %>%
-      strptime(format = '%Y-%m-%d %H:%M')
-    
+    # developed_at <- Sys.time() %>%
+    #   strptime(format = '%Y-%m-%d %H:%M')
+    # 
+    # if (mount == 'null') {
+    #   
+    #   dir.name <-  paste("../Model",
+    #                      paste0('agent_id_', AGENT_ID()),
+    #                      resource, host,
+    #                      paste0('unit_', unit),
+    #                      metric, gsub(':', '-', developed_at), sep = "/")
+    #   
+    # } else {
+    #   
+    #   dir.name <-  paste("../Model",
+    #                      paste0('agent_id_', AGENT_ID()),
+    #                      resource, host,
+    #                      paste0('unit_', unit),
+    #                      metric,
+    #                      paste0('mount_', mount),
+    #                      gsub(':', '-', developed_at), sep = "/")
+    # }
     if (mount == 'null') {
       
       dir.name <-  paste("../Model",
                          paste0('agent_id_', AGENT_ID()),
                          resource, host,
                          paste0('unit_', unit),
-                         metric, gsub(':', '-', developed_at), sep = "/")
+                         metric, sep = "/")
       
     } else {
       
@@ -653,8 +680,7 @@ server <- function(input, output, session) {
                          resource, host,
                          paste0('unit_', unit),
                          metric,
-                         paste0('mount_', mount),
-                         gsub(':', '-', developed_at), sep = "/")
+                         paste0('mount_', mount), sep = "/")
     }
     
     modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
@@ -711,8 +737,8 @@ server <- function(input, output, session) {
                         "single_metric",
                         choices = numVar)
       
-      save_model_info(AGENT_ID(), resource, host, unit,
-                      metric, mount, developed_at, developed_during)
+      # save_model_info(AGENT_ID(), resource, host, unit,
+      #                 metric, mount, developed_at, developed_during)
       
     }
     
