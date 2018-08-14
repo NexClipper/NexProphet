@@ -12,13 +12,8 @@ posixt_helper_func <- function(x) {
 
 
 connect <- function() {
-<<<<<<< HEAD
-  con <- influx_connection(host = '13.77.154.37', port = 10091)
-=======
   
-  con <- influx_connection(host = '192.168.0.162',
-                           port = 10091)
->>>>>>> Dev
+  con <- influx_connection(host = '13.77.154.37', port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -751,37 +746,16 @@ load_tag_list <- function(measurement, agent_id) {
 }
 
 
-<<<<<<< HEAD
-# load_task_tag_list <- function(agent_id) {
-#   
-#   res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
-#              content_type_json(),
-#              add_headers('agent_id' = agent_id)) %>%
-#     content('parsed')
-#   
-#   task <- res$data %>%
-#     fromJSON(simplifyVector = F, flatten = T) %>%
-#     unlist()
-#   
-#   task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
-#                                'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
-#                                stringsAsFactors = F)
-#   
-#   return(split(task_name_list$executor_id,
-#                task_name_list$node_ip))
-#   
-# }
-=======
 load_task_tag_list <- function(agent_id) {
   # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+  # res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   task <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -795,7 +769,6 @@ load_task_tag_list <- function(agent_id) {
                task_name_list$node_ip))
   
 }
->>>>>>> Dev
 
 
 load_docker_tag_list <- function(agent_id) {
@@ -848,7 +821,6 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-<<<<<<< HEAD
 load_host_tag_list <- function(agent_id) {
   # agent_id = 5
   res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
@@ -859,18 +831,6 @@ load_host_tag_list <- function(agent_id) {
   if ((res$status != 200) | (res$data == '[]'))
     return(list('null' = 'null',
                 'null' = 'null'))
-=======
-load_host_tag_list <- function(agent_id, split_ = T) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
->>>>>>> Dev
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -882,11 +842,7 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   
   if (length(name) == 0) {
     
-<<<<<<< HEAD
     name <- rep('null', length(host_ip))
-=======
-    name <- rep(NA, length(host_ip))
->>>>>>> Dev
     
   }
   
