@@ -1,4 +1,3 @@
-# .libPaths('C:/Users/yunseop/Documents/R/win-library/3.5')
 
 # Check library existance
 bs.Library <- function(pkg, add = T) {

@@ -5,8 +5,8 @@ getMetricRule <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.165"
-  port = 29167
+  host = "mysql.marathon.l4lb.thisdcos.directory"
+  port = 3306
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -16,8 +16,9 @@ getMetricRule <- function(agent_id) {
                    port = port)
   
   query <- "select *
-  from monitoring_metric
-  where agent_id = '%s' and is_delete = 0" %>% 
+            from monitoring_metric
+            where agent_id = '%s' and
+                  is_delete = 0" %>% 
     sprintf(agent_id)
   
   # 룰셋을 읽어온다. 
@@ -38,8 +39,8 @@ getMetricResult <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.165"
-  port = 29167
+  host = "mysql.marathon.l4lb.thisdcos.directory"
+  port = 3306
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -49,8 +50,8 @@ getMetricResult <- function(agent_id) {
                    port = port)
   
   query <- "select *
-  from monitoring_results
-  where agent_id = '%s'" %>% 
+            from monitoring_results
+            where agent_id = '%s'" %>% 
     sprintf(agent_id)
   
   # 룰셋을 읽어온다. 
@@ -69,8 +70,8 @@ getAnomalyCount <- function(agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.165"
-  port = 29167
+  host = "mysql.marathon.l4lb.thisdcos.directory"
+  port = 3306
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -80,8 +81,8 @@ getAnomalyCount <- function(agent_id) {
                    port = port)
   
   query <- "select count(agent_id) as count
-  from monitoring_results
-  where agent_id = '%s'" %>% 
+            from monitoring_results
+            where agent_id = '%s'" %>% 
     sprintf(agent_id)
   
   # 룰셋을 읽어온다. 
@@ -101,8 +102,8 @@ get_model_info <- function(resource, target, metric, agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "192.168.0.165"
-  port = 29167
+  host = "mysql.marathon.l4lb.thisdcos.directory"
+  port = 3306
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -318,7 +319,7 @@ server <- function(input, output, session){
                 
                 hr(),
                 
-                fluidRow(style ="padding-left: 30px; padding-right: 30px",
+                fluidRow(style = "padding-left: 30px; padding-right: 30px",
                          renderDygraph({
                            
                            metric <- input$selMetric
@@ -358,8 +359,8 @@ server <- function(input, output, session){
     uid = "admin"
     password = "password"
     dbname = "defaultdb"
-    host = "192.168.0.165"
-    port = 29167
+    host = "mysql.marathon.l4lb.thisdcos.directory"
+    port = 3306
     
     con <- dbConnect(MySQL(), 
                      user = uid, 
@@ -444,8 +445,8 @@ server <- function(input, output, session){
     uid = "admin"
     password = "password"
     dbname = "defaultdb"
-    host = "192.168.0.165"
-    port = 29167
+    host = "mysql.marathon.l4lb.thisdcos.directory"
+    port = 3306
     
     con <- dbConnect(MySQL(), 
                      user = uid, 
@@ -472,13 +473,13 @@ server <- function(input, output, session){
       
       # browser()
       query <- "select exists(
-      select *
-      from monitoring_metric
-      where agent_id = '%s' and
-      resource = '%s' and
-      target = '%s' and
-      metric = '%s' and
-      is_delete = 0)" %>% 
+                  select *
+                  from monitoring_metric
+                  where agent_id = '%s' and
+                  resource = '%s' and
+                  target = '%s' and
+                  metric = '%s' and
+                  is_delete = 0)" %>% 
         sprintf(AGENT_ID(),
                 input$anomType,
                 target,
@@ -489,12 +490,12 @@ server <- function(input, output, session){
       if (result[1, 1] == 1) {
         
         query <- "select *
-        from monitoring_metric
-        where agent_id = '%s' and
-        resource = '%s' and
-        target = '%s' and
-        metric = '%s' and
-        is_delete = 0" %>%
+                  from monitoring_metric
+                  where agent_id = '%s' and
+                        resource = '%s' and
+                        target = '%s' and
+                        metric = '%s' and
+                        is_delete = 0" %>%
           sprintf(AGENT_ID(),
                   input$anomType,
                   target,
@@ -585,12 +586,12 @@ server <- function(input, output, session){
       id <- metricRules$table$id[ss]
       
       query <- "update monitoring_metric
-      set resource = '%s',
-      target = '%s',
-      metric = '%s',
-      modeling_period = '%s',
-      modeling_hour = '%s'
-      where id = '%s'" %>% 
+                set resource = '%s',
+                    target = '%s',
+                    metric = '%s',
+                    modeling_period = '%s',
+                    modeling_hour = '%s'
+                    where id = '%s'" %>% 
         sprintf(input$anomType,
                 target,
                 input$selMetric,
@@ -755,7 +756,7 @@ server <- function(input, output, session){
       # 
       # updateSelectizeInput(session, 'selMetric')
       
-    } else if(input$setType == "Redefine") {
+    } else if (input$setType == "Redefine") {
       
       # if(is.null(metricRules)) metricRules <<- getMetricRule(AGENT_ID())
       
@@ -795,8 +796,8 @@ server <- function(input, output, session){
       id <- metricRules$table$id[ss]
       
       query <<- "update monitoring_metric
-      set is_delete = 1
-      where id = '%s'" %>% 
+                 set is_delete = 1
+                 where id = '%s'" %>% 
         sprintf(id)
       
       # browser()
@@ -976,8 +977,6 @@ server <- function(input, output, session){
                          selected = metricRules$textVector[ss])
     
     
-    
-    
     # anomaly type에 따라 ui가 변경되는 코드 -------------------------------------------------------
     output$anomInput <- renderUI({
       
@@ -1039,7 +1038,7 @@ server <- function(input, output, session){
         #                        choices = TASK_METRIC_LIST,
         #                        selected = metricRules$table[ss, 4])
         
-      } else if(input$anomType == "docker") {
+      } else if (input$anomType == "docker") {
         updateSelectizeInput(session, "selDocker", label =  "Select Docker : ",
                              # choices = metricRules$table[ss, 2],
                              selected = metricRules$table[ss, 3])
@@ -1068,11 +1067,6 @@ server <- function(input, output, session){
   })
   
   
-  
-  
-  
-  
-  
   #  Model UI : Anomaly Monitoring Chart
   observeEvent(input$actionViewMonitoring, {
     showModal(metricMonitoringModal())
@@ -1093,8 +1087,5 @@ server <- function(input, output, session){
     # jqui_draggable(selector = '.modal-content')
     
   })
-  
-  
-  
   
 }
