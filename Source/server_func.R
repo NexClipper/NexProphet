@@ -1068,7 +1068,7 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
   labeli2 <- function(variable, value) {
     
     value <- droplevels(value)
-    names_li <- as.list(paste(lv, add_text, sep = '\n'))
+    names_li <- as.list(paste(lv, add_text, sep = ' '))
     names(names_li) <- lv
     
     return(names_li[value])
