@@ -1,12 +1,12 @@
 
 
 getMetricRule <- function(agent_id) {
-  agent_id <- 5
+  # agent_id <- 5
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "mysql.marathon.l4lb.thisdcos.directory"
-  port = 3306
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -34,12 +34,12 @@ getMetricRule <- function(agent_id) {
 }
 
 getMetricResult <- function(agent_id) {
-  agent_id <- 5
+  # agent_id <- 5
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "mysql.marathon.l4lb.thisdcos.directory"
-  port = 3306
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -65,12 +65,12 @@ getMetricResult <- function(agent_id) {
 }
 
 getAnomalyCount <- function(agent_id) {
-  agent_id <- 5
+  # agent_id <- 5
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "mysql.marathon.l4lb.thisdcos.directory"
-  port = 3306
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -101,8 +101,8 @@ get_model_info <- function(resource, target, metric, agent_id) {
   uid = "admin"
   password = "password"
   dbname = "defaultdb"
-  host = "mysql.marathon.l4lb.thisdcos.directory"
-  port = 3306
+  host = "192.168.0.165"
+  port = 29167
   
   con <- dbConnect(MySQL(), 
                    user = uid, 
@@ -112,10 +112,13 @@ get_model_info <- function(resource, target, metric, agent_id) {
                    port = port)
   
   query <- "select *
-  from model_info
-  where resource = '%s' and target = '%s' and metric = '%s' and agent_id = '%s'
-  order by id desc
-  limit 1" %>% 
+            from model_info
+            where resource = '%s' and
+                  target = '%s' and
+                  metric = '%s' and
+                  agent_id = '%s'
+            order by id desc
+            limit 1" %>% 
     sprintf(resource, target, metric, agent_id)
   
   result = dbGetQuery(con, query, n = -1)
@@ -164,11 +167,11 @@ server <- function(input, output, session){
   
   observeEvent(AGENT_ID(), {
     
-    HOST_TAG_LIST <<- load_tag_list('host', 5)
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
     
     # TASK_TAG_LIST <<- load_tag_list('task', 5)
     
-    DOCKER_TAG_LIST <<- load_tag_list('docker', 5)
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
     
     HOST_METRIC_LIST <<- load_metric_list('host')
     
@@ -193,7 +196,7 @@ server <- function(input, output, session){
                   model_info <- get_model_info(resultRule[1],
                                                resultRule[2],
                                                resultRule[3],
-                                               5)
+                                               AGENT_ID())
                   if (nrow(model_info) == 0) {
                     
                     default <- default_time_seqeunce(6, '1h')
@@ -228,7 +231,7 @@ server <- function(input, output, session){
                     if (mount == 'null') {
                       
                       dir.name <-  paste("../Model",
-                                         paste0('agent_id_', 5),
+                                         paste0('agent_id_', AGENT_ID()),
                                          resource, host,
                                          paste0('unit_', unit),
                                          metric, gsub(':', '-', developed_at), sep = "/")
@@ -249,7 +252,7 @@ server <- function(input, output, session){
                     figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
                     
                     series <- load_single_metric(resource, host, metric, period, groupby,
-                                                 unit, 5, mount) %>% 
+                                                 unit, AGENT_ID(), mount) %>% 
                       as.data.table()
                     
                     load(modelFile.name)
@@ -327,7 +330,7 @@ server <- function(input, output, session){
                                           'docker' = input$selDocker)
                            
                            series <- load_single_metric(input$anomType, host, metric, input$duringHour, '5m',
-                                                        '1', 5)
+                                                        '1', AGENT_ID())
                            
                            ts <- xts(series$y,
                                      order.by = series$ds,
@@ -355,8 +358,8 @@ server <- function(input, output, session){
     uid = "admin"
     password = "password"
     dbname = "defaultdb"
-    host = "mysql.marathon.l4lb.thisdcos.directory"
-    port = 3306
+    host = "192.168.0.165"
+    port = 29167
     
     con <- dbConnect(MySQL(), 
                      user = uid, 
@@ -441,8 +444,8 @@ server <- function(input, output, session){
     uid = "admin"
     password = "password"
     dbname = "defaultdb"
-    host = "mysql.marathon.l4lb.thisdcos.directory"
-    port = 3306
+    host = "192.168.0.165"
+    port = 29167
     
     con <- dbConnect(MySQL(), 
                      user = uid, 
@@ -476,7 +479,7 @@ server <- function(input, output, session){
       target = '%s' and
       metric = '%s' and
       is_delete = 0)" %>% 
-        sprintf(5,
+        sprintf(AGENT_ID(),
                 input$anomType,
                 target,
                 input$selMetric)
@@ -492,7 +495,7 @@ server <- function(input, output, session){
         target = '%s' and
         metric = '%s' and
         is_delete = 0" %>%
-          sprintf(5,
+          sprintf(AGENT_ID(),
                   input$anomType,
                   target,
                   input$selMetric)
@@ -500,13 +503,12 @@ server <- function(input, output, session){
         old <- dbGetQuery(con, query)
         # browser()
         query <- "update monitoring_metric
-        set modeling_period = '%s',
-        modeling_hour = %d
-        where id = '%s'"  %>% 
+                  set modeling_period = '%s',
+                      modeling_hour = %d
+                  where id = '%s'"  %>% 
           sprintf(modelingInterval,
                   timeAt,
-                  old$id,
-                  5)
+                  old$id)
         # browser()
         # dbGetQuery(con, query)
         # con <<- con
@@ -545,7 +547,7 @@ server <- function(input, output, session){
         
       } else {
         
-        save_config <- data.frame('agent_id' = 5,
+        save_config <- data.frame('agent_id' = AGENT_ID(),
                                   'resource' = input$anomType,
                                   'target' = target,
                                   'metric' = input$selMetric,
