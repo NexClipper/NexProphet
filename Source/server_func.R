@@ -13,8 +13,8 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = '13.77.154.37',
-                           port = 10091)
+  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
+                           port = 8086)
   
   dbname <- 'nexclipper'
   
