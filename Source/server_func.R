@@ -1085,6 +1085,7 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
     facet_wrap(grouping ~ ., labeller = labeli2, scales = "free_y", ncol = 1) +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
+          strip.text = element_text(size = 20),
           strip.text.y = element_text(angle = 0),#rotate strip text to horizontal
           strip.background = element_rect(fill = 'grey95'),
           axis.text.y = element_blank(),#remove y axis labels
