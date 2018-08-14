@@ -16,6 +16,10 @@ RUN chmod o+w /srv/shiny-server
 
 COPY Source/install_pkg /home
 
+RUN apt-get install -y libv8-3.14-dev
+
 RUN Rscript 00.R
+
+RUN Rscript 01.R
 
 RUN apt-get update -y

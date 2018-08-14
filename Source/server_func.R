@@ -90,14 +90,17 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
   
   host_disk <- host_split$host_disk %>% 
     select_if(~sum(!is.na(.)) > 0) %>% 
-    subset(mount_name == mount, select = c(-1:-5, -mean_timestamp))
-    
+    subset(mount_name == mount,
+           select = c(-1:-5, -mean_timestamp))
+  
   names(host_disk) <- gsub('mean_', '', names(host_disk))
   
   result_host <- inner_join(host_, host_net, by = 'time') %>% 
     inner_join(host_disk, by = 'time')
   # browser()
   result_host <- result_host[, c('time', metric)]
+  if (nrow(result_host) == 0)
+    return(default_time_seqeunce(period, groupby))
   
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
@@ -492,11 +495,10 @@ load_metric_from_docker <- function(period, groupby,
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, agent_id, host_ip
             fill(none)"
-  cat('\n', query, '\n')
   query <- sprintf(query, 
                    period, agent_id, task_id, host_ip,
                    groupby)
-  
+  cat('\n', query, '\n')
   res_network <- influx_query(con,
                               db = dbname,
                               query = query,
@@ -514,9 +516,21 @@ load_metric_from_docker <- function(period, groupby,
     return(tibble(ds = NA, y = NA))
   
   #### inner join res_container with res_network ####
-  res_docker <- full_join(res_container,
-                          res_network,
-                          by = c('time', 'task_id', 'host_ip'))
+  if (length(names(res_network)) == 0) {
+    
+    res_docker <- res_container
+    
+  } else if (length(names(res_container)) == 0) {
+    
+    res_docker <- res_network
+    
+  } else {
+    
+    res_docker <- full_join(res_container,
+                            res_network,
+                            by = c('time', 'task_id', 'host_ip'))
+    
+  }
   
   res_docker$task_id <- str_extract(res_docker$task_id, '[[:alpha:]\\d-_]+')
   
@@ -687,14 +701,14 @@ load_metric_list <- function(measurement) {
 
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
-  # host_ip='172.17.0.1';agent_id='60'
-  # host_ip='192.168.0.162';agent_id='27'
+  # host_ip='172.17.0.1';agent_id='11'
+  # host_ip='192.168.0.161';agent_id='5'
   connector <- connect()
   print('disk mount path')
   con <- connector$connector
   
   dbname <- connector$dbname
-  
+  # browser()
   query <- "show tag values
             from host_disk
             with key = mount_name
@@ -705,7 +719,12 @@ load_host_disk_mount_path <- function(host_ip, agent_id) {
                              dbname,
                              query,
                              return_xts = F)[[1]] %>%
-    as.data.frame() %>%
+    as.data.frame()
+  
+  if (!('value' %in% names(mount_path)))
+    return('null')
+  
+  mount_path <- mount_path %>% 
     select(value) %>% 
     t() %>% 
     as.vector()
@@ -720,7 +739,7 @@ load_tag_list <- function(measurement, agent_id) {
   
   tag_list <- switch(measurement,
                      'host' = load_host_tag_list(agent_id),
-                     'task' = load_task_tag_list(agent_id),
+                     # 'task' = load_task_tag_list(agent_id),
                      'docker' = load_docker_tag_list(agent_id))
   
   return(tag_list)
@@ -730,14 +749,14 @@ load_tag_list <- function(measurement, agent_id) {
 
 load_task_tag_list <- function(agent_id) {
   # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+  # res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   task <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -755,7 +774,7 @@ load_task_tag_list <- function(agent_id) {
 
 load_docker_tag_list <- function(agent_id) {
   # agent_id <- 27
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
@@ -764,10 +783,16 @@ load_docker_tag_list <- function(agent_id) {
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
   
+  if ((res$status != 200) |
+      (res$data == '[]') |
+      (res$data == '{}'))
+    return(list('null' = 'null',
+                'null' = 'null'))
+  
   docker <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
-  
+  # browser()
   docker_name_list <- data.frame('name' = as.vector(docker[grep('containers.Names', names(docker))]),
                                  'type' = as.vector(docker[grep('containers.Type', names(docker))]),
                                  'host_ip' = names(docker[grep('containers.Names', names(docker))]),
@@ -797,16 +822,16 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-load_host_tag_list <- function(agent_id, split_ = T) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+load_host_tag_list <- function(agent_id) {
+  # agent_id = 5
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
+  # browser()
+  if ((res$status != 200) | (res$data == '[]'))
+    return(list('null' = 'null',
+                'null' = 'null'))
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -818,7 +843,7 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   
   if (length(name) == 0) {
     
-    name <- rep(NA, length(host_ip))
+    name <- rep('null', length(host_ip))
     
   }
   

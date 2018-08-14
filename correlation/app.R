@@ -8,9 +8,9 @@ HOST_TAG_LIST <- NULL
 
 HOST_METRIC_LIST <- NULL
 
-TASK_TAG_LIST <- NULL
-
-TASK_METRIC_LIST <- NULL
+# TASK_TAG_LIST <- NULL
+# 
+# TASK_METRIC_LIST <- NULL
 
 DOCKER_TAG_LIST <- NULL
 
@@ -56,31 +56,31 @@ ui <- fluidPage(
         
       ),
       
-      wellPanel(
-        
-        actionButton("task_list_all",
-                     "Select All",
-                     Height = 40),
-        
-        selectizeInput("task_list",
-                       "Select Task to inspect :", 
-                       choices = "",
-                       selected = "",
-                       multiple = T ),
-        
-        br(),
-        
-        actionButton("task_metric_all",
-                     "Select All",
-                     Height = 40),
-        
-        selectizeInput("task_metrics",
-                       "Select Task Metric to inspect :", 
-                       choices = "",
-                       selected = "",
-                       multiple = T )
-        
-      ),
+      # wellPanel(
+      #   
+      #   actionButton("task_list_all",
+      #                "Select All",
+      #                Height = 40),
+      #   
+      #   selectizeInput("task_list",
+      #                  "Select Task to inspect :", 
+      #                  choices = "",
+      #                  selected = "",
+      #                  multiple = T ),
+      #   
+      #   br(),
+      #   
+      #   actionButton("task_metric_all",
+      #                "Select All",
+      #                Height = 40),
+      #   
+      #   selectizeInput("task_metrics",
+      #                  "Select Task Metric to inspect :", 
+      #                  choices = "",
+      #                  selected = "",
+      #                  multiple = T )
+      #   
+      # ),
       
       wellPanel(
         
@@ -243,13 +243,13 @@ server <- function(input, output, session) {
     
     HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
     
-    TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
     
     DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
     
     HOST_METRIC_LIST <<- load_metric_list('host')
     
-    TASK_METRIC_LIST <<- load_metric_list('task')
+    # TASK_METRIC_LIST <<- load_metric_list('task')
     
     DOCKER_METRIC_LIST <<- load_metric_list('docker')
     
@@ -259,11 +259,11 @@ server <- function(input, output, session) {
       choices = HOST_TAG_LIST
     )
     
-    updateSelectizeInput(
-      session = session,
-      inputId = 'task_list',
-      choices = TASK_TAG_LIST
-    )
+    # updateSelectizeInput(
+    #   session = session,
+    #   inputId = 'task_list',
+    #   choices = TASK_TAG_LIST
+    # )
     
     updateSelectizeInput(
       session = session,
@@ -277,11 +277,11 @@ server <- function(input, output, session) {
       choices = HOST_METRIC_LIST
     )
     
-    updateSelectizeInput(
-      session = session,
-      inputId = 'task_metrics',
-      choices = TASK_METRIC_LIST
-    )
+    # updateSelectizeInput(
+    #   session = session,
+    #   inputId = 'task_metrics',
+    #   choices = TASK_METRIC_LIST
+    # )
     
     updateSelectizeInput(
       session = session,
@@ -321,11 +321,11 @@ server <- function(input, output, session) {
     groupby <- input$groupby
     
     host_list <- list('host' = input$host_list,
-                      'task' = input$task_list,
+                      # 'task' = input$task_list,
                       'docker' = input$docker_list)
     
     metric_list <- list('host' = input$host_metrics,
-                        'task' = input$task_metrics,
+                        # 'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
     
     load_multiple_metric(period = period,
@@ -475,23 +475,23 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$task_metric_all, {
-    
-    if (is.null(input$task_metrics)) {
-      
-      updateSelectizeInput(session,
-                           inputId = 'task_metrics',
-                           selected = unlist(TASK_METRIC_LIST))
-      
-    } else {
-      
-      updateSelectizeInput(session,
-                           inputId = 'task_metrics',
-                           selected = '')
-      
-    }
-    
-  })
+  # observeEvent(input$task_metric_all, {
+  #   
+  #   if (is.null(input$task_metrics)) {
+  #     
+  #     updateSelectizeInput(session,
+  #                          inputId = 'task_metrics',
+  #                          selected = unlist(TASK_METRIC_LIST))
+  #     
+  #   } else {
+  #     
+  #     updateSelectizeInput(session,
+  #                          inputId = 'task_metrics',
+  #                          selected = '')
+  #     
+  #   }
+  #   
+  # })
   
   
   observeEvent(input$docker_metric_all, {

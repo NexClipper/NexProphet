@@ -20,3 +20,6 @@ bs.Library(c('shinydashboard', 'shinyjqui'))
 # data manipulation
 bs.Library(c('DT', 'RMySQL'))
 
+
+# fetch resource list
+bs.Library(c('httr', 'jsonlite'))
