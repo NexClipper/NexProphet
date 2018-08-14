@@ -328,12 +328,16 @@ server <- function(input, output, session) {
                         # 'task' = input$task_metrics,
                         'docker' = input$docker_metrics)
     # browser()
-    load_multiple_metric(period = period,
+    mtx <- load_multiple_metric(period = period,
                          groupby = groupby,
                          host_list = host_list,
                          metric_list = metric_list,
-                         AGENT_ID()) %>%  
-      select_if(~ sum(is.na(.)) < 30) %>% 
+                         AGENT_ID())
+    
+    bdd <- (mtx %>% nrow() * 0.7) %>% as.integer()
+    print(bdd)
+    mtx %>% 
+      select_if(~ sum(is.na(.)) < bdd) %>% 
       subset(complete.cases(.)) %>% 
       select_if(~ sd(., na.rm = T) != 0)
     
