@@ -2,7 +2,6 @@
 #### COMMON FUNCTION ####
 
 posixt_helper_func <- function(x) {
-  
   switch(x,
          's' = 'sec',
          'm' = 'min',
@@ -33,7 +32,6 @@ standardization <- function(mtx) {
                      1,
                      function(x) (x - col_min) / (col_max - col_min + 1e-6)))
   return(new_mtx)
-  
 }
 
 
@@ -66,7 +64,8 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
             groupby)
   
   cat('\n', query, '\n')
-  
+  # if (host == '192.168.0.160' & metric == 'used_percent')
+  #   browser()
   res <- influx_query(connector,
                       db = dbname,
                       query = query,
@@ -90,19 +89,14 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
   
   host_disk <- host_split$host_disk %>% 
     select_if(~sum(!is.na(.)) > 0) %>% 
-    subset(mount_name == mount,
-           select = c(-1:-5, -mean_timestamp))
-  
+    subset(mount_name == mount, select = c(-1:-5, -mean_timestamp))
+    
   names(host_disk) <- gsub('mean_', '', names(host_disk))
   
   result_host <- inner_join(host_, host_net, by = 'time') %>% 
     inner_join(host_disk, by = 'time')
   # browser()
   result_host <- result_host[, c('time', metric)]
-  
-  if (nrow(result_host) == 0)
-    
-    return(default_time_seqeunce(period, groupby))
   
   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
   
@@ -123,6 +117,84 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
   return(tb)
   
 }
+
+
+# load_single_metric_from_docker <- function(host, metric, period, groupby,
+#                                            unit, agent_id) {
+#   # host = 'redis.0529f75a-8697-11e8-80dc-664d329f843c';
+#   # metric='cpu_used_percent'; period=2; groupby='1h';unit='0';agent_id=27
+#   con <- connect()
+#   
+#   connector <- con$connector
+#   
+#   dbname <- con$dbname
+#   
+#   if (unit == '0') {
+#     
+#     period <- paste0(period, 'd')
+#     
+#   } else {
+#     
+#     period <- paste0(period, 'h')
+#     
+#   }
+#   
+#   query <- "select mean(%s) as metric
+#             from docker_container
+#             where time > now() - %s and agent_id = '%s' and task_id = '%s'
+#             group by time(%s), agent_id, task_id" %>% 
+#     sprintf(metric,
+#             period, agent_id, host,
+#             groupby)
+#   
+#   res_docker <- influx_query(connector,
+#                              db = dbname,
+#                              query = query,
+#                              simplifyList = T,
+#                              return_xts = F)[[1]] %>% 
+#     as.data.frame()
+#   
+#   if (!('metric' %in% names(res_docker))) {
+#     
+#     query <- "select mean(%s) as metric
+#               from docker_network
+#               where time > now() - %s and agent_id = '%s'
+#                     and task_id = '%s'
+#               group by time(%s), agent_id, task_id" %>% 
+#       sprintf(metric,
+#               period, agent_id, host,
+#               groupby)
+#     
+#     res_docker <- influx_query(connector,
+#                                db = dbname,
+#                                query = query,
+#                                simplifyList = T,
+#                                return_xts = F)[[1]] %>% 
+#       as.data.frame()
+#   }
+#   
+#   res_docker <- res_docker %>% 
+#     select(c(time, metric))
+#   
+#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
+#   
+#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
+#   
+#   ts <- seq.POSIXt(min(res_docker$time),
+#                    max(res_docker$time),
+#                    by = by)
+#   
+#   df <- tibble(ds = ts)
+#   
+#   tb <- full_join(df, res_docker, by = c('ds' = 'time'))
+#   
+#   tb$metric <- na.approx(tb$metric)
+#   
+#   names(tb) <- c("ds", "y")
+#   
+#   return(tb)
+#     
+# }
 
 
 load_single_metric <- function(measurement, host, metric, period, groupby,
@@ -202,6 +274,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   #   by_node <- ', node_ip'
   # 
   # }
+  
 
   query <- sprintf(query,
                    metric,
@@ -497,10 +570,11 @@ load_metric_from_docker <- function(period, groupby,
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, agent_id, host_ip
             fill(none)"
+  cat('\n', query, '\n')
   query <- sprintf(query, 
                    period, agent_id, task_id, host_ip,
                    groupby)
-  cat('\n', query, '\n')
+  
   res_network <- influx_query(con,
                               db = dbname,
                               query = query,
@@ -518,21 +592,9 @@ load_metric_from_docker <- function(period, groupby,
     return(tibble(ds = NA, y = NA))
   
   #### inner join res_container with res_network ####
-  if (length(names(res_network)) == 0) {
-    
-    res_docker <- res_container
-    
-  } else if (length(names(res_container)) == 0) {
-    
-    res_docker <- res_network
-    
-  } else {
-    
-    res_docker <- full_join(res_container,
-                            res_network,
-                            by = c('time', 'task_id', 'host_ip'))
-    
-  }
+  res_docker <- full_join(res_container,
+                          res_network,
+                          by = c('time', 'task_id', 'host_ip'))
   
   res_docker$task_id <- str_extract(res_docker$task_id, '[[:alpha:]\\d-_]+')
   
@@ -628,6 +690,28 @@ load_multiple_metric <- function(period, groupby,
 }
 
 
+# load_multiple_metric(5, '1h',
+#                      list('host'=c('192.168.0.162',
+#                                    '192.168.0.163')),
+#                      list('cluster' = c('cpu_used_percent',
+#                                         'mem_used_percent'),
+#                           'host' = c('load1')))
+
+
+# mtx <- load_multiple_metric(period = 5,
+#                      groupby = '1h',
+#                      host_list = list('cluster'='192.168.0.161',
+#                                       'host'=c('192.168.0.162',
+#                                                '192.168.0.163'),
+#                                       'task'=c('agent.nexcloud')),
+#                      metric_list = list('cluster'=c('cpu_used_percent',
+#                                                     'mem_used_percent',
+#                                                     'disk_used_percent'),
+#                                         'host'=c('load1'),
+#                                         'task'=c('cpu_used_percent'))
+#                      ) %>% as.matrix()
+
+
 default_time_seqeunce <- function(period, groupby) {
   
   current <- as.POSIXlt(Sys.time())
@@ -703,14 +787,14 @@ load_metric_list <- function(measurement) {
 
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
-  # host_ip='172.17.0.1';agent_id='11'
-  # host_ip='192.168.0.161';agent_id='5'
+  # host_ip='172.17.0.1';agent_id='60'
+  # host_ip='192.168.0.162';agent_id='27'
   connector <- connect()
   print('disk mount path')
   con <- connector$connector
   
   dbname <- connector$dbname
-  # browser()
+  
   query <- "show tag values
             from host_disk
             with key = mount_name
@@ -721,12 +805,7 @@ load_host_disk_mount_path <- function(host_ip, agent_id) {
                              dbname,
                              query,
                              return_xts = F)[[1]] %>%
-    as.data.frame()
-  
-  if (!('value' %in% names(mount_path)))
-    return('null')
-  
-  mount_path <- mount_path %>% 
+    as.data.frame() %>%
     select(value) %>% 
     t() %>% 
     as.vector()
@@ -741,7 +820,7 @@ load_tag_list <- function(measurement, agent_id) {
   
   tag_list <- switch(measurement,
                      'host' = load_host_tag_list(agent_id),
-                     # 'task' = load_task_tag_list(agent_id),
+                     'task' = load_task_tag_list(agent_id),
                      'docker' = load_docker_tag_list(agent_id))
   
   return(tag_list)
@@ -751,14 +830,14 @@ load_tag_list <- function(measurement, agent_id) {
 
 load_task_tag_list <- function(agent_id) {
   # agent_id <- 11
-  # res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   task <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -775,26 +854,20 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 27
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+  # agent_id <- 11
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  
-  if ((res$status != 200) |
-      (res$data == '[]') |
-      (res$data == '{}'))
-    return(list('null' = 'null',
-                'null' = 'null'))
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   docker <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
-  # browser()
+  
   docker_name_list <- data.frame('name' = as.vector(docker[grep('containers.Names', names(docker))]),
                                  'type' = as.vector(docker[grep('containers.Type', names(docker))]),
                                  'host_ip' = names(docker[grep('containers.Names', names(docker))]),
@@ -824,22 +897,16 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-load_host_tag_list <- function(agent_id, split_=T) {
-  # agent_id = 5
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
+load_host_tag_list <- function(agent_id, split_ = T) {
+  # agent_id <- 11
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # browser()
-  if ((res$status != 200) |
-      (res$data == '[]') |
-      (res$data == '{}'))
-    return(list('null' = 'null',
-                'null' = 'null'))
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -851,7 +918,7 @@ load_host_tag_list <- function(agent_id, split_=T) {
   
   if (length(name) == 0) {
     
-    name <- rep('null', length(host_ip))
+    name <- rep(NA, length(host_ip))
     
   }
   
@@ -864,6 +931,270 @@ load_host_tag_list <- function(agent_id, split_=T) {
   return(host_name_list)
   
 }
+
+
+load_trace <- function(agent_id, period) {
+  # agent_id <- 27;period <- '1s'
+  res <- 'http://192.168.0.162:10100/nexcloud_searchapi/v1/performances/%s' %>%
+    sprintf(period) %>% 
+    GET(content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed', encoding = 'utf8')
+  
+  trace <- res$data %>%
+    fromJSON(simplifyVector = F, flatten = T) %>%
+    unlist()
+  
+  source <- as.vector(trace[grep('src_ip', names(trace))])
+  
+  target <- as.vector(trace[grep('dest_ip', names(trace))])
+  
+  method <- as.vector(trace[grep('method', names(trace))])
+  
+  method <- as.vector(trace[grep('method', names(trace))])
+  
+  res_time <- as.vector(trace[grep('res_time', names(trace))])
+  
+  uri <- as.vector(trace[grep('uri', names(trace))])
+  
+  stamp <- as.vector(trace[grep('stamp', names(trace))])
+}
+
+# load_host_tag_list <- function(agent_id) {
+#   # agent_id <- '60'
+#   connector <- connect()
+#   
+#   con <- connector$con
+#   
+#   dbname <- connector$dbname
+#   
+#   query <- 'SHOW series from host where agent_id =~ /%s/' %>%
+#     sprintf(agent_id)
+#   
+#   res <- influx_query(con,
+#                       dbname,
+#                       query,
+#                       return_xts = F)[[1]] %>%
+#     as.data.frame() 
+#   
+#   if (!('key' %in% names(res))) return(NULL)
+#   
+#   res <- res %>% select(key) %>%
+#     separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
+#     select(-col1) %>% 
+#     separate(col2, c('col5', 'col6'), '=') %>% 
+#     separate(col3, c('col7', 'col8'), '=') %>% 
+#     separate(col4, c('col9', 'col10'), '=') #%>% 
+#   # subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
+#   
+#   # if (nrow(res) == 0) return(NULL)
+#   
+#   res <- split(res$col8, res$col10)
+#   
+#   return(res)
+#   
+# }
+
+
+# load_task_tag_list <- function(agent_id) {
+#   
+#   connector <- connect()
+#   
+#   con <- connector$con
+#   
+#   dbname <- connector$dbname
+#   
+#   query <- 'SHOW series from task where agent_id =~ /%s/' %>%
+#     sprintf(agent_id)
+#   
+#   res <- influx_query(con,
+#                       dbname,
+#                       query,
+#                       return_xts = F)[[1]] %>%
+#     as.data.frame()
+#   
+#   if (!('key' %in% names(res))) return(NULL)
+#   
+#   res <- res %>% select(key) %>%
+#     separate(key, c('col1', 'col2', 'col3',
+#                     'col4', 'col5', 'col6'), ',') %>% 
+#     select(c(-col1, -col2)) %>% 
+#     separate(col3, c('col7', 'col8'), '=') %>% 
+#     separate(col4, c('col9', 'col10'), '=') %>% 
+#     separate(col5, c('col11', 'col12'), '=') %>%
+#     separate(col6, c('col13', 'col14'), '=') #%>% 
+#   # subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
+#   
+#   # if (nrow(res) == 0) return(NULL)
+#   
+#   res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
+#   
+#   res <- split(res$col14, res$col12)
+#   
+#   return(res)
+#   
+# }
+
+
+# load_docker_tag_list <- function(agent_id) {
+#   # agent_id <- 60
+#   connector <- connect()
+#   
+#   con <- connector$con
+#   
+#   dbname <- connector$dbname
+#   
+#   query <- 'SHOW series from docker_container where agent_id =~ /%s/' %>%
+#     sprintf(agent_id)
+#   
+#   res <- influx_query(con,
+#                       dbname,
+#                       query,
+#                       return_xts = F)[[1]] %>%
+#     as.data.frame()
+#   
+#   if (!('key' %in% names(res))) return(NULL)
+#   
+#   res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
+#                                                  'col5', 'col6', 'col7'), ',') %>% 
+#     select(c(-col1, -col2)) %>% 
+#     separate(col3, c('col13', 'col14'), '=') %>% 
+#     separate(col4, c('col15', 'col16'), '=') %>% 
+#     separate(col5, c('col17', 'col18'), '=') %>% 
+#     separate(col6, c('col19', 'col20'), '=') %>% 
+#     separate(col7, c('col21', 'col22'), '=') #%>% 
+#   # subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
+#   #          col20 != 'null' & col22 != 'null')
+#   
+#   # if (nrow(res) == 0) return(NULL)
+#   
+#   res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
+#   
+#   res <- split(res$col20, res$col18)
+#   
+#   return(res)
+#   
+# }
+
+
+# load_host_list_for_task <- function(task_name) {
+#   
+#   connector <- connect()
+#   
+#   con <- connector$con
+#   
+#   dbname <- connector$dbname
+#   
+#   query <- "show tag values
+#             from task
+#             with key = node_ip
+#             where task =~ /%s/" %>% 
+#     sprintf(task_name)
+#   
+#   res <- influx_query(con,
+#                       dbname,
+#                       query,
+#                       return_xts = F,
+#                       simplifyList = T)[[1]] %>% as.data.frame()
+#   
+#   # if (!('node_ip' %in% names(res))) return('Not Exist!')
+#   
+#   return(res$value)
+#   
+# }
+
+
+# connect_MySQL <- function() {
+#   
+#   con <- dbConnect(MySQL(), user = 'admin', password = 'password',
+#                    host = '192.168.0.168', port = 18951,
+#                    dbname = 'defaultdb')
+#   
+#   return(con)
+#   
+# }
+
+
+# load_event_data <- function() {
+#   
+#   con <- connect_MySQL()
+#   
+#   columns <- c('start_time', "target_system", "target_ip", "target", "metric",
+#                "condition", "id")
+#   
+#   query <- 'SELECT * \
+#             FROM nexclipper_incident \
+#             order by start_time'
+#   
+#   raw_data <- as.data.frame(dbGetQuery(con, query))
+#   
+#   raw_data <- raw_data[, columns]
+#   
+#   #### Task parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Task', 'id'],
+#                       '[.]|(__)|(_\\d+)', simplify = T)
+#   
+#   raw_data[raw_data$target_system == 'Task', 'id'] <- parsed[, 1]
+#   
+#   # table(raw_data[raw_data$target_system == 'Task', 'id'])
+#   
+#   
+#   #### Agent parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Agent', 'id'],
+#                       '_', simplify = T)
+#   
+#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+#   
+#   raw_data[raw_data$target_system == 'Agent', 'id'] <- id_
+#   
+#   # table(raw_data[raw_data$target_system == 'Agent', 'id'])
+#   
+#   
+#   #### Host parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Host', 'id'],
+#                       '_', simplify = T)
+#   
+#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+#   
+#   raw_data[raw_data$target_system == 'Host', 'id'] <- id_
+#   
+#   # table(raw_data[raw_data$target_system == 'Host', 'id'])
+#   
+#   
+#   #### Docker parsing ####
+#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')))
+#   
+#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')[idx]
+#   
+#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')))
+#   
+#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')[idx]
+#   
+#   raw_data$id[str_detect(raw_data$id, 'influxdb')] <- 'influxdb'
+#   
+#   # table(raw_data[raw_data$target_system == 'Docker', 'id'])
+#   
+#   df <- raw_data
+#   
+#   names(df)[6] <- 'service_id'
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target_system, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target_ip, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(metric, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(service_id, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(id, key, value, sep = '=')
+#   
+#   df <- unite(df, item, 2:7, sep = ', ') %>% as.data.table()
+#   
+#   return(df)
+#   
+# }
 
 
 #### FORECAST ####
@@ -1000,7 +1331,7 @@ save_model_info <- function(agent_id, resource, host, unit,
                             developed_during) {
   
   developed_during <- developed_during %>% as.vector()
-  # browser()
+
   con <- dbConnect(MySQL(), 
                    user = 'admin', 
                    password = 'password',
@@ -1052,426 +1383,457 @@ renew <- function(renewal) {
 }
 
 
+# will be deleted
+# anomalization <- function(tb_,
+#                           frequency = 'auto',
+#                           method = 'stl',
+#                           trend = 'auto') {
+#   
+#   decomposed <- time_decompose(tb_,
+#                                y,
+#                                method = method,
+#                                frequency = frequency,
+#                                trend = trend)
+#   
+#   anomalized <- anomalize(decomposed,
+#                           remainder,
+#                           method = 'gesd',
+#                           alpha = 0.05,
+#                           max_anoms = 0.2,
+#                           verbose = F)
+#   
+#   recomposed <- time_recompose(anomalized)
+#   
+#   return(recomposed)
+#   
+# }
 
 #### METRIC CORRELATION ####
 horizon.panel.ggplot <- function(df,  add_text=NULL) {
   
+  #df parameter should be in form of date (x), grouping, and a value (y)
+  colnames(df) <- c("date","grouping","y")
+  #get some decent colors from RColorBrewer
+  #we will use colors on the edges so 2:4 for red and 7:9 for blue
+  
+  df$grouping <- as.factor(df$grouping)
+  
   lv <- levels(df$grouping)
   
   if (is.null(add_text)) {
-
+    
     add_text = ""
-
+    
   } else {
-    add_text = paste0("(", add_text, ")")
+    add_text = paste0("(", add_text, ")")  
   }
-  
+  # browser()
   labeli2 <- function(variable, value) {
-
+    
     value <- droplevels(value)
-    
-    names_li <- as.list(paste(lv, add_text, sep = ' '))
-    
+    names_li <- as.list(paste(lv, add_text, sep = '\n'))
     names(names_li) <- lv
     
     return(names_li[value])
-
+    
   }
   
   #use ggplot to produce an area plot
-  ggplot(data = df) +
-    geom_line(aes(x = time, y = y), size = 0.75, color = "darkgoldenrod") + 
-    facet_wrap(. ~ grouping, labeller = labeli2, scales = "free_y", ncol = 1) +    #do new subplot for each group
+  p <- ggplot(data = df) +
+    geom_line(aes(x = date, y = y), size = 0.75, color = "darkgoldenrod") + 
+    facet_grid(grouping ~ ., labeller = labeli2, scales="free_y") +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
-          strip.text = element_text(size = 15),
           strip.text.y = element_text(angle = 0),#rotate strip text to horizontal
           strip.background = element_rect(fill = 'grey95'),
           axis.text.y = element_blank(),#remove y axis labels
           axis.ticks.y = element_blank(), #remove tick marks
           axis.title.y = element_blank(),#remove title for the y axis
-          axis.title.x = element_blank())
+          axis.title.x = element_blank()
+    )
+  
+  return(p)
   
 }
 
 
 
 #### METRIC CASUALITY ####
-# will be deleted
-# get_node_edge_df <- function(mtx, lag) {
-#   
-#   mtx <- mtx %>%
-#     select_if(~sum(!is.na(.)) > 0) %>%
-#     select_if(~ sd(., na.rm = T) != 0) %>% 
-#     as.matrix() %>%
-#     standardization()
-#   
-#   if (ncol(mtx) < 2) stop('At least, two metrics is necessary.')
-#   
-#   link_df <- data.frame('from' = NA,
-#                         'to' = NA,
-#                         'intension' = NA,
-#                         'p_value' = NA,
-#                         'max_lag' = NA,
-#                         stringsAsFactors = F)
-#   
-#   idx <- 1
-#   
-#   for (i in 1:ncol(mtx)) {
-#     
-#     for (j in 1:ncol(mtx)) {
-#       
-#       if (i == j) next
-#       
-#       else {
-#         
-#         x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
-#         
-#         y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
-#         
-#         if (sd(x, na.rm = T) == 0 | sd(y, na.rm = T) == 0) next
-#         
-#         p_value <- 1
-#         
-#         lag_ <- 1
-#         
-#         for (l in 1:lag) {
-#           
-#           tryCatch(
-#             {
-#               g_test <- grangertest(x, y, l)
-#             },
-#             
-#             error = function(cond) {
-#               
-#               cat('\n', i, j, l, '\n')
-#               
-#             }
-#           )
-#           
-#           if (g_test$`Pr(>F)`[2] < p_value) {
-#             
-#             p_value <- g_test$`Pr(>F)`[2]
-#             
-#             lag_ <- l
-#             
-#           }
-#           
-#         }
-#         
-#         link_df[idx, ] <- c(colnames(mtx)[i],
-#                             colnames(mtx)[j],
-#                             log10(1 / (p_value + 1e-8)),
-#                             p_value,
-#                             lag_)
-#         
-#         idx <- idx + 1
-#         
-#       }
-#     }
-#   }
-#   # browser()
-#   node_df <- data.frame('label' = unique(c(link_df$from,
-#                                            link_df$to)),
-#                         'group' = NA,
-#                         indegree = NA,
-#                         stringsAsFactors = F)
-#   
-#   node_df$id <- 1:(nrow(node_df))
-#   
-#   link_df$from <- inner_join(link_df, node_df, by = c('from' = 'label'))$id
-#   
-#   link_df$to <- inner_join(link_df, node_df, by = c('to' = 'label'))$id
-#   
-#   link_df <- as.data.frame(sapply(link_df, as.numeric))
-#   
-#   # link_df$value <- link_df$intension * 0.6
-#   
-#   return(list('node' = node_df,
-#               'edge' = link_df))
-#   
-# }
+
+get_node_edge_df <- function(mtx, lag) {
+  
+  mtx <- mtx %>%
+    select_if(~sum(!is.na(.)) > 0) %>%
+    select_if(~ sd(., na.rm = T) != 0) %>% 
+    as.matrix() %>%
+    standardization()
+  
+  if (ncol(mtx) < 2) stop('At least, two metrics is necessary.')
+  
+  link_df <- data.frame('from' = NA,
+                        'to' = NA,
+                        'intension' = NA,
+                        'p_value' = NA,
+                        'max_lag' = NA,
+                        stringsAsFactors = F)
+  
+  idx <- 1
+  
+  for (i in 1:ncol(mtx)) {
+    
+    for (j in 1:ncol(mtx)) {
+      
+      if (i == j) next
+      
+      else {
+        
+        x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
+        
+        y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
+        
+        if (sd(x, na.rm = T) == 0 | sd(y, na.rm = T) == 0) next
+        
+        p_value <- 1
+        
+        lag_ <- 1
+        
+        for (l in 1:lag) {
+          
+          tryCatch(
+            {
+              g_test <- grangertest(x, y, l)
+            },
+            
+            error = function(cond) {
+              
+              cat('\n', i, j, l, '\n')
+              
+            }
+          )
+          
+          if (g_test$`Pr(>F)`[2] < p_value) {
+            
+            p_value <- g_test$`Pr(>F)`[2]
+            
+            lag_ <- l
+            
+          }
+          
+        }
+        
+        link_df[idx, ] <- c(colnames(mtx)[i],
+                            colnames(mtx)[j],
+                            log10(1 / (p_value + 1e-8)),
+                            p_value,
+                            lag_)
+        
+        idx <- idx + 1
+        
+      }
+    }
+  }
+  # browser()
+  node_df <- data.frame('label' = unique(c(link_df$from,
+                                           link_df$to)),
+                        'group' = NA,
+                        indegree = NA,
+                        stringsAsFactors = F)
+  
+  node_df$id <- 1:(nrow(node_df))
+  
+  link_df$from <- inner_join(link_df, node_df, by = c('from' = 'label'))$id
+  
+  link_df$to <- inner_join(link_df, node_df, by = c('to' = 'label'))$id
+  
+  link_df <- as.data.frame(sapply(link_df, as.numeric))
+  
+  # link_df$value <- link_df$intension * 0.6
+  
+  return(list('node' = node_df,
+              'edge' = link_df))
+  
+}
+
+
+
+get_node_group_idx <- function(node_df,
+                               host_list,
+                               task_list,
+                               docker_list) {
+  
+  host_idx <- c()
+  
+  node <- node_df$label
+  
+  if (!is.null(host_list))
+    
+    for (host_ip in host_list) {
+      
+      idx <- str_which(node, host_ip)
+      
+      host_idx <- c(host_idx, idx)
+      
+    }
+  
+  task_idx <- c()
+  
+  if (!is.null(task_list))
+    
+    for (task_name in task_list) {
+      
+      idx <- str_which(node, task_name)
+      
+      task_idx <- c(task_idx, idx)
+      
+    }
+  
+  docker_idx <- c()
+  
+  if (!is.null(docker_list))
+    
+    docker_list <- str_extract(docker_list, '[[:alpha:]\\d-_]+')
+  
+  for (docker_id in docker_list) {
+    
+    idx <- str_which(node, docker_id)
+    
+    docker_idx <- c(docker_idx, idx)
+    
+  }
+  
+  return(list('host' = host_idx,
+              'task' = task_idx,
+              'docker' = docker_idx))
+  
+}
+
+
+get_degree <- function(node_df, edge_df) {
+  
+  indegree_idx <- table(edge_df$to) %>% names() %>% as.integer()
+  
+  indegree <- table(edge_df$to) %>% as.vector()
+  
+  node_df$indegree[indegree_idx] <- indegree
+  
+}
 
 
 # will be deleted
-# get_node_group_idx <- function(node_df,
-#                                host_list,
-#                                task_list,
-#                                docker_list) {
-#   
-#   host_idx <- c()
-#   
-#   node <- node_df$label
-#   
-#   if (!is.null(host_list))
-#     
-#     for (host_ip in host_list) {
-#       
-#       idx <- str_which(node, host_ip)
-#       
-#       host_idx <- c(host_idx, idx)
-#       
-#     }
-#   
-#   task_idx <- c()
-#   
-#   if (!is.null(task_list))
-#     
-#     for (task_name in task_list) {
-#       
-#       idx <- str_which(node, task_name)
-#       
-#       task_idx <- c(task_idx, idx)
-#       
-#     }
-#   
-#   docker_idx <- c()
-#   
-#   if (!is.null(docker_list))
-#     
-#     docker_list <- str_extract(docker_list, '[[:alpha:]\\d-_]+')
-#   
-#   for (docker_id in docker_list) {
-#     
-#     idx <- str_which(node, docker_id)
-#     
-#     docker_idx <- c(docker_idx, idx)
-#     
-#   }
-#   
-#   return(list('host' = host_idx,
-#               'task' = task_idx,
-#               'docker' = docker_idx))
-#   
-# }
-
-# will be deleted
-# get_degree <- function(node_df, edge_df) {
-#   
-#   indegree_idx <- table(edge_df$to) %>% names() %>% as.integer()
-#   
-#   indegree <- table(edge_df$to) %>% as.vector()
-#   
-#   node_df$indegree[indegree_idx] <- indegree
-#   
-# }
-
-
-# will be deleted
-# get_network_graph <- function(node_edge_df,
-#                               input_host_list,
-#                               input_task_list,
-#                               input_docker_list) {
-#   
-#   node_df <- node_edge_df$node
-#   
-#   edge_df <- node_edge_df$edge
-#   
-#   idx_list <- get_node_color_idx(node_df,
-#                                  input_host_list,
-#                                  input_task_list,
-#                                  input_docker_list)
-#   # browser()
-#   net <- create_graph() %>% 
-#     add_nodes_from_table(
-#       table = node_df,
-#       label_col = node
-#     ) %>% 
-#     add_edges_from_table(
-#       table = edge_df,
-#       from_col = source,
-#       to_col = target,
-#       from_to_map = id_external
-#     ) %>% 
-#     select_nodes() %>% 
-#     set_node_attrs_ws(
-#       width, 0.5
-#     ) %>% 
-#     clear_selection()
-#   
-#   if (!is.null(idx_list$host)) {
-#     
-#     net <- net %>%
-#       select_nodes(
-#         nodes = idx_list$host
-#       ) %>% 
-#       set_node_attrs_ws(
-#         color, 'red'
-#       ) %>% 
-#       set_node_attrs_ws(
-#         penwidth, 3
-#       ) %>% 
-#       clear_selection()
-#     
-#   }
-#   
-#   
-#   if (!is.null(idx_list$task)) {
-#     
-#     net <- net %>% 
-#       select_nodes(
-#         nodes = idx_list$task
-#       ) %>% 
-#       set_node_attrs_ws(
-#         color, 'blue'
-#       ) %>% 
-#       set_node_attrs_ws(
-#         penwidth, 3
-#       ) %>% 
-#       clear_selection()
-#     
-#   }
-#   
-#   if (!is.null(idx_list$docker)) {
-#     
-#     net <- net %>% 
-#       select_nodes(
-#         nodes = idx_list$docker
-#       ) %>% 
-#       set_node_attrs_ws(
-#         color, 'green'
-#       ) %>% 
-#       set_node_attrs_ws(
-#         penwidth, 3
-#       ) %>% 
-#       clear_selection()
-#     
-#   }
-#   
-#   return(net)
-#   
-# }
+get_network_graph <- function(node_edge_df,
+                              input_host_list,
+                              input_task_list,
+                              input_docker_list) {
+  
+  node_df <- node_edge_df$node
+  
+  edge_df <- node_edge_df$edge
+  
+  idx_list <- get_node_color_idx(node_df,
+                                 input_host_list,
+                                 input_task_list,
+                                 input_docker_list)
+  # browser()
+  net <- create_graph() %>% 
+    add_nodes_from_table(
+      table = node_df,
+      label_col = node
+    ) %>% 
+    add_edges_from_table(
+      table = edge_df,
+      from_col = source,
+      to_col = target,
+      from_to_map = id_external
+    ) %>% 
+    select_nodes() %>% 
+    set_node_attrs_ws(
+      width, 0.5
+    ) %>% 
+    clear_selection()
+  
+  if (!is.null(idx_list$host)) {
+    
+    net <- net %>%
+      select_nodes(
+        nodes = idx_list$host
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'red'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  
+  if (!is.null(idx_list$task)) {
+    
+    net <- net %>% 
+      select_nodes(
+        nodes = idx_list$task
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'blue'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  if (!is.null(idx_list$docker)) {
+    
+    net <- net %>% 
+      select_nodes(
+        nodes = idx_list$docker
+      ) %>% 
+      set_node_attrs_ws(
+        color, 'green'
+      ) %>% 
+      set_node_attrs_ws(
+        penwidth, 3
+      ) %>% 
+      clear_selection()
+    
+  }
+  
+  return(net)
+  
+}
 
 
 # will be deleted
-# casuality <- function(mtx, lag) {
-#   
-#   link_df <- data.frame('source' = NA,
-#                         'target' = NA,
-#                         'intension' = NA,
-#                         'p_value' = NA,
-#                         'max_lag' = NA,
-#                         stringsAsFactors = F)
-#   
-#   # browser()
-#   idx <- 1
-#   
-#   for (i in 1:ncol(mtx)) {
-#     
-#     for (j in 1:ncol(mtx)) {
-#       
-#       if (i == j) {next}
-#       else {
-#         
-#         x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
-#         
-#         y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
-#         
-#         if (sd(x) == 0 | sd(y) == 0) next
-#         
-#         p_value <- 1
-#         
-#         lag_ <- 1
-#         
-#         for (l in 1:lag) {
-#           g_test <- grangertest(x, y, l)
-#           
-#           if (g_test$`Pr(>F)`[2] < p_value) {
-#             
-#             p_value <- g_test$`Pr(>F)`[2]
-#             
-#             lag_ <- l
-#             
-#           }
-#           
-#         }
-#         
-#         link_df[idx, ] <- c(colnames(mtx)[i],
-#                             colnames(mtx)[j],
-#                             log(1 / (p_value + 1e-6)),
-#                             p_value,
-#                             lag_)
-#         
-#         # result <- select_lags(x, y, lag)
-#         # 
-#         # k <- min(result$selection$aic, result$selection$bic)
-#         # 
-#         # p <- ifelse(k == 1, 0, result$pvals[k - 1])
-#         # 
-#         # intension <- log(1 / (p + 1e-6))
-#         # link_df[idx, ] <- c(i, j, intension, p, k)
-#         
-#         
-#         idx <- idx + 1
-#         
-#       }
-#     }
-#   }
-#   # browser()
-#   # node_df <- data.frame('node' = colnames(mtx),
-#   #                       'idx' = 0:(ncol(mtx) - 1),
-#   #                       'size' = 0,
-#   #                       stringsAsFactors = F)
-#   node_df <- data.frame('node' = unique(c(link_df$source,
-#                                           link_df$target)),
-#                         'size' = 0,
-#                         stringsAsFactors = F)
-#   
-#   node_df$idx <- 0:(nrow(node_df) - 1)
-#   
-#   link_df$source <- inner_join(link_df, node_df, by = c('source' = 'node'))$idx
-#   
-#   link_df$target <- inner_join(link_df, node_df, by = c('target' = 'node'))$idx
-#   
-#   link_df <- as.data.frame(sapply(link_df, as.numeric))
-#   
-#   for (q in node_df$idx) {
-#     
-#     node_df$size[q + 1] <- sum(link_df$source == q)
-#     
-#   }
-#   
-#   link_df$intension <- as.integer(link_df$intension + 1)
-#   
-#   res <- list('node' = node_df,
-#               'link' = link_df)
-#   
-#   return(res)
-#   
-# }
+casuality <- function(mtx, lag) {
+  
+  link_df <- data.frame('source' = NA,
+                        'target' = NA,
+                        'intension' = NA,
+                        'p_value' = NA,
+                        'max_lag' = NA,
+                        stringsAsFactors = F)
+  
+  # browser()
+  idx <- 1
+  
+  for (i in 1:ncol(mtx)) {
+    
+    for (j in 1:ncol(mtx)) {
+      
+      if (i == j) {next}
+      else {
+        
+        x <- -diff(as.matrix(log(mtx[, i] + 1e-6)))
+        
+        y <- -diff(as.matrix(log(mtx[, j] + 1e-6)))
+        
+        if (sd(x) == 0 | sd(y) == 0) next
+        
+        p_value <- 1
+        
+        lag_ <- 1
+        
+        for (l in 1:lag) {
+          g_test <- grangertest(x, y, l)
+          
+          if (g_test$`Pr(>F)`[2] < p_value) {
+            
+            p_value <- g_test$`Pr(>F)`[2]
+            
+            lag_ <- l
+            
+          }
+          
+        }
+        
+        link_df[idx, ] <- c(colnames(mtx)[i],
+                            colnames(mtx)[j],
+                            log(1 / (p_value + 1e-6)),
+                            p_value,
+                            lag_)
+        
+        # result <- select_lags(x, y, lag)
+        # 
+        # k <- min(result$selection$aic, result$selection$bic)
+        # 
+        # p <- ifelse(k == 1, 0, result$pvals[k - 1])
+        # 
+        # intension <- log(1 / (p + 1e-6))
+        # link_df[idx, ] <- c(i, j, intension, p, k)
+        
+        
+        idx <- idx + 1
+        
+      }
+    }
+  }
+  # browser()
+  # node_df <- data.frame('node' = colnames(mtx),
+  #                       'idx' = 0:(ncol(mtx) - 1),
+  #                       'size' = 0,
+  #                       stringsAsFactors = F)
+  node_df <- data.frame('node' = unique(c(link_df$source,
+                                          link_df$target)),
+                        'size' = 0,
+                        stringsAsFactors = F)
+  
+  node_df$idx <- 0:(nrow(node_df) - 1)
+  
+  link_df$source <- inner_join(link_df, node_df, by = c('source' = 'node'))$idx
+  
+  link_df$target <- inner_join(link_df, node_df, by = c('target' = 'node'))$idx
+  
+  link_df <- as.data.frame(sapply(link_df, as.numeric))
+  
+  for (q in node_df$idx) {
+    
+    node_df$size[q + 1] <- sum(link_df$source == q)
+    
+  }
+  
+  link_df$intension <- as.integer(link_df$intension + 1)
+  
+  res <- list('node' = node_df,
+              'link' = link_df)
+  
+  return(res)
+  
+}
 
 
 # will be deleted
-# select_lags <- function(x, y, max.lag) {
-#   
-#   y <- as.numeric(y)
-#   y.lag <- embed(y, max.lag + 1)[, -1, drop = FALSE]
-#   x.lag <- embed(x, max.lag + 1)[, -1, drop = FALSE]
-#   
-#   t <- tail(seq_along(y), nrow(y.lag))
-#   # browser()
-#   ms = lapply(1:max.lag, function(i) lm(y[t] ~ y.lag[, 1:i] +
-#                                           x.lag[, 1:i]))
-#   
-#   pvals <- mapply(function(i) anova(ms[[i]], ms[[i - 1]])[2, "Pr(>F)"], max.lag:2)
-#   
-#   ind <- which(pvals < 0.05)[1]
-#   
-#   ftest <- ifelse(is.na(ind), 1, max.lag - ind + 1)
-#   
-#   aic <- as.numeric(lapply(ms, AIC))
-#   
-#   bic <- as.numeric(lapply(ms, BIC))
-#   
-#   res <- structure(list(ic = cbind(aic = aic, bic = bic),
-#                         pvals = pvals,
-#                         selection = list(aic = which.min(aic),
-#                                          bic = which.min(bic),
-#                                          ftest = ftest)))
-#   
-#   return(res)
-#   
-# }
+select_lags <- function(x, y, max.lag) {
+  
+  y <- as.numeric(y)
+  y.lag <- embed(y, max.lag + 1)[, -1, drop = FALSE]
+  x.lag <- embed(x, max.lag + 1)[, -1, drop = FALSE]
+  
+  t <- tail(seq_along(y), nrow(y.lag))
+  # browser()
+  ms = lapply(1:max.lag, function(i) lm(y[t] ~ y.lag[, 1:i] +
+                                          x.lag[, 1:i]))
+  
+  pvals <- mapply(function(i) anova(ms[[i]], ms[[i - 1]])[2, "Pr(>F)"], max.lag:2)
+  
+  ind <- which(pvals < 0.05)[1]
+  
+  ftest <- ifelse(is.na(ind), 1, max.lag - ind + 1)
+  
+  aic <- as.numeric(lapply(ms, AIC))
+  
+  bic <- as.numeric(lapply(ms, BIC))
+  
+  res <- structure(list(ic = cbind(aic = aic, bic = bic),
+                        pvals = pvals,
+                        selection = list(aic = which.min(aic),
+                                         bic = which.min(bic),
+                                         ftest = ftest)))
+  
+  return(res)
+  
+}
 
 # max.lag <- 10
 # x <- ChickEgg[, 1] %>% log() %>% diff()
@@ -1502,31 +1864,9 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
 #                                 bic = which.min(bic),
 #                                 ftest = ftest)))
 
+# res <- select_lags(chick, egg, 5)
+# res
 
-# will be deleted
-# anomalization <- function(tb_,
-#                           frequency = 'auto',
-#                           method = 'stl',
-#                           trend = 'auto') {
-#   
-#   decomposed <- time_decompose(tb_,
-#                                y,
-#                                method = method,
-#                                frequency = frequency,
-#                                trend = trend)
-#   
-#   anomalized <- anomalize(decomposed,
-#                           remainder,
-#                           method = 'gesd',
-#                           alpha = 0.05,
-#                           max_anoms = 0.2,
-#                           verbose = F)
-#   
-#   recomposed <- time_recompose(anomalized)
-#   
-#   return(recomposed)
-#   
-# }
 
 
 #### will be deleted ####
@@ -1703,323 +2043,5 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
 #   names(tb) <- c("ds", "y")
 #   
 #   return(tb)
-#   
-# }
-
-# will be deleted
-# load_single_metric_from_docker <- function(host, metric, period, groupby,
-#                                            unit, agent_id) {
-#   # host = 'redis.0529f75a-8697-11e8-80dc-664d329f843c';
-#   # metric='cpu_used_percent'; period=2; groupby='1h';unit='0';agent_id=27
-#   con <- connect()
-#   
-#   connector <- con$connector
-#   
-#   dbname <- con$dbname
-#   
-#   if (unit == '0') {
-#     
-#     period <- paste0(period, 'd')
-#     
-#   } else {
-#     
-#     period <- paste0(period, 'h')
-#     
-#   }
-#   
-#   query <- "select mean(%s) as metric
-#             from docker_container
-#             where time > now() - %s and agent_id = '%s' and task_id = '%s'
-#             group by time(%s), agent_id, task_id" %>% 
-#     sprintf(metric,
-#             period, agent_id, host,
-#             groupby)
-#   
-#   res_docker <- influx_query(connector,
-#                              db = dbname,
-#                              query = query,
-#                              simplifyList = T,
-#                              return_xts = F)[[1]] %>% 
-#     as.data.frame()
-#   
-#   if (!('metric' %in% names(res_docker))) {
-#     
-#     query <- "select mean(%s) as metric
-#               from docker_network
-#               where time > now() - %s and agent_id = '%s'
-#                     and task_id = '%s'
-#               group by time(%s), agent_id, task_id" %>% 
-#       sprintf(metric,
-#               period, agent_id, host,
-#               groupby)
-#     
-#     res_docker <- influx_query(connector,
-#                                db = dbname,
-#                                query = query,
-#                                simplifyList = T,
-#                                return_xts = F)[[1]] %>% 
-#       as.data.frame()
-#   }
-#   
-#   res_docker <- res_docker %>% 
-#     select(c(time, metric))
-#   
-#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-#   
-#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
-#   
-#   ts <- seq.POSIXt(min(res_docker$time),
-#                    max(res_docker$time),
-#                    by = by)
-#   
-#   df <- tibble(ds = ts)
-#   
-#   tb <- full_join(df, res_docker, by = c('ds' = 'time'))
-#   
-#   tb$metric <- na.approx(tb$metric)
-#   
-#   names(tb) <- c("ds", "y")
-#   
-#   return(tb)
-#     
-# }
-
-# will be deleted
-# load_host_tag_list <- function(agent_id) {
-#   # agent_id <- '60'
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from host where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame() 
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
-#     select(-col1) %>% 
-#     separate(col2, c('col5', 'col6'), '=') %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') #%>% 
-#   # subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- split(res$col8, res$col10)
-#   
-#   return(res)
-#   
-# }
-
-
-# will be deleted
-# load_task_tag_list <- function(agent_id) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from task where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3',
-#                     'col4', 'col5', 'col6'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') %>% 
-#     separate(col5, c('col11', 'col12'), '=') %>%
-#     separate(col6, c('col13', 'col14'), '=') #%>% 
-#   # subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
-#   
-#   res <- split(res$col14, res$col12)
-#   
-#   return(res)
-#   
-# }
-
-
-# will be deleted
-# load_docker_tag_list <- function(agent_id) {
-#   # agent_id <- 60
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from docker_container where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
-#                                                  'col5', 'col6', 'col7'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col13', 'col14'), '=') %>% 
-#     separate(col4, c('col15', 'col16'), '=') %>% 
-#     separate(col5, c('col17', 'col18'), '=') %>% 
-#     separate(col6, c('col19', 'col20'), '=') %>% 
-#     separate(col7, c('col21', 'col22'), '=') #%>% 
-#   # subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
-#   #          col20 != 'null' & col22 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
-#   
-#   res <- split(res$col20, res$col18)
-#   
-#   return(res)
-#   
-# }
-
-
-# will be deleted
-# load_host_list_for_task <- function(task_name) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- "show tag values
-#             from task
-#             with key = node_ip
-#             where task =~ /%s/" %>% 
-#     sprintf(task_name)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F,
-#                       simplifyList = T)[[1]] %>% as.data.frame()
-#   
-#   # if (!('node_ip' %in% names(res))) return('Not Exist!')
-#   
-#   return(res$value)
-#   
-# }
-
-# will be deleted
-# connect_MySQL <- function() {
-#   
-#   con <- dbConnect(MySQL(), user = 'admin', password = 'password',
-#                    host = '192.168.0.168', port = 18951,
-#                    dbname = 'defaultdb')
-#   
-#   return(con)
-#   
-# }
-
-# will be deleted
-# load_event_data <- function() {
-#   
-#   con <- connect_MySQL()
-#   
-#   columns <- c('start_time', "target_system", "target_ip", "target", "metric",
-#                "condition", "id")
-#   
-#   query <- 'SELECT * \
-#             FROM nexclipper_incident \
-#             order by start_time'
-#   
-#   raw_data <- as.data.frame(dbGetQuery(con, query))
-#   
-#   raw_data <- raw_data[, columns]
-#   
-#   #### Task parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Task', 'id'],
-#                       '[.]|(__)|(_\\d+)', simplify = T)
-#   
-#   raw_data[raw_data$target_system == 'Task', 'id'] <- parsed[, 1]
-#   
-#   # table(raw_data[raw_data$target_system == 'Task', 'id'])
-#   
-#   
-#   #### Agent parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Agent', 'id'],
-#                       '_', simplify = T)
-#   
-#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
-#   
-#   raw_data[raw_data$target_system == 'Agent', 'id'] <- id_
-#   
-#   # table(raw_data[raw_data$target_system == 'Agent', 'id'])
-#   
-#   
-#   #### Host parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Host', 'id'],
-#                       '_', simplify = T)
-#   
-#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
-#   
-#   raw_data[raw_data$target_system == 'Host', 'id'] <- id_
-#   
-#   # table(raw_data[raw_data$target_system == 'Host', 'id'])
-#   
-#   
-#   #### Docker parsing ####
-#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')))
-#   
-#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')[idx]
-#   
-#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')))
-#   
-#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')[idx]
-#   
-#   raw_data$id[str_detect(raw_data$id, 'influxdb')] <- 'influxdb'
-#   
-#   # table(raw_data[raw_data$target_system == 'Docker', 'id'])
-#   
-#   df <- raw_data
-#   
-#   names(df)[6] <- 'service_id'
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target_system, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target_ip, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(metric, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(service_id, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(id, key, value, sep = '=')
-#   
-#   df <- unite(df, item, 2:7, sep = ', ') %>% as.data.table()
-#   
-#   return(df)
 #   
 # }
