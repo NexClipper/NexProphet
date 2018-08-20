@@ -854,17 +854,8 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-<<<<<<< HEAD
   # agent_id <- 11
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
-=======
-  # agent_id <- 25
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
->>>>>>> Ops_bug
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
