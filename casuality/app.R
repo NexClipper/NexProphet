@@ -152,7 +152,7 @@ ui <- fluidPage(
           
           hr(),
           
-          visNetworkOutput('network_chart', height = '800px', width = '500px')
+          visNetworkOutput('network_chart', height = '200%')
           
         ),
         
@@ -173,7 +173,9 @@ ui <- fluidPage(
             sliderInput('control_intension',
                         label = '',
                         min = -1, max = -1, value = -1)
-          )
+          ),
+          
+          style = '{height = 200%;}'
           
         )
         
@@ -293,6 +295,7 @@ server <- function(input, output, session) {
     #                   choices = choices_,
     #                   selected = NULL)
     # browser()
+    print(edge_df)
     updateSliderInput(session,
                       'control_intension',
                       'Select Threshold',
@@ -303,7 +306,7 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$control_intension, {
+  observeEvent(c(input$control_intension, input$excute), {
     
     if (input$control_intension > -1) {
       
@@ -324,7 +327,8 @@ server <- function(input, output, session) {
           visOptions(highlightNearest = T,
                      selectedBy = 'group',
                      nodesIdSelection = list(enabled = T,
-                                             style = ".dropdown {width: auto;}")
+                                             style = ".dropdown {width: auto;}"),
+                     height = '200%'
           ) %>%
           visGroups(groupname = 'host', color = 'red') %>% 
           visGroups(groupname = 'task', color = 'cyan') %>% 

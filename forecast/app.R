@@ -4,6 +4,21 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
+HOST_TAG_LIST <- NULL
+
+HOST_METRIC_LIST <- NULL
+
+HOST_MOUNT_PATH <- NULL
+
+# TASK_TAG_LIST <- NULL
+# 
+# TASK_METRIC_LIST <- NULL
+
+DOCKER_TAG_LIST <- NULL
+
+DOCKER_METRIC_LIST <- NULL
+
+
 ui <- fluidPage(
   
   includeCSS("../www/custom.css"),
@@ -20,7 +35,7 @@ ui <- fluidPage(
           inputId = 'resource',
           label = 'Select Resource',
           choices = list('Host' = 'host',
-                         'Task' = 'task',
+                         # 'Task' = 'task',
                          'Docker' = 'docker'),
           selected = 'host',
           inline = T
@@ -32,35 +47,37 @@ ui <- fluidPage(
           label = 'Select Host',
           choices = ''
         ),
-        
-        conditionalPanel(
-          condition = "input.resource == 'task'",
-          helpText("Note : if task name is same and host is seperated, Merge = No.\
-                           if host is seperated for same task, Merge = Yes."),
-          prettyRadioButtons(
-            inputId = 'merge',
-            label = 'Merge or Not',
-            choices = list('Yes' = 1,
-                           'No' = 0),
-            selected = 1,
-            inline = T
-          )
-        ),
-        
-        conditionalPanel(
-          condition = "input.merge == '0' & input.resource == 'task'",
-          selectizeInput(
-            inputId = 'host_for_task',
-            label = 'Select Host',
-            choices = ''
-          )
-        ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.resource == 'task'",
+        #   helpText("Note : if task name is same and host is seperated, Merge = No.\
+        #                    if host is seperated for same task, Merge = Yes."),
+        #   prettyRadioButtons(
+        #     inputId = 'merge',
+        #     label = 'Merge or Not',
+        #     choices = list('Yes' = 1,
+        #                    'No' = 0),
+        #     selected = 1,
+        #     inline = T
+        #   )
+        # ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.merge == '0' & input.resource == 'task'",
+        #   selectizeInput(
+        #     inputId = 'host_for_task',
+        #     label = 'Select Host',
+        #     choices = ''
+        #   )
+        # ),
         
         selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
           choices = ''
-        )
+        ),
+        
+        uiOutput('mount')
         
       ),
       
@@ -91,12 +108,12 @@ ui <- fluidPage(
           inline = T),
         
         sliderInput("period",
-                    "Select Data Period (Hours)",
-                    min = 6, max = 240, value = 6),
+                    "Select Data Period (Days)",
+                    value = 3, min = 1, max = 60),
         
         sliderInput("predicted_period",
-                    "Predicted Period (Hours)",
-                    min = 3, max = 72, value = 3),
+                    "Predicted Period (Days)",
+                    value = 1, min = 1, max = 30),
         
         prettyRadioButtons(
           "groupby",
@@ -114,100 +131,95 @@ ui <- fluidPage(
     mainPanel(
       
       width = 9,
+      
       tags$body(class = 'body_alter',
+                
                 fluidRow(
                   
                   column(width = 6,
+                         
                          fluidRow(
+                           
                            class = "graph_panel",  
+                           
                            br(),
-                           # tags$div(
-                           #   class = 'h4_alter'
-                           # ),
+                           
                            h4(class = 'h4_alter', "Time Series Plot"),
-                           tags$hr(),
+                           
+                           hr(),
+                           
                            dygraphOutput(
                              'trend_plot',
                              width = "100%",
-                             height = "300px")
+                             height = "300px") %>% 
+                             withSpinner()
                          )
+                         
                   ),
                   
                   column(width = 6, 
+                         
                          fluidRow(
+                           
                            class = "graph_panel",  
+                           
                            br(),
+                           
                            h4(class = 'h4_alter', "Forecasting Plot"),
-                           tags$hr(),
+                           
+                           hr(),
+                           
                            dygraphOutput(
                              'predicted_plot',
                              width = "100%",
-                             height = "300px")
+                             height = "300px") %>% 
+                             withSpinner()
+                           
                          )
+                         
                   )
                   
                 )
-      ), # body
-      
-      # fluidRow(
-      #   
-      #   column(width = 6, 
-      #          br(),
-      #          # tags$div(
-      #          #   class = 'h4_alter'
-      #          # ),
-      #          h4(class = 'h4_alter', "Time Series Plot"),
-      #          br(),
-      #          dygraphOutput(
-      #            'trend_plot',
-      #            width = "100%",
-      #            height = "350px")
-      #    ),
-      #   
-      #   column(width = 6, 
-      #          br(),
-      #          h4("Forecasting Plot"),
-      #          br(),
-      #          dygraphOutput(
-      #            'predicted_plot',
-      #            width = "100%",
-      #            height = "350px")
-      #   )
-      #   
-      # ),
-      
-      fluidRow(
-        
-        column(
-          width = 6,
-          fluidRow(
-            class = 'graph_panel',
-            br(),
-            h4(class = 'h4_alter', "Forecasting Component Plot"),
-            tags$hr(),
-            plotOutput('component_plot', height = "350px")
-          )
-        ),
-        
-        column(
-          width = 6,
-          fluidRow(
-            class = 'graph_panel',
-            br(),
-            h4(class = 'h4_alter', "Forecasting Statistics"),
-            tags$hr()
-          )
-        )
       ),
       
       fluidRow(
         
         column(
-          width = 6, 
-          br(),
-          h4("Client Data, will be deleted"),
-          br(),
-          verbatimTextOutput("clientdataText")
+          
+          width = 6,
+          
+          fluidRow(
+            
+            class = 'graph_panel',
+            
+            br(),
+            
+            h4(class = 'h4_alter', "Forecasting Component Plot"),
+            
+            hr(),
+            
+            plotOutput('component_plot', height = "350px") %>% 
+              withSpinner()
+            
+          )
+          
+        ),
+        
+        column(
+          
+          width = 6,
+          
+          fluidRow(
+            
+            class = 'graph_panel',
+            
+            br(),
+            
+            h4(class = 'h4_alter', "Forecasting Statistics"),
+            
+            hr()
+            
+          )
         )
       )
       
@@ -219,94 +231,200 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  #### ClientData Test ####
-  observe({
+  
+  AGENT_ID <- reactive({
     
-    cdata <- session$clientData
+    url_search <- session$clientData$url_search
     
-    # Values from cdata returned as text
-    output$clientdataText <- renderText({
-      cnames <- names(cdata)
-      
-      allvalues <- lapply(cnames, function(name) {
-        paste(name, cdata[[name]], sep = " = ")
-      })
-      paste(allvalues, collapse = "\n")
-    })
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    agent[2]
     
   })
   
-  # -----
   
-  observeEvent(input$resource, {
+  observeEvent(AGENT_ID(), {
     
     label_ <- switch(input$resource,
-                     'host' = 'Select Host IP',
-                     'task' = 'Select Task Name',
+                     'host' = 'Select Host Name',
+                     # 'task' = 'Select Task Name',
                      'docker' = 'Select Container Name')
     
-    choices_ <- load_tag_list(input$resource)
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    
+    # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    # TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
     
     updateSelectizeInput(
       session = session,
       inputId = 'resource_assist',
       label = label_,
-      choices = choices_)
-    
-    metrics_ <- load_metric_list(input$resource)
+      choices = resource_assist)
     
     updateSelectizeInput(
       session = session,
       inputId = 'single_metric',
-      choices = metrics_
+      choices = metrics
     )
-    
-    if (input$resource != 'task') {
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'merge',
-        selected = '1'
-      )
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        selected = ''
-      )
-    }
+
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
     
   })
   
   
-  observeEvent(c(input$resource_assist, input$merge), {
+  observeEvent(input$resource, {
     
-    if (input$merge == "0") {
+    label_ <- switch(input$resource,
+                     'host' = 'Select Host Name',
+                     # 'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'resource_assist',
+      label = label_,
+      choices = resource_assist)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'single_metric',
+      choices = metrics
+    )
+    
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
+    
+  })
+  
+  
+  observeEvent(input$single_metric, {
+
+    if ((input$resource == 'host') &
+        (input$single_metric %in% HOST_METRIC_LIST$host_disk)) {
       
-      choices_ <- load_host_list_for_task(input$resource_assist)
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = choices_
-      )
-      
+      output$mount <- renderUI({
+        
+        selectizeInput(
+          'mount_path',
+          'Select Mount Path',
+          choices = HOST_MOUNT_PATH
+        )
+      })
+        
     } else {
       
-      updateSelectizeInput(
+      output$mount <- renderUI({
+        
+        conditionalPanel(
+          condition = 'false',
+          selectizeInput(
+            'mount_path',
+            'Select Mount Path',
+            choices = 'null'
+          )
+        )
+      })
+      
+    }
+  })
+  
+  
+  observeEvent(input$resource_assist, {
+    
+    if (input$resource == 'host' & input$resource_assist != '') {
+      
+      HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                    AGENT_ID())
+      updateSelectInput(
         session = session,
-        inputId = 'host_for_task',
-        choices = ''
+        inputId = 'mount_path',
+        choices = HOST_MOUNT_PATH
       )
       
     }
+    
+    # if (input$merge == "0" & input$resource == 'task') {
+    #   
+    #   choices_ <- load_host_list_for_task(input$resource_assist)
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = choices_
+    #   )
+    #   
+    # } else {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = ''
+    #   )
+    #   
+    # }
     
   })
   
   
   observeEvent(input$unit, {
     
-    if (input$unit == 0) {
+    if (input$unit == '0') {
       
       updateSliderInput(
         session = session,
@@ -356,6 +474,8 @@ server <- function(input, output, session) {
   
   observe({
     
+    if (input$single_metric == "") return()
+    
     resource <- input$resource
     
     host <- input$resource_assist
@@ -368,7 +488,9 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
-    node_ip <- input$host_for_task
+    # node_ip <- input$host_for_task
+    
+    mount <- input$mount_path
     
     output$predicted_plot <- renderDygraph({})
     
@@ -377,7 +499,7 @@ server <- function(input, output, session) {
     output$trend_plot <- renderDygraph({
     
       series <- load_single_metric(resource, host, metric, period, groupby,
-                                   unit, node_ip)
+                                   unit, AGENT_ID(), mount)
       
       ts <- xts(series$y,
           order.by = series$ds,
@@ -407,10 +529,12 @@ server <- function(input, output, session) {
     
     groupby <- input$groupby
     
-    node_ip <- input$host_for_task
+    # node_ip <- input$host_for_task
+    
+    mount <- input$mount_path
     
     render_result <- render_forecast(resource, host, metric, period, groupby,
-                                     pred_period, unit, node_ip)
+                                     pred_period, unit, AGENT_ID(), mount)
     
     forecast_result <- render_result$forecast_result
     

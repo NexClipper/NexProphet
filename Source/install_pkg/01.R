@@ -4,7 +4,7 @@ bs.Library <- function(pkg, add = T) {
   
   if (length(new.pkg))
     
-    install.packages(new.pkg, dependencies = TRUE)
+    install.packages(new.pkg, dependencies = T)
   
   if (add == TRUE)
     
@@ -13,5 +13,13 @@ bs.Library <- function(pkg, add = T) {
 }
 
 
-# Related to anomaly detection
-bs.Library(c("shinyjs"))
+# shiny
+bs.Library(c('shinydashboard', 'shinyjqui'))
+
+
+# data manipulation
+bs.Library(c('DT', 'RMySQL'))
+
+
+# fetch resource list
+bs.Library(c('httr', 'jsonlite'))

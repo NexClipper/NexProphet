@@ -6,11 +6,20 @@ RUN apt-get install -y libssl-dev
 
 RUN apt-get install -y libxml2-dev
 
+RUN apt-get install -y libmariadbclient-dev
+
 WORKDIR /home
 
-COPY ./Source/package_manage.R .
+RUN chmod o+w /usr/local/lib/R/site-library
 
-RUN chmod 777 package_manage.R
+RUN chmod o+w /srv/shiny-server
 
-RUN Rscript package_manage.R
+COPY Source/install_pkg /home
 
+RUN apt-get install -y libv8-3.14-dev
+
+RUN Rscript 00.R
+
+RUN Rscript 01.R
+
+RUN apt-get update -y

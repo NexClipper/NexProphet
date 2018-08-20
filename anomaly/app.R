@@ -4,13 +4,25 @@ source("../Source/load_package.R", local = T, encoding = "utf-8")
 source("../Source/server_func.R", local = T, encoding = "utf-8")
 
 
-CLIENT = "nexcloud"
-
 global_series = NULL
 
 global_pData = NULL
 
 numVar = NULL
+
+HOST_TAG_LIST <- NULL
+
+HOST_METRIC_LIST <- NULL
+
+HOST_MOUNT_PATH <- NULL
+
+# TASK_TAG_LIST <- NULL
+# 
+# TASK_METRIC_LIST <- NULL
+
+DOCKER_TAG_LIST <- NULL
+
+DOCKER_METRIC_LIST <- NULL
 
 
 ui <- fluidPage(
@@ -29,7 +41,7 @@ ui <- fluidPage(
           inputId = 'resource',
           label = 'Select Resource',
           choices = list('Host' = 'host',
-                         'Task' = 'task',
+                         # 'Task' = 'task',
                          'Docker' = 'docker'),
           selected = 'host',
           inline = T
@@ -41,34 +53,37 @@ ui <- fluidPage(
           choices = ''
         ),
         
-        conditionalPanel(
-          condition = "input.resource == 'task'",
-          helpText("Note : if task name is same and host is seperated, Merge = No.\
-                           if host is seperated for same task, Merge = Yes."),
-          prettyRadioButtons(
-            inputId = 'merge',
-            label = 'Merge or Not',
-            choices = list('Yes' = 1,
-                           'No' = 0),
-            selected = 1,
-            inline = T
-          )
-        ),
-        
-        conditionalPanel(
-          condition = "input.merge == '0' & input.resource == 'task'",
-          selectizeInput(
-            inputId = 'host_for_task',
-            label = 'Select Host',
-            choices = ''
-          )
-        ),
+        # conditionalPanel(
+        #   condition = "input.resource == 'task'",
+        #   helpText("Note : if task name is same and host is seperated, Merge = No.\
+        #                    if host is seperated for same task, Merge = Yes."),
+        #   prettyRadioButtons(
+        #     inputId = 'merge',
+        #     label = 'Merge or Not',
+        #     choices = list('Yes' = 1,
+        #                    'No' = 0),
+        #     selected = 1,
+        #     inline = T
+        #   )
+        # ),
+        # 
+        # conditionalPanel(
+        #   condition = "input.merge == '0' & input.resource == 'task'",
+        #   selectizeInput(
+        #     inputId = 'host_for_task',
+        #     label = 'Select Host',
+        #     choices = ''
+        #   )
+        #   
+        # ),
         
         selectizeInput(
           inputId = 'single_metric',
           label = 'Select Metric',
           choices = ''
-        )
+        ),
+        
+        uiOutput('mount')
         
       ),
       
@@ -125,33 +140,15 @@ ui <- fluidPage(
         style = "padding: 15px 20px 0px 20px;"
         
       )
-
-      # wellPanel(
-      #   
-      #   sliderInput("period",
-      #               "Data Period (Hours) :",
-      #               min = 1, max = 120, value = 6),
-      #   
-      #   sliderInput("groupby",
-      #               "Select Group By (sec)",
-      #               min = 1, max = 120, value = 10),
-      #   
-      #   sliderInput("anomaly_CI",
-      #               "Confidence Interval : ",
-      #               min = 0.9, max = 1, value = 0.99),
-      #   
-      #   helpText("It takes much time to make forecasting model if there is no model for this metric!"),
-      #   
-      #   style = "padding: 15px 20px 0px 20px;"
-      #   
-      # )
       
     ),
     
     mainPanel(
       
       width = 9,
+      
       tags$body(class = 'body_alter'),
+      
       fluidRow(
         
         column(
@@ -159,22 +156,20 @@ ui <- fluidPage(
           width = 8,
           
           fluidRow(
+            
             class = 'graph_panel_ano',
+            
             br(),
             
             h4(class = 'h4_alter', "Anomaly Detection Chart"),
             
             hr(),
             
-            plotOutput("monitoring", height = 500)
+            plotOutput("monitoring", height = 500) %>% 
+              withSpinner()
+            
           ),
-          # br(),
-          # 
-          # h4("Anomaly Detection Chart"),
-          # 
-          # br(),
-          # 
-          # plotOutput("monitoring", height = 500),
+          
           fluidRow(
             
             class = 'notice_ano',
@@ -182,34 +177,26 @@ ui <- fluidPage(
             verbatimTextOutput("notice")
             
           ),
-          # br(),
-          # 
-          # verbatimTextOutput("notice"),
-          # 
-          # br(),
           
           fluidRow(
             
             class = 'graph_panel_ano',
+            
             br(),
             
             h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
             
             hr(),
             
-            imageOutput("modeling_img", height = '70%', width = '100%')
+            imageOutput("modeling_img", height = '70%', width = '100%') %>% 
+              withSpinner()
+            
           )
-          # br(),
-          # 
-          # h4(class = 'h4_alter', "Whole data plot for Modeling Data"),
-          # 
-          # br(),
-          # 
-          # imageOutput("modeling_img", height = '70%', width = '100%')
           
         ),
         
         column(
+          
           width = 4,
           
           fluidRow(
@@ -222,19 +209,10 @@ ui <- fluidPage(
             
             hr(),
             
-            dataTableOutput('anomaly_table')
+            dataTableOutput('anomaly_table') %>% 
+              withSpinner()
           )
-          # class = 'graph_panel',
-          # 
-          # width = 4,
-          # 
-          # br(),
-          # 
-          # h4(class = 'h4_alter', "Anomaly Detection Chart"),
-          # 
-          # tags$hr(),
-          # 
-          # dataTableOutput('anomaly_table')
+          
         )
         
       )
@@ -248,30 +226,206 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(c(input$resource_assist, input$merge), {
+  AGENT_ID <- reactive({
     
-    if (input$merge == "0" & input$resource == 'task') {
+    url_search <- session$clientData$url_search
+    
+    agent <- str_extract(url_search, 'agent_id=\\d+') %>%
+      strsplit('=') %>%
+      unlist()
+    
+    agent[2]
+    
+  })
+  
+  
+  observeEvent(AGENT_ID(), {
+    
+    label_ <- switch(input$resource,
+                     'host' = 'Select Host Name',
+                     # 'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
+    
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    
+    # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
+    
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    
+    HOST_METRIC_LIST <<- load_metric_list('host')
+    
+    # TASK_METRIC_LIST <<- load_metric_list('task')
+    
+    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    
+    if (sum(unlist(HOST_TAG_LIST) == 'null') == 2) {
       
-      choices_ <- load_host_list_for_task(input$resource_assist)
-      
-      updateSelectizeInput(
-        session = session,
-        inputId = 'host_for_task',
-        choices = choices_
-      )
+      HOST_MOUNT_PATH <<- c('null')
       
     } else {
       
-      updateSelectizeInput(
+      HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                    AGENT_ID())
+      
+    }
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'resource_assist',
+      label = label_,
+      choices = resource_assist)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'single_metric',
+      choices = metrics
+    )
+    
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
+    
+  })
+  
+  
+  observeEvent(input$resource, {
+    
+    label_ <- switch(input$resource,
+                     'host' = 'Select Host Name',
+                     # 'task' = 'Select Task Name',
+                     'docker' = 'Select Container Name')
+    
+    resource_assist <- switch(input$resource,
+                              'host' = HOST_TAG_LIST,
+                              # 'task' = TASK_TAG_LIST,
+                              'docker' = DOCKER_TAG_LIST)
+    
+    metrics <- switch(input$resource,
+                      'host' = HOST_METRIC_LIST,
+                      # 'task' = TASK_METRIC_LIST,
+                      'docker' = DOCKER_METRIC_LIST)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'resource_assist',
+      label = label_,
+      choices = resource_assist)
+    
+    updateSelectizeInput(
+      session = session,
+      inputId = 'single_metric',
+      choices = metrics
+    )
+    
+    # if (input$resource != 'task') {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'merge',
+    #     selected = '1'
+    #   )
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     selected = ''
+    #   )
+    #   
+    # }
+    
+  })
+  
+  
+  observeEvent(input$single_metric, {
+    
+    if ((input$resource == 'host') &
+        (input$single_metric %in% HOST_METRIC_LIST$host_disk)) {
+      
+      output$mount <- renderUI({
+        
+        selectizeInput(
+          'mount_path',
+          'Select Mount Path',
+          choices = HOST_MOUNT_PATH
+        )
+      })
+      
+    } else {
+      
+      output$mount <- renderUI({
+        
+        conditionalPanel(
+          condition = 'false',
+          selectizeInput(
+            'mount_path',
+            'Select Mount Path',
+            choices = 'null'
+          )
+        )
+      })
+      
+    }
+  })
+  
+  
+  observeEvent(c(input$resource_assist, input$merge), {
+    
+    if (input$resource == 'host' & input$resource_assist != '') {
+      
+      HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
+                                                    AGENT_ID())
+      updateSelectInput(
         session = session,
-        inputId = 'host_for_task',
-        choices = ''
+        inputId = 'mount_path',
+        choices = HOST_MOUNT_PATH
       )
       
     }
     
+    # if (input$merge == "0" & input$resource == 'task') {
+    #   
+    #   choices_ <- load_host_list_for_task(input$resource_assist)
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = choices_
+    #   )
+    #   
+    # } else {
+    #   
+    #   updateSelectizeInput(
+    #     session = session,
+    #     inputId = 'host_for_task',
+    #     choices = ''
+    #   )
+    #   
+    # }
+    
   })
-  
+
   
   observeEvent(input$unit, {
     
@@ -281,7 +435,7 @@ server <- function(input, output, session) {
         session = session,
         inputId = 'period',
         label = 'Select Data Period (Days)',
-        min = 3, max = 30, value = 6
+        value = 3, min = 1, max = 60
       )
       
       updatePrettyRadioButtons(
@@ -310,44 +464,7 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$resource, {
-    
-    label_ <- switch(input$resource,
-                     'host' = 'Select Host IP',
-                     'task' = 'Select Task Name',
-                     'docker' = 'Select Container Name')
-    
-    choices_ <- load_tag_list(input$resource)
-    
-    updateSelectizeInput(
-      session = session,
-      inputId = 'resource_assist',
-      label = label_,
-      choices = choices_)
-    
-    metrics_ <- load_metric_list(input$resource)
-    
-    updateSelectizeInput(
-      session = session,
-      inputId = 'single_metric',
-      choices = metrics_
-    )
-    
-    # if (input$resource != 'task') {
-    #   
-    #   updateSelectizeInput(
-    #     session = session,
-    #     inputId = 'host_for_task',
-    #     choices = ''
-    #   )
-    #   
-    # }
-    
-  })
-  
-  
   observe({
-  # observeEvent(input$single_metric, {
     
     if (input$single_metric != "") {
       
@@ -363,42 +480,43 @@ server <- function(input, output, session) {
       
       groupby <- input$groupby
       
-      node_ip <- input$host_for_task
+      mount <- input$mount_path
       
       renewal <- input$renewal
       
       renewal_time <- renew(renewal)
       
-      if (node_ip != '') {
-        
-        dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
-        
-      } else {
-        
-        dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
-        
-      }
+      if (renewal_time > 0)
+        invalidateLater(renewal_time * 1000)
       
+      # developed_time <- Sys.time() %>%
+      #   strptime(format = '%Y-%m-%d %H-%M') %>% 
+      #   as.character()
+      # 
+      # developed_time <- gsub(':', '-', developed_time)
+      # 
+      # dir.name <-  paste("../Model",
+      #                    paste0('agent_id_', AGENT_ID()),
+      #                    resource, host,
+      #                    paste0('unit_', unit),
+      #                    metric, developed_time, sep = "/")
+      dir.name <- paste("../Model",
+                        paste0('agent_id_', AGENT_ID()),
+                        resource, host,
+                        paste0('unit_', unit),
+                        metric, sep = '/')
+        
       modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
       
       figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
-      
-      if (renewal_time > 0)
-        invalidateLater(renewal_time * 1000)
       
       if (!file.exists(modelFile.name)) {   # 모델이 없는 경우.... -----------------------
         
         output$monitoring <- renderPlot({
           
-          # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip) %>% 
+                                       unit, AGENT_ID(), mount) %>% 
             as.data.table()
-          # invalidateLater(groupby * 1000)
-          
-          # # anomaly 차트용 데이터 
-          # global_series <<- load_single_metric(table, host, metric, period, groupby,
-          #                                      limit = 100, type = 'anomaly')
           
           ggplot(series, aes(ds, y)) + geom_point() + geom_line() +
             ylab(metric) + xlab("Time")
@@ -427,7 +545,7 @@ server <- function(input, output, session) {
           
           # anomaly 차트용 데이터 
           series <- load_single_metric(resource, host, metric, period, groupby,
-                                       unit, node_ip) %>% 
+                                       unit, AGENT_ID(), mount) %>% 
             as.data.table()
           
           load(modelFile.name)
@@ -469,15 +587,11 @@ server <- function(input, output, session) {
         
         output$modeling_img <- renderImage({
           
-          if (node_ip != '') {
-            
-            dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
-            
-          } else {
-            
-            dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
-            
-          }
+          dir.name <-  paste("../Model",
+                             paste0('agent_id_', AGENT_ID()),
+                             resource, host,
+                             paste0('unit_', unit),
+                             metric, sep = "/")
           
           figFile.name <- paste(dir.name, "anomaly.png", sep = "/")
           
@@ -528,17 +642,45 @@ server <- function(input, output, session) {
     
     unit <- input$unit
     
-    node_ip <- input$host_for_task
+    mount <- input$mount_path
     
-    # 모델 이름 결정
-    if (node_ip != '') {
+    # developed_at <- Sys.time() %>%
+    #   strptime(format = '%Y-%m-%d %H:%M')
+    # 
+    # if (mount == 'null') {
+    #   
+    #   dir.name <-  paste("../Model",
+    #                      paste0('agent_id_', AGENT_ID()),
+    #                      resource, host,
+    #                      paste0('unit_', unit),
+    #                      metric, gsub(':', '-', developed_at), sep = "/")
+    #   
+    # } else {
+    #   
+    #   dir.name <-  paste("../Model",
+    #                      paste0('agent_id_', AGENT_ID()),
+    #                      resource, host,
+    #                      paste0('unit_', unit),
+    #                      metric,
+    #                      paste0('mount_', mount),
+    #                      gsub(':', '-', developed_at), sep = "/")
+    # }
+    if (mount == 'null') {
       
-      dir.name <-  paste("../Model", CLIENT, resource, host, node_ip, metric, sep = "/")
+      dir.name <-  paste("../Model",
+                         paste0('agent_id_', AGENT_ID()),
+                         resource, host,
+                         paste0('unit_', unit),
+                         metric, sep = "/")
       
     } else {
       
-      dir.name <-  paste("../Model", CLIENT, resource, host, metric, sep = "/")
-      
+      dir.name <-  paste("../Model",
+                         paste0('agent_id_', AGENT_ID()),
+                         resource, host,
+                         paste0('unit_', unit),
+                         metric,
+                         paste0('mount_', mount), sep = "/")
     }
     
     modelFile.name <- paste(dir.name, "fcst.rdata", sep = "/")
@@ -547,25 +689,19 @@ server <- function(input, output, session) {
     
     if (metric != "") {
       
-      # 모형 새로 개발
-      # mseries <- ifx_getGroupBy(DB_HOST, DB_PORT, DB,
-      #                           table,
-      #                           metric,
-      #                           paste0(input$slide_Anomaly_Period, "h"),
-      #                           group_by = paste0(input$slide_Anomaly_Time, "s"),
-      #                           addWhere = "", #input$itext_Anomaly_Where)
-      #                           limit = 100000)
-      # mseries <- as.data.table(mseries)
-      # names(mseries) <- c("ds", "y")
-      # browser()
       mseries <- load_single_metric(resource, host, metric, period, groupby,
-                                    unit, node_ip) %>% 
+                                    unit, AGENT_ID(), mount) %>% 
         as.data.table()
       
-      fcastModel <- prophet(mseries,
-                            changepoint.prior.scale = 0.01,
-                            uncertainty.samples = 100,
-                            interval.width = input$anomaly_CI)
+      
+      developed_during <- system.time({
+        
+        fcastModel <- prophet(mseries,
+                              changepoint.prior.scale = 0.01,
+                              uncertainty.samples = 100,
+                              interval.width = input$anomaly_CI)
+        
+      })[3]
       
       # 폴더 없으면 생성
       if (!dir.exists(dir.name)) dir.create(dir.name, recursive = T)
@@ -601,8 +737,10 @@ server <- function(input, output, session) {
                         "single_metric",
                         choices = numVar)
       
+      # save_model_info(AGENT_ID(), resource, host, unit,
+      #                 metric, mount, developed_at, developed_during)
+      
     }
-    
     
   })
   
