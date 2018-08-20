@@ -863,6 +863,11 @@ load_docker_tag_list <- function(agent_id) {
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  if ((res$status != 200) |
+      (res$data == '[]') |
+      (res$data == '{}'))
+    return(list('null' = 'null',
+                'null' = 'null'))
   
   docker <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
@@ -907,6 +912,11 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  if ((res$status != 200) |
+      (res$data == '[]') |
+      (res$data == '{}'))
+    return(list('null' = 'null',
+                'null' = 'null'))
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
