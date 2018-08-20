@@ -854,8 +854,17 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
+<<<<<<< HEAD
   # agent_id <- 11
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+=======
+  # agent_id <- 25
+  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
+>>>>>>> Ops_bug
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
@@ -888,7 +897,17 @@ load_docker_tag_list <- function(agent_id) {
   
   mesos_name_list$host_ip <- str_extract(mesos_name_list$host_ip, '\\d+.\\d+.\\d+.\\d+')
   
-  docker_name_list <- rbind(docker_name_list, mesos_name_list)
+  kuber_name_list <- data.frame('name' = as.vector(docker[grep('io.kubernetes.container.name', names(docker))]),
+                                'type' = as.vector(docker[grep('io.kubernetes.docker.type', names(docker))]),
+                                'host_ip' = names(docker[grep('io.kubernetes.container.name', names(docker))]),
+                                stringsAsFactors = F) %>% 
+    subset(type == 'container', select = c(-type))
+  
+  kuber_name_list$host_ip <- str_extract(kuber_name_list$host_ip, '\\d+.\\d+.\\d+.\\d+')
+  
+  docker_name_list <- rbind(docker_name_list,
+                            mesos_name_list,
+                            kuber_name_list)
   
   united <- unite(docker_name_list, name, name, host_ip, sep = '/-/')
   
