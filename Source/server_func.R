@@ -12,8 +12,8 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-                           port = 8086)
+  con <- influx_connection(host = '192.168.0.162',
+                           port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -1350,8 +1350,8 @@ save_model_info <- function(agent_id, resource, host, unit,
                    user = 'admin', 
                    password = 'password',
                    dbname = 'defaultdb',
-                   host = 'mysql.marathon.l4lb.thisdcos.directory', 
-                   port = 3306)
+                   host = '192.168.0.166', 
+                   port = 10073)
   
   info <- data.frame('agent_id' = agent_id,
                      'resource' = resource,
