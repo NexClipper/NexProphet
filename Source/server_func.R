@@ -12,8 +12,8 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-                           port = 8086)
+  con <- influx_connection(host = '13.77.154.37',
+                           port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -913,8 +913,8 @@ load_docker_tag_list <- function(agent_id) {
 
 
 load_host_tag_list <- function(agent_id, split_ = T) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  # agent_id <- 13
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
@@ -936,11 +936,9 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   
   host_ip <- as.vector(host[grep('host_ip', names(host))])
   
-  if (length(name) == 0) {
+  if (length(name) == 0)
     
-    name <- rep(NA, length(host_ip))
-    
-  }
+    name <- paste('host', 1:length(host_ip))
   
   host_name_list <- data.frame('name' = name,
                                'host_ip' = host_ip,
