@@ -854,7 +854,7 @@ load_task_tag_list <- function(agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 11
+  # agent_id <- 5
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -904,7 +904,11 @@ load_docker_tag_list <- function(agent_id) {
   
   docker_name_list$name <- united$name
   
-  # docker_name_list %>% separate(name, c('col1', 'col2'), '/-/')
+  unique_ip <- which(table(docker_name_list$host_ip) == 1) %>% names()
+  
+  idx <- which(docker_name_list$host_ip %in% ip)
+  
+  docker_name_list$host_ip[idx] <- docker_name_list$name[idx]
   
   return(split(docker_name_list$name,
                docker_name_list$host_ip))
