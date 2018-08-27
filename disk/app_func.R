@@ -14,7 +14,7 @@ bs.Library <- function(pkg, add = T) {
 }
 
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
-             'data.table', 'jsonlite', 'RMySQL'))
+             'data.table', 'jsonlite', 'RMySQL', 'slackr'))
 
 #### functions ####
 get_agent_id <- function(id=ID,
@@ -109,7 +109,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
 
 handling_disk_data <- function(data_, cut_) {
   
-  data__ <- data_[, .(ds, y)]
+  data__ <- data_[, .(ds, host_name, y)]
   
   trainM <- data__[, ':='(CR = y / shift(y, n = 1, type = "lag"),
                           Diff = y - shift(y, n = 1, type = "lag"))]
@@ -132,8 +132,7 @@ handling_disk_data <- function(data_, cut_) {
                 New_ds = seq.POSIXt(from = max(ds),
                                     length.out = .N,
                                     by = '-1 hour'))] %>% 
-    select(New_ds, New) %>% 
-    rename(ds = New_ds, y = New) %>%
+    .[, .(ds = New_ds, host_name, y = New)] %>% 
     setkey(ds) %>%
     return()
   
@@ -163,14 +162,22 @@ diskForecasting <- function(train_,
 
 
 add_DFT <- function(dt, THRESHOLD) {
-  browser()
-  dt[, DFT := NA]
+  
+  dt[, DFT := -1]
   
   idx_ <- which(dt$yhat > THRESHOLD)
   
-  if (length(idx_) != 0)
+  if (length(idx_) != 0) {
     
     dt[min(idx_), 'DFT'] <- dt$yhat[min(idx_)]
+    
+    dt <- dt[1:min(idx_), .(ds, y, host_name, yhat, DFT = ifelse(DFT == -1, NA, DFT))]
+    
+  } else {
+    
+    dt[, DFT := NULL]
+    
+  }
   
   return(dt)
   
@@ -179,28 +186,73 @@ add_DFT <- function(dt, THRESHOLD) {
 
 draw_graph <- function(dt) {
   # dt <- pred_data$master
-  if (sum(dt$DFT) == 0) 
+  if (sum(!is.na(dt$DFT)) == 0) 
     return()
   
-  ggplot(dt, aes(ds)) +
-    geom_point(aes(y = DFT),
-               size = 5, alpha = 0.5, color = "red") +
-    # geom_vline(aes(y = DFT), color = 'purple') +
-    geom_line(aes(y = y), colour = 'green', na.rm = T) +
-    geom_line(aes(y = yhat), colour = 'blue', na.rm = T) +
-    theme(legend.position = 'top') +
-    xlim(c(min(dt$ds), max(dt$ds))) +
-    ylab('Disk used percent') +
-    xlab("Time")
+  host_name <- dt$host_name[1] %>%
+    as.character() %>%
+    toupper()
   
-    # g <- g + geom_point(aes(y = anomaly),
-    #                     size = 5, alpha = 0.5, color = "red") 
+  trunc_time <- dt$ds[which(!is.na(dt$y)) %>% max() - 24 * 14]
+  
+  dt <- dt[ds > trunc_time, -3]
+  
+  dt_ <- dt %>% 
+    melt(id.vars = 1,
+         measure.vars = 2:3,
+         variable.name = 'key',
+         value.name = 'value')
+  
+  ggplot(dt_, aes(y = value, x = ds)) +
+    geom_line(aes(color = key), size = 1, na.rm = T) +
+    geom_point(data = dt[, .(ds, DFT)],
+               aes(x = ds, y = DFT),
+               color = 'red',
+               size = 3, na.rm = T) +
+    geom_text(data = dt,
+              aes(x = ds, y = DFT,
+                  label = ifelse(!is.na(DFT),
+                                 as.character(paste(format(ds, '%m/%d %H:%M'),
+                                                    round(DFT, 2),
+                                                    sep = '\n')),
+                                 '')),
+              na.rm = T) +
+    scale_x_datetime(breaks = date_breaks('1 day'),
+                     labels = date_format('%m/%d')) +
+    scale_y_continuous(breaks = round(seq(min(dt_$value,
+                                              na.rm = T),
+                                          110, by = 10),
+                                      -1)) +
+    scale_color_manual(labels = c('Actual', 'Predicted'), values = c("blue", "red")) +
+    theme(legend.background = element_rect(fill = "grey90", size = 2),
+          legend.justification = c(0,1), legend.position = c(0,1),
+          legend.direction = 'horizontal',
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.spacing.x = unit(0.7, 'cm'),
+          plot.title = element_text(size = 20,
+                                    face = "bold",
+                                    color = "darkgreen",
+                                    hjust = 0.5)) +
+    labs(title = host_name, x = 'Time', y = 'Disk used(%)')
+  
+  send_slack()
   
 }
 
 
-send_slack <- function(ds_, yhat_) {
+send_slack <- function() {
   
+  # slackr_setup(channel = '#test_disk',
+  #              api_token = Sys.getenv("SLACK_API_TOKEN"),
+  #              username = 'disk')
+  
+  slackr_setup(channel = '#test_disk',
+               api_token = 'xoxb-59623589639-424963057798-v5m211j6nSRYBUwzMmZzHjMo',
+               username = 'disk')
+  
+  ggslackr(height = 6,
+           width = 10.4)
   
 }
 

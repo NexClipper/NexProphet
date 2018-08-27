@@ -1,15 +1,17 @@
 source('app_func.R')
 
 #### CONSTANT ####
-user_conf <- read_json('../user.conf')
+envir_list <- Sys.getenv(c('ID', 'MOUNT_NAME', 'THRESHOLD'))
+
+ID <- envir_list['ID']
+
+MOUNT_NAME <- envir_list['MOUNT_NAME']
+
+THRESHOLD <- envir_list['THRESHOLD']
+
+if (THRESHOLD == '') { THRESHOLD <- 99 } else {THRESHOLD <- as.integer(THRESHOLD)}
 
 internal <- read_json('../internal.conf')
-
-ID <- user_conf$id
-
-MOUNT_NAME <- user_conf$mount_name
-
-THRESHOLD <- user_conf$threshold
 
 INFLUX_HOST <- internal$influx_host
 
@@ -34,8 +36,11 @@ CONN <- influx_connection(host = INFLUX_HOST,
 
 AGENT_ID <- get_agent_id()
 #----
-pred_data <- load_disk_used_percent() %>%
+
+load_disk_used_percent() %>%
   lapply(function(dt, cut_) handling_disk_data(dt, cut_), cut_ = CUT) %>% 
   lapply(function(dt) diskForecasting(dt)) %>% 
-  lapply(function(dt) add_DFT(dt, THRESHOLD))
+  lapply(function(dt) add_DFT(dt, THRESHOLD)) %>% 
+  lapply(function(dt) draw_graph(dt))
+
 pred_data$master %>% View()
