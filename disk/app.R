@@ -42,5 +42,3 @@ load_disk_used_percent() %>%
   lapply(function(dt) diskForecasting(dt)) %>% 
   lapply(function(dt) add_DFT(dt, THRESHOLD)) %>% 
   lapply(function(dt) draw_graph(dt))
-
-pred_data$master %>% View()
