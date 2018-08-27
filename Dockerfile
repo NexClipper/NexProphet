@@ -1,6 +1,4 @@
-FROM rocker/shiny
-
-RUN apt-get -y update && apt-get -y upgrade
+FROM r-base:latest
 
 RUN apt-get install -y libssl-dev
 
@@ -12,14 +10,14 @@ WORKDIR /home
 
 RUN chmod o+w /usr/local/lib/R/site-library
 
-RUN chmod o+w /srv/shiny-server
+COPY ../Source/install_pkg/disk00.R /home
 
-COPY Source/install_pkg /home
+RUN Rscript disk00.R
 
-RUN apt-get install -y libv8-3.14-dev
+COPY . /home/disk
 
-RUN Rscript 00.R
-
-RUN Rscript 01.R
+COPY ../internal.conf /home
 
 RUN apt-get update -y
+
+CMD ["Rscript", "/disk/app.R"]
