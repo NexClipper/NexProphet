@@ -23,7 +23,7 @@ get_agent_id <- function(id=ID,
                          dbname = MYSQL_DBNAME,
                          host = MYSQL_HOST,
                          port = MYSQL_PORT) {
-  return(5)
+  # return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -243,13 +243,15 @@ draw_graph <- function(dt) {
 
 send_slack <- function() {
   
-  # slackr_setup(channel = '#test_disk',
-  #              api_token = Sys.getenv("SLACK_API_TOKEN"),
-  #              username = 'disk')
+  channel <- paste0('#', Sys.getenv('SLACK_CHANNEL'))
   
-  slackr_setup(channel = '#test_disk',
-               api_token = 'xoxb-59623589639-424963057798-v5m211j6nSRYBUwzMmZzHjMo',
-               username = 'disk')
+  slackr_setup(channel = channel,
+               api_token = Sys.getenv("SLACK_API_TOKEN"),
+               username = Sys.getenv('SLACK_USERNAME'))
+  
+  # slackr_setup(channel = '#test_disk',
+  #              api_token = 'xoxb-59623589639-424963057798-v5m211j6nSRYBUwzMmZzHjMo',
+  #              username = 'disk')
   
   ggslackr(height = 6,
            width = 10.4)
