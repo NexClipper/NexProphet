@@ -1,5 +1,7 @@
 FROM r-base:latest
 
+RUN apt-get update -y
+
 RUN apt-get install -y libssl-dev
 
 RUN apt-get install -y libxml2-dev
