@@ -938,7 +938,8 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   
   if (length(name) == 0)
     
-    name <- paste('host', 1:length(host_ip))
+    return(host_ip)
+    # name <- paste('host', 1:length(host_ip))
   
   host_name_list <- data.frame('name' = name,
                                'host_ip' = host_ip,
