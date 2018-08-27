@@ -886,7 +886,7 @@ load_docker_tag_list <- function(agent_id) {
   
   unique_ip <- which(table(docker_name_list$host_ip) == 1) %>% names()
   
-  idx <- which(docker_name_list$host_ip %in% ip)
+  idx <- which(docker_name_list$host_ip %in% unique_ip)
   
   docker_name_list$host_ip[idx] <- docker_name_list$name[idx]
   
