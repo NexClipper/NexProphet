@@ -11,7 +11,7 @@ THRESHOLD <- envir_list['THRESHOLD']
 
 if (THRESHOLD == '') { THRESHOLD <- 99 } else {THRESHOLD <- as.integer(THRESHOLD)}
 
-internal <- read_json('../internal.conf')
+internal <- read_json('internal.conf')
 
 INFLUX_HOST <- internal$influx_host
 

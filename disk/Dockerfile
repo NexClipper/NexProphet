@@ -12,14 +12,10 @@ WORKDIR /home
 
 RUN chmod o+w /usr/local/lib/R/site-library
 
-COPY ../Source/install_pkg/disk00.R /home
+COPY . /home
 
 RUN Rscript disk00.R
 
-COPY ../disk /home/disk
-
-COPY ../internal.conf /home
-
 RUN apt-get update -y
 
-CMD ["Rscript", "/disk/app.R"]
+CMD ["Rscript", "app.R"]
