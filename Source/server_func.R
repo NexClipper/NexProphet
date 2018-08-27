@@ -14,6 +14,8 @@ connect <- function() {
   
   con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
                            port = 8086)
+  # con <- influx_connection(host = '13.77.154.37',
+  #                          port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -688,28 +690,6 @@ load_multiple_metric <- function(period, groupby,
   return(whole_data)
   
 }
-
-
-# load_multiple_metric(5, '1h',
-#                      list('host'=c('192.168.0.162',
-#                                    '192.168.0.163')),
-#                      list('cluster' = c('cpu_used_percent',
-#                                         'mem_used_percent'),
-#                           'host' = c('load1')))
-
-
-# mtx <- load_multiple_metric(period = 5,
-#                      groupby = '1h',
-#                      host_list = list('cluster'='192.168.0.161',
-#                                       'host'=c('192.168.0.162',
-#                                                '192.168.0.163'),
-#                                       'task'=c('agent.nexcloud')),
-#                      metric_list = list('cluster'=c('cpu_used_percent',
-#                                                     'mem_used_percent',
-#                                                     'disk_used_percent'),
-#                                         'host'=c('load1'),
-#                                         'task'=c('cpu_used_percent'))
-#                      ) %>% as.matrix()
 
 
 default_time_seqeunce <- function(period, groupby) {
