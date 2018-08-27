@@ -14,7 +14,7 @@ COPY ../Source/install_pkg/disk00.R /home
 
 RUN Rscript disk00.R
 
-COPY . /home/disk
+COPY ../disk /home/disk
 
 COPY ../internal.conf /home
 
