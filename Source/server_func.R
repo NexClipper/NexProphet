@@ -12,10 +12,15 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
+<<<<<<< HEAD
   con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
                            port = 8086)
   # con <- influx_connection(host = '13.77.154.37',
   #                          port = 10091)
+=======
+  con <- influx_connection(host = '192.168.0.162',
+                           port = 10091)
+>>>>>>> Dev_bug
   
   dbname <- 'nexclipper'
   
@@ -768,7 +773,7 @@ load_metric_list <- function(measurement) {
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
   # host_ip='172.17.0.1';agent_id='60'
-  # host_ip='192.168.0.162';agent_id='27'
+  # host_ip='192.168.0.163';agent_id='27'
   connector <- connect()
   print('disk mount path')
   con <- connector$connector
@@ -807,42 +812,43 @@ load_tag_list <- function(measurement, agent_id) {
   
 }
 
-
-load_task_tag_list <- function(agent_id) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  
-  task <- res$data %>%
-    fromJSON(simplifyVector = F, flatten = T) %>%
-    unlist()
-  
-  task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
-                               'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
-                               stringsAsFactors = F)
-  
-  return(split(task_name_list$executor_id,
-               task_name_list$node_ip))
-  
-}
+# will be deleted
+# load_task_tag_list <- function(agent_id) {
+#   # agent_id <- 11
+#   res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
+#              content_type_json(),
+#              add_headers('agent_id' = agent_id)) %>%
+#     content('parsed')
+#   # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
+#   #            content_type_json(),
+#   #            add_headers('agent_id' = agent_id)) %>%
+#   #   content('parsed')
+#   
+#   task <- res$data %>%
+#     fromJSON(simplifyVector = F, flatten = T) %>%
+#     unlist()
+#   
+#   task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
+#                                'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
+#                                stringsAsFactors = F)
+#   
+#   return(split(task_name_list$executor_id,
+#                task_name_list$node_ip))
+#   
+# }
 
 
 load_docker_tag_list <- function(agent_id) {
+<<<<<<< HEAD
   # agent_id <- 5
+=======
+  # agent_id <- 27
+>>>>>>> Dev_bug
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
+  
   if ((res$status != 200) |
       (res$data == '[]') |
       (res$data == '{}'))
@@ -897,15 +903,16 @@ load_docker_tag_list <- function(agent_id) {
 
 
 load_host_tag_list <- function(agent_id, split_ = T) {
+<<<<<<< HEAD
   # agent_id <- 13
+=======
+  # agent_id <- 27
+>>>>>>> Dev_bug
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
+  
   if ((res$status != 200) |
       (res$data == '[]') |
       (res$data == '{}'))
@@ -1339,8 +1346,8 @@ save_model_info <- function(agent_id, resource, host, unit,
                    user = 'admin', 
                    password = 'password',
                    dbname = 'defaultdb',
-                   host = 'mysql.marathon.l4lb.thisdcos.directory', 
-                   port = 3306)
+                   host = '192.168.0.166', 
+                   port = 10073)
   
   info <- data.frame('agent_id' = agent_id,
                      'resource' = resource,
