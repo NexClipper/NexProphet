@@ -16,6 +16,7 @@ bs.Library <- function(pkg, add = T) {
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
              'data.table', 'jsonlite', 'RMySQL'))
 
+#### functions ####
 get_agent_id <- function(id=ID,
                          user = MYSQL_USER,
                          password = MYSQL_PASSWORD,
@@ -44,7 +45,6 @@ get_agent_id <- function(id=ID,
 }
 
 
-
 load_disk_used_percent <- function(agent_id = AGENT_ID,
                                    mount_name = MOUNT_NAME,
                                    con = CONN,
@@ -60,7 +60,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
     
   }
   
-  query <- "select mean(*)
+  query <- "select mean(used_percent) as y
             from host_disk
             where time > now() - 21d and
                   agent_id = '%s' %s
@@ -73,11 +73,10 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
   res <- influx_query(con,
                       dbname,
                       query,
-                      timestamp_format = 'h',
                       return_xts = F)[[1]] %>% 
     as.data.table()
   
-  res <- res[, .(ds = time, host_name, y = mean_used_percent)] %>% 
+  res <- res[, .(ds = time + 9 * 60 * 60, host_name, y)] %>% 
     setkey(ds) %>% 
     dcast(ds ~ host_name, value.var = c('y'))
   
@@ -107,6 +106,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
   
 }
 
+
 handling_disk_data <- function(data_, cut_) {
   
   data__ <- data_[, .(ds, y)]
@@ -134,10 +134,11 @@ handling_disk_data <- function(data_, cut_) {
                                     by = '-1 hour'))] %>% 
     select(New_ds, New) %>% 
     rename(ds = New_ds, y = New) %>%
-    setorder(ds) %>%
+    setkey(ds) %>%
     return()
   
 }
+
 
 diskForecasting <- function(train_,
                             pred_period = 30,
@@ -152,24 +153,54 @@ diskForecasting <- function(train_,
                                   periods = 24 * pred_period,
                                   freq = 3600)
   
-  predict(model, future) %>%
+  train_[predict(model, future) %>%
     as.data.table(key = 'ds') %>%
-    .[, .(ds, yhat)] %>% 
+    .[, .(ds, yhat)]] %>% 
+    .[, yhat := ifelse(is.na(y), yhat, NA)] %>% 
     return()
   
 }
 
+
 add_DFT <- function(dt, THRESHOLD) {
-  
-  dt[, DFT := 0]
+  browser()
+  dt[, DFT := NA]
   
   idx_ <- which(dt$yhat > THRESHOLD)
   
   if (length(idx_) != 0)
     
-    dt[min(idx_), 'DFT'] <- 1
+    dt[min(idx_), 'DFT'] <- dt$yhat[min(idx_)]
   
   return(dt)
+  
+}
+
+
+draw_graph <- function(dt) {
+  # dt <- pred_data$master
+  if (sum(dt$DFT) == 0) 
+    return()
+  
+  ggplot(dt, aes(ds)) +
+    geom_point(aes(y = DFT),
+               size = 5, alpha = 0.5, color = "red") +
+    # geom_vline(aes(y = DFT), color = 'purple') +
+    geom_line(aes(y = y), colour = 'green', na.rm = T) +
+    geom_line(aes(y = yhat), colour = 'blue', na.rm = T) +
+    theme(legend.position = 'top') +
+    xlim(c(min(dt$ds), max(dt$ds))) +
+    ylab('Disk used percent') +
+    xlab("Time")
+  
+    # g <- g + geom_point(aes(y = anomaly),
+    #                     size = 5, alpha = 0.5, color = "red") 
+  
+}
+
+
+send_slack <- function(ds_, yhat_) {
+  
   
 }
 
