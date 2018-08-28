@@ -185,7 +185,7 @@ add_DFT <- function(dt, THRESHOLD) {
 
 
 draw_graph <- function(dt) {
-  # dt <- pred_data$master
+  
   if (sum(!is.na(dt$DFT)) == 0) 
     return()
   
