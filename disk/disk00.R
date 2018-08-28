@@ -14,4 +14,4 @@ bs.Library <- function(pkg, add = T) {
 }
 
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
-             'data.table', 'jsonlite', 'RMySQL', 'slackr'))
+             'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales'))
