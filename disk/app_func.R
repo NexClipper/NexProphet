@@ -18,7 +18,7 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
 
 
 #### CONSTANT ####
-envir_list <- Sys.getenv(c('ID', 'MOUNT_NAME', 'THRESHOLD'))
+envir_list <- Sys.getenv(c('ID', 'MOUNT_NAME', 'THRESHOLD', 'ALERT'))
 
 ID <- envir_list['ID']
 
