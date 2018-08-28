@@ -16,6 +16,49 @@ bs.Library <- function(pkg, add = T) {
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
              'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales'))
 
+
+#### CONSTANT ####
+envir_list <- Sys.getenv(c('ID', 'MOUNT_NAME', 'THRESHOLD'))
+
+ID <- envir_list['ID']
+
+MOUNT_NAME <- envir_list['MOUNT_NAME']
+
+THRESHOLD <- envir_list['THRESHOLD']
+
+ALERT <- envir_list['ALERT']
+
+if (THRESHOLD == '') { THRESHOLD <- 99 } else {THRESHOLD <- as.integer(THRESHOLD)}
+
+internal <- read_json('internal.conf')
+
+INFLUX_HOST <- internal$influx_host
+
+INFLUX_PORT <- internal$influx_port
+
+INFLUX_DBNAME <- internal$influx_dbname
+
+MYSQL_USER <- internal$mysql_user
+
+MYSQL_PASSWORD <- internal$mysql_password
+
+MYSQL_DBNAME <- internal$mysql_dbname
+
+MYSQL_HOST <- internal$mysql_host
+
+MYSQL_PORT <- internal$mysql_port
+
+CUT <- internal$cut
+
+CONN <- influx_connection(host = INFLUX_HOST,
+                          port = INFLUX_PORT)
+
+AGENT_ID <- get_agent_id()
+
+create_mysql_table()
+#----
+
+
 #### functions ####
 get_agent_id <- function(id = ID,
                          user = MYSQL_USER,
@@ -109,7 +152,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
 }
 
 
-handling_disk_data <- function(data_, cut_) {
+handling_disk_data <- function(data_, cut_ = CUT) {
   
   data__ <- data_[, .(ds, host_name, y)]
   
@@ -172,7 +215,10 @@ save_result_mysql <- function(dt_,
                               password = MYSQL_PASSWORD,
                               dbname = MYSQL_DBNAME,
                               host = MYSQL_HOST,
-                              port = MYSQL_PORT) {
+                              port = MYSQL_PORT,
+                              mount_name = MOUNT_NAME,
+                              threshold = THRESHOLD,
+                              alert = ALERT) {
   
   con <- dbConnect(MySQL(), 
                    user = user, 
@@ -181,25 +227,29 @@ save_result_mysql <- function(dt_,
                    host = host, 
                    port = port)
   
-  dt__ <- dt_ %>% copy()
+  current_time <- dt_$ds[max(which(!is.na(dt_$y)))]
+  
+  DFT <- NULL
+  
+  if (length(which(dt_$yhat > threshold)) != 0)
+    
+    DFT <- dt_$ds[min(which(dt_$yhat > threshold))]
+  
+  predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
+  
+  alertYN <- 0
+  
+  if (difftime(DFT, current_time, units = 'hours') <= alert)
+    
+    alertYN <- 1
   
   info <- data.frame('agent_id' = agent_id,
-                     'resource' = resource,
-                     'target' = host,
-                     'unit' = unit,
-                     'metric' = metric,
-                     'mount' = mount,
-                     'developed_at' = developed_at,
-                     'developed_during' = developed_during
-  )
-  dt__[, .(agent_id = agent_id,)]
-  `agent_id` int(11) NOT NULL,
-  `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
-  `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
-  `current_time` datetime NOT NULL,
-  `DFT` datetime NOT NULL,
-  `predicted` float NOT NULL,
-  `alertYN`
+                     'resource' = dt_$host_name[1],
+                     'mount' = mount_name,
+                     'current_time' = current_time,
+                     'DFT' = DFT,
+                     'predicted' = predicted,
+                     'alertYN' = alertYN)
   
   dbWriteTable(con, 
                name = 'monitoring_disk', 
@@ -313,12 +363,11 @@ send_slack <- function() {
 }
 
 
-create_mysql_table <- function(agent_id = AGENT_ID,
-                             user = MYSQL_USER,
-                             password = MYSQL_PASSWORD,
-                             dbname = MYSQL_DBNAME,
-                             host = MYSQL_HOST,
-                             port = MYSQL_PORT) {
+create_mysql_table <- function(user = MYSQL_USER,
+                               password = MYSQL_PASSWORD,
+                               dbname = MYSQL_DBNAME,
+                               host = MYSQL_HOST,
+                               port = MYSQL_PORT) {
   
   con <- dbConnect(MySQL(), 
                    user = user, 
@@ -338,7 +387,7 @@ create_mysql_table <- function(agent_id = AGENT_ID,
                `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
                `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
                `current_time` datetime NOT NULL,
-               `DFT` datetime NOT NULL,
+               `DFT` datetime,
                `predicted` float NOT NULL,
                `alertYN` tinyint(1) NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=latin1;")
