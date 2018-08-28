@@ -16,6 +16,8 @@ COPY . /home
 
 RUN Rscript disk00.R
 
+RUN apt-get install -y libcurl4-openssl-dev
+
 RUN apt-get update -y
 
 CMD ["Rscript", "app.R"]

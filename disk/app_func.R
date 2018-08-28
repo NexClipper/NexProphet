@@ -249,10 +249,6 @@ send_slack <- function() {
                api_token = Sys.getenv("SLACK_API_TOKEN"),
                username = Sys.getenv('SLACK_USERNAME'))
   
-  # slackr_setup(channel = '#test_disk',
-  #              api_token = 'xoxb-59623589639-424963057798-v5m211j6nSRYBUwzMmZzHjMo',
-  #              username = 'disk')
-  
   ggslackr(height = 6,
            width = 10.4)
   
