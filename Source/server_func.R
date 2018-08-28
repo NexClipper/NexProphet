@@ -1334,8 +1334,8 @@ save_model_info <- function(agent_id, resource, host, unit,
                    user = 'admin', 
                    password = 'password',
                    dbname = 'defaultdb',
-                   host = '192.168.0.166', 
-                   port = 10073)
+                   host = 'mysql.marathon.l4lb.thisdcos.directory', 
+                   port = 3306)
   
   info <- data.frame('agent_id' = agent_id,
                      'resource' = resource,

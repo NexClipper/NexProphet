@@ -14,9 +14,11 @@ WORKDIR /home
 
 RUN chmod o+w /usr/local/lib/R/site-library
 
-COPY . /home
+COPY disk00.R /home
 
 RUN Rscript disk00.R
+
+RUN . /home
 
 RUN apt-get update -y
 

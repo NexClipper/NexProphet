@@ -17,7 +17,7 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
              'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales'))
 
 #### functions ####
-get_agent_id <- function(id=ID,
+get_agent_id <- function(id = ID,
                          user = MYSQL_USER,
                          password = MYSQL_PASSWORD,
                          dbname = MYSQL_DBNAME,
@@ -39,6 +39,8 @@ get_agent_id <- function(id=ID,
   cat('\n', query, '\n')
   
   res <- dbGetQuery(con, query)
+  
+  dbDisconnect(con)
   
   return(res$agent_id)
   
@@ -152,11 +154,64 @@ diskForecasting <- function(train_,
                                   periods = 24 * pred_period,
                                   freq = 3600)
   
-  train_[predict(model, future) %>%
+  dt_ <- train_[predict(model, future) %>%
     as.data.table(key = 'ds') %>%
     .[, .(ds, yhat)]] %>% 
-    .[, yhat := ifelse(is.na(y), yhat, NA)] %>% 
-    return()
+    .[, yhat := ifelse(is.na(y), yhat, NA)]
+  
+  save_result_mysql(dt_)
+  
+  return(dt_)
+  
+}
+
+
+save_result_mysql <- function(dt_,
+                              agent_id = AGENT_ID,
+                              user = MYSQL_USER,
+                              password = MYSQL_PASSWORD,
+                              dbname = MYSQL_DBNAME,
+                              host = MYSQL_HOST,
+                              port = MYSQL_PORT) {
+  
+  con <- dbConnect(MySQL(), 
+                   user = user, 
+                   password = password,
+                   dbname = dbname,
+                   host = host, 
+                   port = port)
+  
+  dt__ <- dt_ %>% copy()
+  
+  info <- data.frame('agent_id' = agent_id,
+                     'resource' = resource,
+                     'target' = host,
+                     'unit' = unit,
+                     'metric' = metric,
+                     'mount' = mount,
+                     'developed_at' = developed_at,
+                     'developed_during' = developed_during
+  )
+  dt__[, .(agent_id = agent_id,)]
+  `agent_id` int(11) NOT NULL,
+  `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
+  `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
+  `current_time` datetime NOT NULL,
+  `DFT` datetime NOT NULL,
+  `predicted` float NOT NULL,
+  `alertYN`
+  
+  dbWriteTable(con, 
+               name = 'monitoring_disk', 
+               value = info,
+               row.names = F,
+               append = T)
+  
+  dbCommit(con)
+  
+  dbDisconnect(con)
+  
+  print('Success to save predicted disk usage!')
   
 }
 
@@ -248,9 +303,7 @@ draw_graph <- function(dt) {
 
 send_slack <- function() {
   
-  channel <- paste0('#', Sys.getenv('SLACK_CHANNEL'))
-  
-  slackr_setup(channel = channel,
+  slackr_setup(channel = Sys.getenv('SLACK_CHANNEL'),
                api_token = Sys.getenv("SLACK_API_TOKEN"),
                username = Sys.getenv('SLACK_USERNAME'))
   
@@ -259,3 +312,49 @@ send_slack <- function() {
   
 }
 
+
+create_mysql_table <- function(agent_id = AGENT_ID,
+                             user = MYSQL_USER,
+                             password = MYSQL_PASSWORD,
+                             dbname = MYSQL_DBNAME,
+                             host = MYSQL_HOST,
+                             port = MYSQL_PORT) {
+  
+  con <- dbConnect(MySQL(), 
+                   user = user, 
+                   password = password,
+                   dbname = dbname,
+                   host = host, 
+                   port = port)
+  
+  ListTables <- dbListTables(con)
+  
+  if (!('monitoring_disk' %in% ListTables)) {
+    
+    dbGetQuery(con,
+               "CREATE TABLE `monitoring_disk` (
+               `id` int(11) NOT NULL,
+               `agent_id` int(11) NOT NULL,
+               `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
+               `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
+               `current_time` datetime NOT NULL,
+               `DFT` datetime NOT NULL,
+               `predicted` float NOT NULL,
+               `alertYN` tinyint(1) NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=latin1;")
+  
+    dbGetQuery(con,
+               "ALTER TABLE `monitoring_disk` ADD PRIMARY KEY (`id`);")
+    
+    dbGetQuery(con,
+               "ALTER TABLE `monitoring_disk` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;")
+    
+    print('Create monitoring_disk table')
+    
+    dbCommit(con)
+    
+  }
+  
+  dbDisconnect(con)
+  
+}

@@ -35,6 +35,8 @@ CONN <- influx_connection(host = INFLUX_HOST,
                           port = INFLUX_PORT)
 
 AGENT_ID <- get_agent_id()
+
+create_mysql_table()
 #----
 
 load_disk_used_percent() %>%
