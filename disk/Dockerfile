@@ -18,6 +18,8 @@ COPY disk00.R /home
 
 RUN Rscript disk00.R
 
+ARG CACHEBUST=1
+
 RUN . /home
 
 RUN apt-get update -y
