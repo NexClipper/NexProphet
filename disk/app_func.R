@@ -286,11 +286,11 @@ save_result_mysql <- function(dt_,
   
   predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
   
-  alertYN <- 0
+  alertYN <- F
   
   if (difftime(DFT, current_time, units = 'hours') <= alert)
     
-    alertYN <- 1
+    alertYN <- T
   
   info <- data.frame('agent_id' = agent_id,
                      'resource' = dt_$host_name[1],
