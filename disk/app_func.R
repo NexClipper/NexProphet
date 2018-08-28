@@ -24,11 +24,9 @@ ID <- envir_list['ID']
 
 MOUNT_NAME <- envir_list['MOUNT_NAME']
 
-THRESHOLD <- envir_list['THRESHOLD']
+THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
 
-ALERT <- envir_list['ALERT']
-
-if (THRESHOLD == '') { THRESHOLD <- 99 } else {THRESHOLD <- as.integer(THRESHOLD)}
+ALERT <- envir_list['ALERT'] %>% as.integer()
 
 internal <- read_json('internal.conf')
 
@@ -112,8 +110,8 @@ create_mysql_table <- function(user = MYSQL_USER,
                `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
                `current_time` datetime NOT NULL,
                `DFT` datetime,
-               `predicted` float NOT NULL,
-               `alertYN` tinyint(1) NOT NULL
+               `predicted` float,
+               `alertYN` tinyint(1)
     ) ENGINE=InnoDB DEFAULT CHARSET=latin1;")
     
     dbGetQuery(con,
@@ -278,19 +276,27 @@ save_result_mysql <- function(dt_,
   
   current_time <- dt_$ds[max(which(!is.na(dt_$y)))]
   
-  DFT <- NULL
+  DFT <- NA
   
-  if (length(which(dt_$yhat > threshold)) != 0)
+  predicted <- NA
+  
+  if (length(which(dt_$yhat > threshold)) != 0) {
     
     DFT <- dt_$ds[min(which(dt_$yhat > threshold))]
-  
-  predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
-  
-  alertYN <- FALSE
-  
-  if (difftime(DFT, current_time, units = 'hours') <= alert)
     
-    alertYN <- TRUE
+    predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
+    
+  }
+  
+  alertYN <- NA
+  
+  if (!is.na(DFT))
+    
+    if (difftime(DFT, current_time, units = 'hours') <= alert) {
+      
+      alertYN <- T
+      
+    } else {alertYN <- F}
   
   info <- data.frame('agent_id' = agent_id,
                      'resource' = dt_$host_name[1],
@@ -298,7 +304,8 @@ save_result_mysql <- function(dt_,
                      'current_time' = current_time,
                      'DFT' = DFT,
                      'predicted' = predicted,
-                     'alertYN' = alertYN)
+                     'alertYN' = alertYN,
+                     stringsAsFactors = F)
   
   dbWriteTable(con, 
                name = 'monitoring_disk', 
@@ -315,11 +322,11 @@ save_result_mysql <- function(dt_,
 }
 
 
-add_DFT <- function(dt, THRESHOLD) {
+add_DFT <- function(dt, threshold = THRESHOLD) {
   
   dt[, DFT := -1]
   
-  idx_ <- which(dt$yhat > THRESHOLD)
+  idx_ <- which(dt$yhat > threshold)
   
   if (length(idx_) != 0) {
     
@@ -340,8 +347,8 @@ add_DFT <- function(dt, THRESHOLD) {
 
 draw_graph <- function(dt) {
   
-  if (sum(!is.na(dt$DFT)) == 0) 
-    return()
+  if (!('DFT' %in% names(dt)))
+    return(dt)
   
   host_name <- dt$host_name[1] %>%
     as.character() %>%
