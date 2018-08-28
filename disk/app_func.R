@@ -14,7 +14,7 @@ bs.Library <- function(pkg, add = T) {
 }
 
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
-             'data.table', 'jsonlite', 'RMySQL', 'slackr'))
+             'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales'))
 
 #### functions ####
 get_agent_id <- function(id=ID,
@@ -195,6 +195,9 @@ draw_graph <- function(dt) {
   
   trunc_time <- dt$ds[which(!is.na(dt$y)) %>% max() - 24 * 14]
   
+  current_time <- dt$ds[which(!is.na(dt$y)) %>% max()] %>% 
+    as.character()
+  
   dt <- dt[ds > trunc_time, -3]
   
   dt_ <- dt %>% 
@@ -234,7 +237,9 @@ draw_graph <- function(dt) {
                                     face = "bold",
                                     color = "darkgreen",
                                     hjust = 0.5)) +
-    labs(title = host_name, x = 'Time', y = 'Disk used(%)')
+    labs(title = host_name,
+         x = 'Time', y = 'Disk used(%)',
+         subtitle = current_time)
   
   send_slack()
   

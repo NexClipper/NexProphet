@@ -12,15 +12,10 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-<<<<<<< HEAD
   con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
                            port = 8086)
   # con <- influx_connection(host = '13.77.154.37',
   #                          port = 10091)
-=======
-  con <- influx_connection(host = '192.168.0.162',
-                           port = 10091)
->>>>>>> Dev_bug
   
   dbname <- 'nexclipper'
   
@@ -839,11 +834,7 @@ load_tag_list <- function(measurement, agent_id) {
 
 
 load_docker_tag_list <- function(agent_id) {
-<<<<<<< HEAD
   # agent_id <- 5
-=======
-  # agent_id <- 27
->>>>>>> Dev_bug
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -902,12 +893,8 @@ load_docker_tag_list <- function(agent_id) {
 }
 
 
-load_host_tag_list <- function(agent_id, split_ = T) {
-<<<<<<< HEAD
+load_host_tag_list <- function(agent_id) {
   # agent_id <- 13
-=======
-  # agent_id <- 27
->>>>>>> Dev_bug
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -916,29 +903,30 @@ load_host_tag_list <- function(agent_id, split_ = T) {
   if ((res$status != 200) |
       (res$data == '[]') |
       (res$data == '{}'))
-    return(list('null' = 'null',
-                'null' = 'null'))
+    return(list('null' = 'null'))
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-  name <- as.vector(host[grep('host_name', names(host))])
+  # name <- as.vector(host[grep('host_name', names(host))])
   
   host_ip <- as.vector(host[grep('host_ip', names(host))])
   
-  if (length(name) == 0)
-    
-    return(host_ip)
-    # name <- paste('host', 1:length(host_ip))
+  return(host_ip)
   
-  host_name_list <- data.frame('name' = name,
-                               'host_ip' = host_ip,
-                               stringsAsFactors = F)
-  if (split_)
-    return(split(host_name_list$host_ip, host_name_list$name))
-  
-  return(host_name_list)
+  # if (length(name) == 0)
+  #   
+  #   return(host_ip)
+  #   # name <- paste('host', 1:length(host_ip))
+  # 
+  # host_name_list <- data.frame('name' = name,
+  #                              'host_ip' = host_ip,
+  #                              stringsAsFactors = F)
+  # if (split_)
+  #   return(split(host_name_list$host_ip, host_name_list$name))
+  # 
+  # return(host_name_list)
   
 }
 
