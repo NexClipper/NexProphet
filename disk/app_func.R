@@ -1,5 +1,5 @@
 cat('\n', '#############',
-    format(Sys.time(), format = '%Y-%m-%d %H:00:00'),
+    format(Sys.time() + 9 * 60 * 60, format = '%Y-%m-%d %H:00:00'),
     '#############', '\n')
 
 #### library ####
@@ -321,7 +321,7 @@ save_result_mysql <- function(dt_,
   
   dbDisconnect(con)
   
-  print('Success to save predicted disk usage!')
+  cat('\nSuccess to save predicted disk usage!\n\n')
   
 }
 
