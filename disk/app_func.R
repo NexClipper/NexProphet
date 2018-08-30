@@ -386,7 +386,7 @@ draw_graph <- function(dt) {
                                  '')),
               na.rm = T) +
     scale_x_datetime(breaks = date_breaks('1 day'),
-                     labels = date_format('%m/%d')) +
+                     labels = date_format('%m\n%d')) +
     scale_y_continuous(breaks = round(seq(min(dt_$value,
                                               na.rm = T),
                                           110, by = 10),
@@ -418,7 +418,7 @@ send_slack <- function() {
                username = Sys.getenv('SLACK_USERNAME'))
   
   ggslackr(height = 6,
-           width = 10.4)
+           width = 11)
   
   print('Success to send ggplot')
   
