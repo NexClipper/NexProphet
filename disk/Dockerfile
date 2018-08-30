@@ -18,10 +18,12 @@ COPY disk00.R /home
 
 RUN Rscript disk00.R
 
+RUN mkdir log
+
 ARG CACHEBUST=1
 
 COPY . /home
 
 RUN apt-get update -y
 
-CMD ["Rscript", "app.R"]
+CMD Rscript app.R %> log/R_disk_log.log 

@@ -1,3 +1,7 @@
+cat('\n', '#############',
+    format(Sys.time(), format = '%Y-%m-%d %H:00:00'),
+    '#############', '\n')
+
 #### library ####
 bs.Library <- function(pkg, add = T) {
   
@@ -132,7 +136,7 @@ create_mysql_table <- function(user = MYSQL_USER,
 
 
 AGENT_ID <- get_agent_id()
-
+print('######## Get agent_id ########')
 
 create_mysql_table()
 
