@@ -420,5 +420,7 @@ send_slack <- function() {
   ggslackr(height = 6,
            width = 10.4)
   
+  print('Success to send ggplot')
+  
 }
 
