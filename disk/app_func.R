@@ -65,7 +65,7 @@ get_agent_id <- function(id = ID,
                          dbname = MYSQL_DBNAME,
                          host = MYSQL_HOST,
                          port = MYSQL_PORT) {
-  # return(5)
+  return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -94,7 +94,7 @@ create_mysql_table <- function(user = MYSQL_USER,
                                dbname = MYSQL_DBNAME,
                                host = MYSQL_HOST,
                                port = MYSQL_PORT) {
-  
+  return()
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -228,8 +228,11 @@ handling_disk_data <- function(data_, cut_ = CUT) {
                 New_ds = seq.POSIXt(from = max(ds),
                                     length.out = .N,
                                     by = '-1 hour'))] %>% 
-    .[, .(ds = New_ds, host_name, y = New)] %>% 
+    .[, .(ds = New_ds, y = New)] %>% 
     setkey(ds) %>%
+    .[data_[, .(ds, host_name, origin_y = y)]] %>% 
+    .[!is.na(y)] %>% 
+    setkey(ds) %>% 
     return()
   
 }
@@ -270,7 +273,7 @@ save_result_mysql <- function(dt_,
                               mount_name = MOUNT_NAME,
                               threshold = THRESHOLD,
                               alert = ALERT) {
-  
+  return()
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -336,11 +339,11 @@ add_DFT <- function(dt, threshold = THRESHOLD) {
     
     dt[min(idx_), 'DFT'] <- dt$yhat[min(idx_)]
     
-    dt <- dt[1:min(idx_), .(ds, y, host_name, yhat, DFT = ifelse(DFT == -1, NA, DFT))]
+    dt <- dt[1:min(idx_), .(ds, origin_y, host_name, yhat, DFT = ifelse(DFT == -1, NA, DFT))]
     
   } else {
     
-    dt[, DFT := NULL]
+    dt[, c('DFT', 'y') := NULL]
     
   }
   
@@ -358,9 +361,9 @@ draw_graph <- function(dt) {
     as.character() %>%
     toupper()
   
-  trunc_time <- dt$ds[which(!is.na(dt$y)) %>% max() - 24 * 14]
+  trunc_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max() - 24 * 14]
   
-  current_time <- dt$ds[which(!is.na(dt$y)) %>% max()] %>% 
+  current_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max()] %>% 
     as.character()
   
   dt <- dt[ds > trunc_time, -3]
@@ -412,7 +415,7 @@ draw_graph <- function(dt) {
 
 
 send_slack <- function() {
-  
+  return()
   slackr_setup(channel = Sys.getenv('SLACK_CHANNEL'),
                api_token = Sys.getenv("SLACK_API_TOKEN"),
                username = Sys.getenv('SLACK_USERNAME'))
