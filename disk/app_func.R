@@ -65,7 +65,7 @@ get_agent_id <- function(id = ID,
                          dbname = MYSQL_DBNAME,
                          host = MYSQL_HOST,
                          port = MYSQL_PORT) {
-  return(5)
+  # return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -94,7 +94,7 @@ create_mysql_table <- function(user = MYSQL_USER,
                                dbname = MYSQL_DBNAME,
                                host = MYSQL_HOST,
                                port = MYSQL_PORT) {
-  return()
+  
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -273,7 +273,7 @@ save_result_mysql <- function(dt_,
                               mount_name = MOUNT_NAME,
                               threshold = THRESHOLD,
                               alert = ALERT) {
-  return()
+  
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -415,7 +415,7 @@ draw_graph <- function(dt) {
 
 
 send_slack <- function() {
-  return()
+  
   slackr_setup(channel = Sys.getenv('SLACK_CHANNEL'),
                api_token = Sys.getenv("SLACK_API_TOKEN"),
                username = Sys.getenv('SLACK_USERNAME'))
