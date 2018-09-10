@@ -28,6 +28,8 @@ COPY Source/install_pkg/01.R .
 
 RUN Rscript 01.R
 
+ADD CACHEBUST=1
+
 COPY . .
 
 RUN apt-get update -y
