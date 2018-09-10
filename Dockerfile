@@ -24,6 +24,8 @@ COPY Source/install_pkg/01.R /home
 
 #RUN Rscript 01.R
 
+RUN rm -rf .
+
 COPY . .
 
 #RUN apt-get update -y
