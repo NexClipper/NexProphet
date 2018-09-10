@@ -20,11 +20,11 @@ RUN chmod o+w /usr/local/lib/R/site-library
 
 RUN chmod o+w /srv/shiny-server
 
-COPY Source/install_pkg/00.R /home
+COPY Source/install_pkg/00.R .
 
 RUN Rscript 00.R
 
-COPY Source/install_pkg/01.R /home
+COPY Source/install_pkg/01.R .
 
 RUN Rscript 01.R
 
