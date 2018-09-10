@@ -817,39 +817,9 @@ load_tag_list <- function(measurement, agent_id, default_ = T) {
   
 }
 
-# will be deleted
-# load_task_tag_list <- function(agent_id) {
-#   # agent_id <- 11
-#   res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
-#              content_type_json(),
-#              add_headers('agent_id' = agent_id)) %>%
-#     content('parsed')
-#   # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
-#   #            content_type_json(),
-#   #            add_headers('agent_id' = agent_id)) %>%
-#   #   content('parsed')
-#   
-#   task <- res$data %>%
-#     fromJSON(simplifyVector = F, flatten = T) %>%
-#     unlist()
-#   
-#   task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
-#                                'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
-#                                stringsAsFactors = F)
-#   
-#   return(split(task_name_list$executor_id,
-#                task_name_list$node_ip))
-#   
-# }
 
-
-<<<<<<< HEAD
-load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 5
-=======
 load_docker_tag_list <- function(agent_id, default_) {
-  # agent_id <- 27
->>>>>>> Dev
+  # agent_id <- 13
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -896,13 +866,12 @@ load_docker_tag_list <- function(agent_id, default_) {
   
   docker_name_list$name <- united$name
   
-<<<<<<< HEAD
   unique_ip <- which(table(docker_name_list$host_ip) == 1) %>% names()
   
   idx <- which(docker_name_list$host_ip %in% unique_ip)
   
   docker_name_list$host_ip[idx] <- docker_name_list$name[idx]
-=======
+  
   name_split <- split(docker_name_list$name,
                       docker_name_list$host_ip)
   
@@ -912,31 +881,14 @@ load_docker_tag_list <- function(agent_id, default_) {
   names_ <- c('Choose Container', names(name_split))
   
   name_split$`Choose Container` <- 'Choose Container'
->>>>>>> Dev
   
   name_split[names_] %>% return()
   
-  # docker_name_list <- rbind(c('Choose Container', 'Choose Container'),
-  #                           docker_name_list)
-  # 
-  # # docker_name_list %>% separate(name, c('col1', 'col2'), '/-/')
-  # 
-  # return(split(docker_name_list$name,
-  #              docker_name_list$host_ip))
-  # a <- split(docker_name_list$name,
-  #       docker_name_list$host_ip)
-  # a$aka <- 'aka'
-  # a[sort(names(a), decreasing = T)]
 }
 
 
-<<<<<<< HEAD
-load_host_tag_list <- function(agent_id) {
-  # agent_id <- 13
-=======
 load_host_tag_list <- function(agent_id, default_) {
-  # agent_id <- 27
->>>>>>> Dev
+  # agent_id <- 13
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
@@ -951,26 +903,6 @@ load_host_tag_list <- function(agent_id, default_) {
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-<<<<<<< HEAD
-  # name <- as.vector(host[grep('host_name', names(host))])
-  
-  host_ip <- as.vector(host[grep('host_ip', names(host))])
-  
-  return(host_ip)
-  
-  # if (length(name) == 0)
-  #   
-  #   return(host_ip)
-  #   # name <- paste('host', 1:length(host_ip))
-  # 
-  # host_name_list <- data.frame('name' = name,
-  #                              'host_ip' = host_ip,
-  #                              stringsAsFactors = F)
-  # if (split_)
-  #   return(split(host_name_list$host_ip, host_name_list$name))
-  # 
-  # return(host_name_list)
-=======
   names_ <- as.vector(host[grep('host_ip', names(host))])
   
   if (!default_)
@@ -978,7 +910,6 @@ load_host_tag_list <- function(agent_id, default_) {
   
   c('Choose Host', names_) %>% 
     return()
->>>>>>> Dev
   
 }
 
@@ -1009,160 +940,6 @@ load_trace <- function(agent_id, period) {
   
   stamp <- as.vector(trace[grep('stamp', names(trace))])
 }
-
-# load_host_tag_list <- function(agent_id) {
-#   # agent_id <- '60'
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from host where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame() 
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
-#     select(-col1) %>% 
-#     separate(col2, c('col5', 'col6'), '=') %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') #%>% 
-#   # subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- split(res$col8, res$col10)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_task_tag_list <- function(agent_id) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from task where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3',
-#                     'col4', 'col5', 'col6'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') %>% 
-#     separate(col5, c('col11', 'col12'), '=') %>%
-#     separate(col6, c('col13', 'col14'), '=') #%>% 
-#   # subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
-#   
-#   res <- split(res$col14, res$col12)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_docker_tag_list <- function(agent_id) {
-#   # agent_id <- 60
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from docker_container where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
-#                                                  'col5', 'col6', 'col7'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col13', 'col14'), '=') %>% 
-#     separate(col4, c('col15', 'col16'), '=') %>% 
-#     separate(col5, c('col17', 'col18'), '=') %>% 
-#     separate(col6, c('col19', 'col20'), '=') %>% 
-#     separate(col7, c('col21', 'col22'), '=') #%>% 
-#   # subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
-#   #          col20 != 'null' & col22 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
-#   
-#   res <- split(res$col20, res$col18)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_host_list_for_task <- function(task_name) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- "show tag values
-#             from task
-#             with key = node_ip
-#             where task =~ /%s/" %>% 
-#     sprintf(task_name)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F,
-#                       simplifyList = T)[[1]] %>% as.data.frame()
-#   
-#   # if (!('node_ip' %in% names(res))) return('Not Exist!')
-#   
-#   return(res$value)
-#   
-# }
-
-
-# connect_MySQL <- function() {
-#   
-#   con <- dbConnect(MySQL(), user = 'admin', password = 'password',
-#                    host = '192.168.0.168', port = 18951,
-#                    dbname = 'defaultdb')
-#   
-#   return(con)
-#   
-# }
 
 
 # load_event_data <- function() {
