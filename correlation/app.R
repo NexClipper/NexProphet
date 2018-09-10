@@ -242,17 +242,17 @@ server <- function(input, output, session) {
   
   observeEvent(AGENT_ID(), {
     
-    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID(), F)
     
     # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
     
-    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID(), F)
     
-    HOST_METRIC_LIST <<- load_metric_list('host')
+    HOST_METRIC_LIST <<- load_metric_list('host', F)
     
     # TASK_METRIC_LIST <<- load_metric_list('task')
     
-    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    DOCKER_METRIC_LIST <<- load_metric_list('docker', F)
     
     updateSelectizeInput(
       session = session,

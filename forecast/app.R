@@ -387,7 +387,9 @@ server <- function(input, output, session) {
   
   observeEvent(input$resource_assist, {
     
-    if (input$resource == 'host' & input$resource_assist != '') {
+    if (input$resource == 'host' &
+        input$resource_assist != '' &
+        !str_detect(input$resource_assist, 'Choose')) {
       
       HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
                                                     AGENT_ID())
