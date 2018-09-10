@@ -215,6 +215,10 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   dbname <- con$dbname
   
+  if (str_detect(host, 'Choose') | str_detect(metric, 'Choose')) 
+    
+    return(default_time_seqeunce(period, groupby))
+    
   if (measurement == 'host' & mount != 'null')
     
     return(load_single_metric_from_mount_path(host, metric, period, groupby,
@@ -748,7 +752,7 @@ default_time_seqeunce <- function(period, groupby) {
 }
 
 
-load_metric_list <- function(measurement) {
+load_metric_list <- function(measurement, default_ = T) {
   # measurement <- 'host, host_disk, host_net'; measurement <- 'task'; measurement <- 'docker'
   # agent_id <- 27
   connector <- connect()
@@ -777,6 +781,12 @@ load_metric_list <- function(measurement) {
     as.data.frame() %>%
     select(c(series_names, fieldKey)) %>% 
     subset(fieldKey != 'timestamp' & !str_detect(fieldKey, '_per$'))
+  
+  if (!default_)
+    return(split(res$fieldKey,
+                 res$series_names))
+  
+  res <- rbind(c('Choose Metric', 'Choose Metric'), res)
   
   metric <- split(res$fieldKey, res$series_names)
   
@@ -815,13 +825,13 @@ load_host_disk_mount_path <- function(host_ip, agent_id) {
 }
 
 
-load_tag_list <- function(measurement, agent_id) {
+load_tag_list <- function(measurement, agent_id, default_ = T) {
   # measurement <- 'docker'; agent_id <- 27
   
   tag_list <- switch(measurement,
-                     'host' = load_host_tag_list(agent_id),
-                     'task' = load_task_tag_list(agent_id),
-                     'docker' = load_docker_tag_list(agent_id))
+                     'host' = load_host_tag_list(agent_id, default_),
+                     # 'task' = load_task_tag_list(agent_id),
+                     'docker' = load_docker_tag_list(agent_id, default_))
   
   return(tag_list)
   
@@ -853,7 +863,7 @@ load_tag_list <- function(measurement, agent_id) {
 # }
 
 
-load_docker_tag_list <- function(agent_id) {
+load_docker_tag_list <- function(agent_id, default_) {
   # agent_id <- 27
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
@@ -901,15 +911,33 @@ load_docker_tag_list <- function(agent_id) {
   
   docker_name_list$name <- united$name
   
-  # docker_name_list %>% separate(name, c('col1', 'col2'), '/-/')
+  name_split <- split(docker_name_list$name,
+                      docker_name_list$host_ip)
   
-  return(split(docker_name_list$name,
-               docker_name_list$host_ip))
+  if (!default_)
+    return(name_split)
   
+  names_ <- c('Choose Container', names(name_split))
+  
+  name_split$`Choose Container` <- 'Choose Container'
+  
+  name_split[names_] %>% return()
+  
+  # docker_name_list <- rbind(c('Choose Container', 'Choose Container'),
+  #                           docker_name_list)
+  # 
+  # # docker_name_list %>% separate(name, c('col1', 'col2'), '/-/')
+  # 
+  # return(split(docker_name_list$name,
+  #              docker_name_list$host_ip))
+  # a <- split(docker_name_list$name,
+  #       docker_name_list$host_ip)
+  # a$aka <- 'aka'
+  # a[sort(names(a), decreasing = T)]
 }
 
 
-load_host_tag_list <- function(agent_id, split_ = T) {
+load_host_tag_list <- function(agent_id, default_) {
   # agent_id <- 27
   res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
@@ -926,23 +954,13 @@ load_host_tag_list <- function(agent_id, split_ = T) {
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-  name <- as.vector(host[grep('host_name', names(host))])
+  names_ <- as.vector(host[grep('host_ip', names(host))])
   
-  host_ip <- as.vector(host[grep('host_ip', names(host))])
+  if (!default_)
+    return(names_)
   
-  if (length(name) == 0) {
-    
-    name <- rep(NA, length(host_ip))
-    
-  }
-  
-  host_name_list <- data.frame('name' = name,
-                               'host_ip' = host_ip,
-                               stringsAsFactors = F)
-  if (split_)
-    return(split(host_name_list$host_ip, host_name_list$name))
-  
-  return(host_name_list)
+  c('Choose Host', names_) %>% 
+    return()
   
 }
 
