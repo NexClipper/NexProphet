@@ -203,25 +203,25 @@ ui <- fluidPage(
             
           )
           
-        ),
+        )#,
         
-        column(
-          
-          width = 6,
-          
-          fluidRow(
-            
-            class = 'graph_panel',
-            
-            br(),
-            
-            # h4(class = 'h4_alter', "Forecasting Statistics"),
-            imageOutput('comingsoon')
-            
-            # hr()
-            
-          )
-        )
+        # column(
+        #   
+        #   width = 6,
+        #   
+        #   fluidRow(
+        #     
+        #     class = 'graph_panel',
+        #     
+        #     br(),
+        #     
+        #     # h4(class = 'h4_alter', "Forecasting Statistics"),
+        #     imageOutput('comingsoon')
+        #     
+        #     # hr()
+        #     
+        #   )
+        # )
       )
       
     ) # mainPanel
@@ -245,17 +245,17 @@ server <- function(input, output, session) {
     
   })
   
-  output$comingsoon <- renderImage({
-    
-    figFile.name <- '../Image/coming-soon-image.png'
-    
-    return(list(
-      src = figFile.name,
-      filetype = "image/png",
-      width = "100%",
-      height = '95%'))
-    
-  }, deleteFile = FALSE)
+  # output$comingsoon <- renderImage({
+  #   
+  #   figFile.name <- '../Image/coming-soon-image.png'
+  #   
+  #   return(list(
+  #     src = figFile.name,
+  #     filetype = "image/png",
+  #     width = "100%",
+  #     height = '95%'))
+  #   
+  # }, deleteFile = FALSE)
   
   
   observeEvent(AGENT_ID(), {
