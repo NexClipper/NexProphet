@@ -337,6 +337,7 @@ server <- function(input, output, session) {
     
     bdd <- (mtx %>% nrow() * 0.7) %>% as.integer()
     # print(bdd)
+    
     mtx %>% 
       select_if(~ sum(is.na(.)) < bdd) %>% 
       subset(complete.cases(.)) %>% 
@@ -349,7 +350,7 @@ server <- function(input, output, session) {
     
     multiple_metrics() %>% 
       select(-time) %>%
-      as.matrix() %>%
+      as.matrix() %>% 
       standardization() %>% 
       cor(use = 'pairwise.complete.obs')
     

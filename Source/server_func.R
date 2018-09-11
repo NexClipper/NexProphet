@@ -28,6 +28,8 @@ connect <- function() {
 
 standardization <- function(mtx) {
   
+  # mtx <- as.numeric(mtx)
+  
   col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
   col_max <- as.vector(apply(mtx, 2, function(x) max(x, na.rm = T)))
   new_mtx <- t(apply(mtx,
@@ -470,12 +472,12 @@ load_metric_from_docker <- function(period, groupby,
             from docker_container
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, host_ip, agent_id
-            fill(none)"
+            fill(linear)" %>% 
+    sprintf(period, agent_id, task_id, host_ip,
+            groupby)
   
-  query <- sprintf(query, 
-                   period, agent_id, task_id, host_ip,
-                   groupby)
   cat('\n', query, '\n')
+  
   res_container <- influx_query(con,
                                 db = dbname,
                                 query = query,
@@ -493,11 +495,11 @@ load_metric_from_docker <- function(period, groupby,
             from docker_network
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, agent_id, host_ip
-            fill(none)"
+            fill(linear)" %>% 
+    sprintf(period, agent_id, task_id, host_ip,
+            groupby)
+  
   cat('\n', query, '\n')
-  query <- sprintf(query, 
-                   period, agent_id, task_id, host_ip,
-                   groupby)
   
   res_network <- influx_query(con,
                               db = dbname,
@@ -533,14 +535,19 @@ load_metric_from_docker <- function(period, groupby,
   df <- tibble(time = ts)
   
   res_docker <- full_join(df, res_docker, by = 'time')
-  # browser()
-  res_docker <- gather(res_docker, var, value, c(-time, -task_id, -host_ip)) %>% 
-    unite(var_new, task_id, host_ip, var, sep = ', ') %>% 
-    spread(var_new, value)
-  # browser()
-  print('Load multiple metrics for docker')
+  # sapply(res_docker, function(x) sum(is.na(x)))
+  # res_docker[, -1:-3] <- na.approx(res_docker[, -1:-3])
   
-  return(res_docker)
+  gather(res_docker, var, value, -1:-3) %>% 
+    unite(var_new, task_id, host_ip, var, sep = ', ') %>% 
+    group_by(time, var_new) %>% 
+    summarise('value' = mean(value)) %>% 
+    spread(var_new, value) %>% 
+    return()
+  # browser()
+  # print('Load multiple metrics for docker')
+  
+  # return(res_docker)
   
 }
 
