@@ -333,16 +333,25 @@ server <- function(input, output, session) {
                          groupby = groupby,
                          host_list = host_list,
                          metric_list = metric_list,
-                         AGENT_ID())
+                         AGENT_ID()) %>% 
+      as.data.table()
     
     bdd <- (mtx %>% nrow() * 0.7) %>% as.integer()
     # print(bdd)
-    
-    mtx %>% 
-      select_if(~ sum(is.na(.)) < bdd) %>% 
-      subset(complete.cases(.)) %>% 
-      select_if(~ sd(., na.rm = T) != 0)
-    
+    # browser()
+
+    # mtx %>%
+    #   .[, .SD, .SDcols = .[, ]]
+    #   select_if(~ sum(is.na(.)) < bdd) %>% 
+    #   # subset(complete.cases(.)) %>% 
+    #   select_if(~ sd(., na.rm = T) != 0)
+      
+    mtx[, .SD, .SDcols = (mtx[, lapply(.SD, function(x) sd(x, na.rm = T) != 0 &
+                                               sum(is.na(x)) <= bdd),
+                                    .SDcols = 2:ncol(mtx)] %>%
+                               unlist() %>%
+                               which() + 1) %>% union(1)]
+      
   })
   
   
