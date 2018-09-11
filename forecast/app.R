@@ -215,9 +215,10 @@ ui <- fluidPage(
             
             br(),
             
-            h4(class = 'h4_alter', "Forecasting Statistics"),
+            # h4(class = 'h4_alter', "Forecasting Statistics"),
+            imageOutput('comingsoon')
             
-            hr()
+            # hr()
             
           )
         )
@@ -243,6 +244,18 @@ server <- function(input, output, session) {
     agent[2]
     
   })
+  
+  output$comingsoon <- renderImage({
+    
+    figFile.name <- '../Image/coming-soon-image.png'
+    
+    return(list(
+      src = figFile.name,
+      filetype = "image/png",
+      width = "100%",
+      height = '95%'))
+    
+  }, deleteFile = FALSE)
   
   
   observeEvent(AGENT_ID(), {

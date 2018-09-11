@@ -174,7 +174,10 @@ ui <- fluidPage(
             
             class = 'notice_ano',
             
-            verbatimTextOutput("notice")
+            verbatimTextOutput("notice"),
+            tags$style("#notice{color: green;
+                                font-size: 20px;
+                                font-style: italic;}")
             
           ),
           
@@ -538,7 +541,7 @@ server <- function(input, output, session) {
         
         output$anomaly_table <- renderDataTable({})
         
-        output$notice <- renderText("There is no Forecasting Model!! Make a Model First!!")
+        output$notice <- renderText("There is no Forecasting Model. Build a Model First.")
         
       } else {
         # 모델이 있는 경우....
@@ -623,7 +626,7 @@ server <- function(input, output, session) {
                        pageLength = 10,
                        searching = F))
         
-        output$notice <- renderText('Date at which model is built : ')
+        output$notice <- renderText('Success to model building')
         
       }
     }
