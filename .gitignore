@@ -8,3 +8,4 @@ Model
 *.json
 test
 internal.conf
+*.csv
