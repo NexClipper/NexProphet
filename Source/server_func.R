@@ -12,17 +12,9 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-<<<<<<< HEAD
   con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
                            port = 8086)
   # con <- influx_connection(host = '13.77.154.37',
-=======
-  # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-  #                          port = 8086)
-  con <- influx_connection(host = '13.77.154.37',
-                           port = 10091)
-  # con <- influx_connection(host = '192.168.0.162',
->>>>>>> Ops_bug
   #                          port = 10091)
   
   dbname <- 'nexclipper'
@@ -574,79 +566,6 @@ load_metric_from_docker <- function(period, groupby,
 }
 
 
-# load_metric_from_task <- function(period, groupby,
-#                                   host_list, metric_list,
-#                                   agent_id) {
-#   
-#   # metric_list <- c("cpu_used_percent", "mem_used_percent")
-#   # host_list <- c('kafka', 'agent.nexcloud')
-#   # period = 5
-#   # agent_id <- 27
-#   # groupby = "1h"
-#   
-#   connector <- connect()
-#   
-#   con <- connector$connector
-#   
-#   dbname <- connector$dbname
-#   
-#   period <- paste0(period, 'd')
-#   
-#   # browser()
-#   task <- paste('executor_id', "'%s'", sep = ' = ') %>%
-#     sprintf(host_list) %>% 
-#     paste(collapse = ' or ')
-#   
-#   query <- "select mean(*)
-#             from %s
-#             where time > now() - %s and agent_id = '%s' and (%s)
-#             group by time(%s), executor_id, agent_id
-#             fill(none)"
-#   
-#   query <- sprintf(query, 
-#                    'task', 
-#                    period, agent_id, task,
-#                    groupby)
-#   cat('\n', query, '\n')
-#   res_task <- influx_query(con,
-#                            db = dbname,
-#                            query = query,
-#                            simplifyList = T,
-#                            return_xts = F)[[1]]
-#   # browser()
-#   if (!('executor_id' %in% names(res_task)))
-#     
-#     return(default_time_seqeunce(period, groupby))
-#   
-#   names(res_task) <- gsub('mean_', '', names(res_task))
-#   
-#   res_task <- res_task %>%
-#     select(which(names(res_task) %in%
-#                    c('time', 'executor_id', metric_list)))
-#   
-#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-#   
-#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
-#   
-#   ts <- seq.POSIXt(min(res_task$time),
-#                    max(res_task$time),
-#                    by = by)
-#   
-#   df <- tibble(time = ts)
-#   
-#   res_task <- full_join(df, res_task, by = 'time')
-#   
-#   res_task <- gather(res_task, var, value, c(-time, -executor_id)) %>% 
-#     unite(var_new, executor_id, var, sep = ', ') %>% 
-#     spread(var_new, value)
-#   
-#   print('Load multiple metrics for task')
-#   
-#   return(res_task)
-#   
-# }
-
-
 default_time_seqeunce <- function(period, groupby) {
   
   current <- as.POSIXlt(Sys.time())
@@ -771,14 +690,14 @@ load_tag_list <- function(measurement, agent_id, default_ = T) {
 
 load_docker_tag_list <- function(agent_id, default_) {
   # agent_id <- 47
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
@@ -844,14 +763,14 @@ load_docker_tag_list <- function(agent_id, default_) {
 
 load_host_tag_list <- function(agent_id, default_) {
   # agent_id <- 13
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
