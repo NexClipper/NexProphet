@@ -14,10 +14,10 @@ connect <- function() {
   
   # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
   #                          port = 8086)
-  # con <- influx_connection(host = '13.77.154.37',
-  #                          port = 10091)
-  con <- influx_connection(host = '192.168.0.162',
+  con <- influx_connection(host = '13.77.154.37',
                            port = 10091)
+  # con <- influx_connection(host = '192.168.0.162',
+  #                          port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -462,11 +462,11 @@ load_metric_from_docker <- function(period, groupby,
     separate(var, c('col1', 'col2'), sep = '/-/')
   
   task_id <- paste('task_id', "'%s'", sep = ' = ') %>%
-    sprintf(host_df$col1) %>% 
+    sprintf(unique(host_df$col1)) %>% 
     paste(collapse = ' or ')
   
   host_ip <- paste('host_ip', "'%s'", sep = ' = ') %>%
-    sprintf(host_df$col2) %>% 
+    sprintf(unique(host_df$col2)) %>% 
     paste(collapse = ' or ')
   # browser()
   #### Read docker container ####
@@ -515,14 +515,28 @@ load_metric_from_docker <- function(period, groupby,
     select(which(names(res_network) %in%
                    c('time', 'task_id', 'host_ip', metric_list)))
   
+  
+  #### inner join res_container with res_network ####
   if (length(names(res_container)) + length(names(res_network)) == 0)
     
     return(tibble(ds = NA, y = NA))
-  
-  #### inner join res_container with res_network ####
-  res_docker <- full_join(res_container,
-                          res_network,
-                          by = c('time', 'task_id', 'host_ip'))
+  if (length(names(res_container)) == 0 &
+      length(names(res_network)) != 0) {
+    
+    res_docker <- res_network
+    
+  } else if (length(names(res_container)) != 0 &
+             length(names(res_network)) == 0) {
+    
+    res_docker <- res_container
+    
+  } else {
+    
+    res_docker <- full_join(res_container,
+                            res_network,
+                            by = c('time', 'task_id', 'host_ip'))
+    
+  }
   
   res_docker$task_id <- str_extract(res_docker$task_id, '[[:alpha:]\\d-_]+')
   
@@ -750,15 +764,15 @@ load_tag_list <- function(measurement, agent_id, default_ = T) {
 
 
 load_docker_tag_list <- function(agent_id, default_) {
-  # agent_id <- 13
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  # agent_id <- 47
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
@@ -824,14 +838,14 @@ load_docker_tag_list <- function(agent_id, default_) {
 
 load_host_tag_list <- function(agent_id, default_) {
   # agent_id <- 13
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
+  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  #            content_type_json(),
+  #            add_headers('agent_id' = agent_id)) %>%
+  #   content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
@@ -1104,7 +1118,9 @@ horizon.panel.ggplot <- function(df, add_text=NULL) {
     add_text = ""
     
   } else {
+    
     add_text = paste0("(", add_text, ")")  
+    
   }
   
   labeli2 <- function(variable, value) {

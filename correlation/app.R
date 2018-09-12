@@ -295,6 +295,14 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
+    updateSelectInput(session,
+                      "combo_DT_Metric",
+                      choices = colnames(data_corr()))
+    
+    updateSelectInput(session,
+                      "combo_metric",
+                      choices = colnames(data_corr()))
+    
     output$correlation_plot <- renderD3heatmap({
       
       d3heatmap(data_corr(), colors = "Blues", scale = "none",
@@ -303,14 +311,6 @@ server <- function(input, output, session) {
       
       
     })
-    
-    updateSelectInput(session,
-                      "combo_DT_Metric",
-                      choices = rownames(data_corr()))
-    
-    updateSelectInput(session,
-                      "combo_metric",
-                      choices = rownames(data_corr()))
    
   })
   
@@ -361,7 +361,8 @@ server <- function(input, output, session) {
       select(-time) %>%
       as.matrix() %>% 
       standardization() %>% 
-      cor(use = 'pairwise.complete.obs')
+      cor(use = 'pairwise.complete.obs') %>% 
+      na.fill(0)
     
   })
   
@@ -370,7 +371,7 @@ server <- function(input, output, session) {
     
     if (input$combo_DT_Metric != "") {
       # browser()
-      dt <- data.table(Metrics = rownames(data_corr()),
+      dt <- data.table(Metrics = colnames(data_corr()),
                        Correlation = round(data_corr()[, input$combo_DT_Metric], 4),
                        absCorr = abs(round(data_corr()[, input$combo_DT_Metric], 4)))
       
@@ -390,20 +391,20 @@ server <- function(input, output, session) {
       
       if (input$combo_metric != "") {
         
-        dt <- data.table(Metrics = rownames(data_corr()),
+        dt <- data.table(Metrics = colnames(data_corr()),
                          Correlation = round(data_corr()[, input$combo_metric], 4),
                          absCorr = abs(round(data_corr()[, input$combo_metric], 4)))
         
         setorder(dt, -absCorr)
-        
         # browser()
         mtx <- multiple_metrics() %>%
           select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
-          # na.omit() %>% 
+          # na.omit() %>%
           gather(grouping, y, -1) %>% 
           as.data.frame()
         
-        mtx$grouping <- factor(mtx$grouping, levels = dt$Metrics[1:min(10, nrow(dt))])
+        mtx$grouping <- factor(mtx$grouping,
+                               levels = dt$Metrics[1:min(10, nrow(dt))])
         
         mtx %>% 
           horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])
