@@ -14,10 +14,10 @@ connect <- function() {
   
   # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
   #                          port = 8086)
-  con <- influx_connection(host = '13.77.154.37',
-                           port = 10091)
-  # con <- influx_connection(host = '192.168.0.162',
+  # con <- influx_connection(host = '13.77.154.37',
   #                          port = 10091)
+  con <- influx_connection(host = '192.168.0.162',
+                           port = 10091)
   
   dbname <- 'nexclipper'
   
@@ -765,14 +765,14 @@ load_tag_list <- function(measurement, agent_id, default_ = T) {
 
 load_docker_tag_list <- function(agent_id, default_) {
   # agent_id <- 47
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
@@ -838,14 +838,14 @@ load_docker_tag_list <- function(agent_id, default_) {
 
 load_host_tag_list <- function(agent_id, default_) {
   # agent_id <- 13
-  res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
   #            content_type_json(),
   #            add_headers('agent_id' = agent_id)) %>%
   #   content('parsed')
+  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+             content_type_json(),
+             add_headers('agent_id' = agent_id)) %>%
+    content('parsed')
   
   if ((res$status != 200) |
       (res$data == '[]') |
