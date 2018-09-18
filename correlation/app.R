@@ -340,29 +340,29 @@ server <- function(input, output, session) {
     # print(bdd)
     # browser()
 
-    # mtx %>%
-    #   .[, .SD, .SDcols = .[, ]]
-    #   select_if(~ sum(is.na(.)) < bdd) %>% 
-    #   # subset(complete.cases(.)) %>% 
-    #   select_if(~ sd(., na.rm = T) != 0)
-      
     mtx[, .SD, .SDcols = (mtx[, lapply(.SD, function(x) sd(x, na.rm = T) != 0 &
-                                               sum(is.na(x)) <= bdd),
-                                    .SDcols = 2:ncol(mtx)] %>%
+                                               sum(is.na(x)) <= bdd)] %>%
                                unlist() %>%
-                               which() + 1) %>% union(1)]
+                               which())] %>%
+      .[, lapply(.SD, function(x) na.approx(x, na.rm = F) %>% na.fill('extend')),
+       .SDcols = 2:ncol(.)] %>% 
+      cbind(time = mtx$time)
       
   })
   
   
   data_corr <- reactive({
+    # browser()
+    # corr_mtx <- 
+      multiple_metrics() %>% 
+      .[, -ncol(multiple_metrics())] %>% 
+      .[, lapply(.SD, function(x) scale(x, center = T, scale = T))] %>% 
+      cor(use = 'pairwise.complete.obs')# %>% 
+      # na.fill(0)
     
-    multiple_metrics() %>% 
-      select(-time) %>%
-      as.matrix() %>% 
-      standardization() %>% 
-      cor(use = 'pairwise.complete.obs') %>% 
-      na.fill(0)
+    # rownames(corr_mtx) <- colnames(corr_mtx)
+    # 
+    # corr_mtx
     
   })
   
@@ -390,7 +390,7 @@ server <- function(input, output, session) {
     output$similar_plot <- renderPlot({
       
       if (input$combo_metric != "") {
-        
+        # browser()
         dt <- data.table(Metrics = colnames(data_corr()),
                          Correlation = round(data_corr()[, input$combo_metric], 4),
                          absCorr = abs(round(data_corr()[, input$combo_metric], 4)))
