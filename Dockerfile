@@ -28,9 +28,12 @@ COPY Source/install_pkg/01.R .
 
 RUN Rscript 01.R
 
-ARG CACHEBUST=1
+RUN apt-get install -y git
 
-COPY . .
+RUN rm -f 00.R 01.R
+
+ARG CACHEBUST=1
 
 RUN apt-get update -y
 
+RUN git clone -b Ops --single-branch https://github.com/NexClipper/NexProphet.git .
