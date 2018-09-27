@@ -1,4 +1,5 @@
 library(RestRserve)
+library(jsonlite)
 
 #### FORECAST ####
 
@@ -12,14 +13,15 @@ forecast_ <- function(agent_id, resource, host,
   result <- forecasting(tb_, groupby, predicted_period, unit,
                         changepoint.prior.scale = 0.1)
   
-  data_with_plot <- forecast_result(tb_, result$forecast, metric)
+  # data_with_plot <- forecast_result(tb_, result$forecast, metric)
+  # 
+  # decomponent <- prophet_plot_components(result$model,
+  #                                        result$forecast)
   
-  decomponent <- prophet_plot_components(result$model,
-                                         result$forecast)
-  
-  return(list('result' = data_with_plot$pred_data,
-              'pred_plot' = data_with_plot$plot,
-              'decomponent' = decomponent))
+  return(result)
+  # return(list('result' = data_with_plot$pred_data,
+  #             'pred_plot' = data_with_plot$plot,
+  #             'decomponent' = decomponent))
   
 }
 
@@ -245,7 +247,6 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 }
 
 
-
 default_time_seqeunce <- function(period, groupby) {
   
   current <- as.POSIXlt(Sys.time())
@@ -316,12 +317,25 @@ forecasting <- function(tb_, groupby, pred_period, unit,
                                   periods = pred_period,
                                   freq = freq)
   
-  fcst <- predict(model, future)
+  maxDate <- tb_$ds %>% max()
   
-  res <- list('model' = model,
-              'forecast' = fcst)
+  pred_data <- predict(model, future) %>%
+    select(ds, yhat_lower, yhat_upper, yhat) %>%
+    full_join(tb_) %>%
+    as.data.table(key = 'ds')
   
-  return(res)
+  pred_data[ds < maxDate, 'yhat_lower'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat_upper'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat'] <- NA
+  
+  return(pred_data)
+  
+  # res <- list('model' = model,
+  #             'forecast' = fcst)
+  # 
+  # return(res)
   
 }
 
@@ -341,22 +355,23 @@ forecast_result <- function(tb_, fcst, metric) {
   
   pred_data[ds < maxDate, 'yhat'] <- NA
   
-  p <- ggplot(pred_data, aes(x = ds)) +
-    geom_line(aes(y = y, colour = 'Actual'), size = 1, na.rm = T) +
-    geom_line(aes(y = yhat, color = 'Predicted'), size = 1, na.rm = T) +
-    geom_ribbon(aes(ymin = yhat_lower,
-                    ymax = yhat_upper),
-                alpha = 0.1, linetype = 2) +
-    scale_color_manual(labels = c('Actual', 'Predicted'),
-                       values = c("blue", "red")) +
-    theme(legend.background = element_rect(fill = "white", size = 2),
-          legend.justification = 'right',
-          legend.position = 'top',
-          legend.direction = 'horizontal',
-          legend.title = element_blank(),
-          legend.text = element_text(size = 10),
-          legend.spacing.x = unit(0.3, 'cm')) +
-    labs(x = 'time', y = metric)
+  return(pred_data)
+  # p <- ggplot(pred_data, aes(x = ds)) +
+  #   geom_line(aes(y = y, colour = 'Actual'), size = 1, na.rm = T) +
+  #   geom_line(aes(y = yhat, color = 'Predicted'), size = 1, na.rm = T) +
+  #   geom_ribbon(aes(ymin = yhat_lower,
+  #                   ymax = yhat_upper),
+  #               alpha = 0.1, linetype = 2) +
+  #   scale_color_manual(labels = c('Actual', 'Predicted'),
+  #                      values = c("blue", "red")) +
+  #   theme(legend.background = element_rect(fill = "white", size = 2),
+  #         legend.justification = 'right',
+  #         legend.position = 'top',
+  #         legend.direction = 'horizontal',
+  #         legend.title = element_blank(),
+  #         legend.text = element_text(size = 10),
+  #         legend.spacing.x = unit(0.3, 'cm')) +
+  #   labs(x = 'time', y = metric)
   
   return(list('pred_data' = pred_data,
               'plot' = p))

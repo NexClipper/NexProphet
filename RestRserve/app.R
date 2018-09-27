@@ -121,7 +121,7 @@ FORECAST <- function(request, response) {
                             metric, period, predicted_period,
                             groupby, unit, mount)
   
-  # response$content_type = "text/plain"
+  response$content_type = "text/plain"
   
   response$headers = character(0)
   
@@ -141,18 +141,18 @@ app$add_swagger_ui(path = "/swagger",
                    path_openapi = "/openapi.yaml", 
                    path_swagger_assets = "/__swagger__")
 
-# app$run(http_port = "8484")
+app$run(http_port = "8484")
 
-configuration = c("http.port" = "8484",
-                  "encoding" = "utf8",
-                  "port" = "6311")
-
-dir = tempdir()
-
-app_path = system.file("app.R", package = "RestRserve")
-
-RestRserve::restrserve_deploy(file = app_path,
-                              dir = dir,
-                              configuration = configuration)
-
-restrserve_start(dir)
+# configuration = c("http.port" = "8484",
+#                   "encoding" = "utf8",
+#                   "port" = "6311")
+# 
+# dir = tempdir()
+# 
+# app_path = system.file("app.R", package = "RestRserve")
+# 
+# RestRserve::restrserve_deploy(file = app_path,
+#                               dir = dir,
+#                               configuration = configuration)
+# 
+# restrserve_start(dir)

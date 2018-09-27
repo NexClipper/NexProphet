@@ -24,5 +24,5 @@ bs.Library(c("prophet"))
 
 
 # etc
-bs.Library(c('devtools'))
+bs.Library(c('devtools', 'jsonlite'))
 
