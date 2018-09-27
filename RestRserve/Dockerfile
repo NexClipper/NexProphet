@@ -10,6 +10,8 @@ RUN apt-get install -y libmariadbclient-dev
 
 RUN apt-get install -y libv8-3.14-dev
 
+RUN apt-get install -y libcurl4-openssl-dev
+
 RUN Rscript -e "install.packages( c( \
     'Rserve', \
     'R6', \
