@@ -35,6 +35,7 @@ RUN Rscript 00.R
 
 COPY . analytics/
 
+WORKDIR analytics
+
 CMD Rscript app.R
 
-#CMD ["Rscript", "-e", "source(system.file('app.R', package = 'RestRserve'), keep.source = TRUE)"]

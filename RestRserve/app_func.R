@@ -18,7 +18,7 @@ forecast_ <- function(agent_id, resource, host,
   # decomponent <- prophet_plot_components(result$model,
   #                                        result$forecast)
   
-  return(result)
+  result %>% toJSON() %>% as.character() %>% return()
   # return(list('result' = data_with_plot$pred_data,
   #             'pred_plot' = data_with_plot$plot,
   #             'decomponent' = decomponent))
