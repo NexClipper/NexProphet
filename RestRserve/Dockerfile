@@ -2,10 +2,13 @@ FROM r-base:latest
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libssl-dev &&
-    libxml2-dev &&
-    libmariadbclient-dev &&
-    libv8-3.14-dev
+    libssl-dev
+
+RUN apt-get install -y libxml2-dev
+
+RUN apt-get install -y libmariadbclient-dev
+
+RUN apt-get install -y libv8-3.14-dev
 
 RUN Rscript -e "install.packages( c( \
     'Rserve', \
