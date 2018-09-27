@@ -62,7 +62,7 @@ get_agent_id <- function(id = ID,
                          dbname = MYSQL_DBNAME,
                          host = MYSQL_HOST,
                          port = MYSQL_PORT) {
-  # return(5)
+  return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -254,7 +254,7 @@ diskForecasting <- function(train_,
     .[, .(ds, yhat)]] %>% 
     .[, yhat := ifelse(is.na(y), yhat, NA)]
   
-  save_result_mysql(dt_)
+  # save_result_mysql(dt_)
   
   return(dt_)
   
@@ -407,7 +407,7 @@ draw_graph <- function(dt) {
          x = 'Time', y = 'Disk used(%)',
          subtitle = current_time)
   
-  send_slack()
+  # send_slack()
   
 }
 

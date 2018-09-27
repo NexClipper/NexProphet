@@ -25,8 +25,16 @@ RUN Rscript -e "remotes::install_github('dselivanov/RestRserve')"
 
 WORKDIR /home
 
-COPY . .
+RUN chmod o+w /usr/local/lib/R/site-library
+
+RUN mkdir analytics
+
+COPY 00.R .
 
 RUN Rscript 00.R
 
-CMD ["Rscript", "-e", "source(system.file('app.R', package = 'RestRserve'), keep.source = TRUE)"]
+COPY . analytics/
+
+CMD Rscript app.R
+
+#CMD ["Rscript", "-e", "source(system.file('app.R', package = 'RestRserve'), keep.source = TRUE)"]
