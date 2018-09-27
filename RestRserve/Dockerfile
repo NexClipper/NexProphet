@@ -23,7 +23,7 @@ RUN Rscript -e "remotes::install_github('dselivanov/RestRserve')"
 
 WORKDIR /home
 
-COPY RestRserve/ .
+COPY . .
 
 RUN Rscript 00.R
 
