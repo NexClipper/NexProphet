@@ -91,7 +91,7 @@ FORECAST <- function(request, response) {
   
   agent_id <- request$query$agent_id
   
-  resource <- requset$query$resource
+  resource <- request$query$resource
   
   host <- request$query$host
   
