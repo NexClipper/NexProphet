@@ -24,5 +24,4 @@ ARG CACHEBUST=1
 
 COPY . /home
 
-RUN apt-get update -y
-
+CMD Rscript app.R
