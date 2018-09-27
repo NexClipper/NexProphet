@@ -26,4 +26,3 @@ COPY . /home
 
 RUN apt-get update -y
 
-CMD Rscript app.R %> log/R_disk_log.log 

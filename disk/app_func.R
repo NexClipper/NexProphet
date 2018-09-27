@@ -1,6 +1,3 @@
-cat('\n', '#############',
-    format(Sys.time() + 9 * 60 * 60, format = '%Y-%m-%d %H:00:00'),
-    '#############', '\n')
 
 #### library ####
 bs.Library <- function(pkg, add = T) {
@@ -136,7 +133,6 @@ create_mysql_table <- function(user = MYSQL_USER,
 
 
 AGENT_ID <- get_agent_id()
-print('######## Get agent_id ########')
 
 create_mysql_table()
 
@@ -160,7 +156,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
             from host_disk
             where time > now() - 21d and
                   agent_id = '%s' %s
-            group by time(1h), agent_id, mount_name, host_name
+            group by time(1h), agent_id, mount_name, host_name, host_ip
             fill(linear)" %>% 
     sprintf(agent_id, mount_name)
   
@@ -185,6 +181,8 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
   disk <- df[res]
   
   disk[disk < 0] <- NA
+  
+  disk[, devmaster := NULL]
   
   disk[, lapply(.SD,
                 function(x) na.fill(na.approx(x, na.rm = F),
