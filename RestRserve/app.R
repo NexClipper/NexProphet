@@ -1,3 +1,4 @@
+source('app_func.R')
 
 
 FORECAST <- function(request, response) {
