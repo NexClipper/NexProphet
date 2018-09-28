@@ -12,7 +12,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: integer
-  #'     example: 5
+  #'     example: 27
   #'     required: true
   #'     
   #'   - name: "resource"
@@ -45,7 +45,7 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: int
   #'     example: 6
-  #'     required: false
+  #'     required: true
   #'     
   #'   - name: "predicted_period"
   #'     description: "select period to predict, default : 2"
@@ -53,7 +53,7 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: int
   #'     example: 2
-  #'     required: false
+  #'     required: true
   #'     
   #'   - name: "groupby"
   #'     description: "select time to group by, default : 1h"
@@ -61,7 +61,7 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: string
   #'     example: '1h'
-  #'     required: false
+  #'     required: true
   #'     
   #'   - name: "unit"
   #'     description: "unit time; 0: hours, 1: seconds, default : 0"
@@ -69,7 +69,7 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: string
   #'     example: '0'
-  #'     required: false
+  #'     required: true
   #'     
   #'   - name: "mount"
   #'     description: "available when metric related to disk. select mount path. default : 'null'"
@@ -77,16 +77,15 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: string
   #'     example: 'null'
-  #'     required: false
+  #'     required: true
   #'     
   #' responses:
   #'   200:
   #'     description: API response
   #'     content:
-  #'       text/plain:
+  #'       application/json:
   #'         schema:
   #'           type: string
-  #'           example: 5
   #' ---
   
   agent_id <- request$query$agent_id
@@ -99,29 +98,29 @@ FORECAST <- function(request, response) {
   
   period <- request$query$period
   
-  period <- ifelse(is.null(period), 6, period)
+  # period <- ifelse(is.null(period), 6, period)
   
   predicted_period <- request$query$predicted_period
   
-  predicted_period <- ifelse(is.null(predicted_period), 2, predicted_period)
+  # predicted_period <- ifelse(is.null(predicted_period), 2, predicted_period)
   
   groupby <- request$query$groupby
   
-  groupby <- ifelse(is.null(groupby), '1h', groupby)
+  # groupby <- ifelse(is.null(groupby), '1h', groupby)
   
   unit <- request$query$unit
   
-  unit <- ifelse(is.null(unit), '0', unit)
+  # unit <- ifelse(is.null(unit), '0', unit)
   
   mount <- request$query$mount
   
-  mount <- ifelse(is.null(mount), 'null', mount)
+  # mount <- ifelse(is.null(mount), 'null', mount)
   
   response$body = forecast_(agent_id, resource, host,
                             metric, period, predicted_period,
                             groupby, unit, mount)
   
-  response$content_type = "text/plain"
+  response$content_type = "application/json"
   
   response$headers = character(0)
   
@@ -141,18 +140,18 @@ app$add_swagger_ui(path = "/swagger",
                    path_openapi = "/openapi.yaml", 
                    path_swagger_assets = "/__swagger__")
 
-app$run(http_port = "8484")
+# app$run(http_port = "8484")
 
-# configuration = c("http.port" = "8484",
-#                   "encoding" = "utf8",
-#                   "port" = "6311")
-# 
-# dir = tempdir()
-# 
-# app_path = system.file("app.R", package = "RestRserve")
-# 
-# RestRserve::restrserve_deploy(file = app_path,
-#                               dir = dir,
-#                               configuration = configuration)
-# 
-# restrserve_start(dir)
+configuration = c("http.port" = "8484",
+                  "encoding" = "utf8",
+                  "port" = "6311")
+
+dir = tempdir()
+
+app_path = './'
+
+restrserve_deploy(file = app_path,
+                  dir = dir,
+                  configuration = configuration)
+
+restrserve_start(dir)
