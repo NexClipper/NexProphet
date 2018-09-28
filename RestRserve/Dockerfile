@@ -37,5 +37,5 @@ COPY . analytics/
 
 WORKDIR analytics
 
-CMD Rscript app.R
+CMD Rscript run.R
 

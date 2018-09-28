@@ -536,28 +536,28 @@ FORECAST <- function(request, response) {
   
 }
 
-app <- RestRserveApplication$new()
+RestRserveApp <- RestRserveApplication$new()
 
-app$add_get(path = "/forecast", FUN = FORECAST)
+RestRserveApp$add_get(path = "/forecast", FUN = FORECAST)
 
-app$add_openapi(path = "/openapi.yaml", file_path = "openapi.yaml")
+RestRserveApp$add_openapi(path = "/openapi.yaml", file_path = "openapi.yaml")
 
-app$add_swagger_ui(path = "/swagger", 
+RestRserveApp$add_swagger_ui(path = "/swagger", 
                    path_openapi = "/openapi.yaml", 
                    path_swagger_assets = "/__swagger__")
 
 # app$run(http_port = "8484")
-
-configuration = c("http.port" = "8484",
-                  "encoding" = "utf8",
-                  "port" = "6311")
-
-dir = tempdir()
-
-app_path = './'
-
-restrserve_deploy(file = app_path,
-                  dir = dir,
-                  configuration = configuration)
-
-restrserve_start(dir)
+# 
+# configuration = c("http.port" = "8484",
+#                   "encoding" = "utf8",
+#                   "port" = "6311")
+# 
+# dir = tempdir()
+# 
+# app_path <- getwd() %>% paste0('/app.R')
+# 
+# restrserve_deploy(file = app_path,
+#                   dir = dir,
+#                   configuration = configuration)
+# 
+# restrserve_start(dir)
