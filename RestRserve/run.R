@@ -6,7 +6,7 @@ configuration = c("http.port" = "8484",
 
 dir = tempdir()
 
-app_path <- getwd() %>% paste0('/app.R')
+app_path <- paste0(getwd(), '/app.R')
 
 restrserve_deploy(file = app_path,
                   dir = dir,
