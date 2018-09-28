@@ -141,7 +141,7 @@ RestRserveApp$add_swagger_ui(path = "/swagger",
                              path_openapi = "/openapi.yaml", 
                              path_swagger_assets = "/__swagger__")
 
-app$run(http_port = "8484")
+RestRserveApp$run(http_port = "8484")
 
 # configuration = c("http.port" = "8484",
 #                   "encoding" = "utf8",
