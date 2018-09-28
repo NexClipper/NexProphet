@@ -4,8 +4,8 @@ library(jsonlite)
 #### FORECAST ####
 
 forecast_ <- function(agent_id, resource, host,
-                      metric, period = 6, predicted_period = 2,
-                      groupby = '1h', unit = '0', mount = 'null') {
+                      metric, period, predicted_period,
+                      groupby, unit, mount) {
   
   tb_ <- load_single_metric(resource, host, metric, period, groupby,
                             unit, agent_id, mount)
@@ -13,20 +13,13 @@ forecast_ <- function(agent_id, resource, host,
   result <- forecasting(tb_, groupby, predicted_period, unit,
                         changepoint.prior.scale = 0.1)
   
-  # data_with_plot <- forecast_result(tb_, result$forecast, metric)
-  # 
-  # decomponent <- prophet_plot_components(result$model,
-  #                                        result$forecast)
-  
   result %>% toJSON() %>% as.character() %>% return()
-  # return(list('result' = data_with_plot$pred_data,
-  #             'pred_plot' = data_with_plot$plot,
-  #             'decomponent' = decomponent))
   
 }
 
 
 posixt_helper_func <- function(x) {
+  
   switch(x,
          's' = 'sec',
          'm' = 'min',
