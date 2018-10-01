@@ -86,79 +86,21 @@ get_agent_id <- function(id = ID,
 }
 
 
-create_mysql_table <- function(user = MYSQL_USER,
-                               password = MYSQL_PASSWORD,
-                               dbname = MYSQL_DBNAME,
-                               host = MYSQL_HOST,
-                               port = MYSQL_PORT) {
-  
-  con <- dbConnect(MySQL(), 
-                   user = user, 
-                   password = password,
-                   dbname = dbname,
-                   host = host, 
-                   port = port)
-  
-  ListTables <- dbListTables(con)
-  
-  if (!('monitoring_disk' %in% ListTables)) {
-    
-    dbGetQuery(con,
-               "CREATE TABLE `monitoring_disk` (
-               `id` int(11) NOT NULL,
-               `agent_id` int(11) NOT NULL,
-               `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
-               `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
-               `current_time` datetime NOT NULL,
-               `DFT` datetime,
-               `predicted` float,
-               `alertYN` tinyint(1)
-    ) ENGINE=InnoDB DEFAULT CHARSET=latin1;")
-    
-    dbGetQuery(con,
-               "ALTER TABLE `monitoring_disk` ADD PRIMARY KEY (`id`);")
-    
-    dbGetQuery(con,
-               "ALTER TABLE `monitoring_disk` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;")
-    
-    print('Create monitoring_disk table')
-    
-    dbCommit(con)
-    
-  }
-  
-  dbDisconnect(con)
-  
-}
-
-
 AGENT_ID <- get_agent_id()
-
-create_mysql_table()
 
 
 load_disk_used_percent <- function(agent_id = AGENT_ID,
-                                   mount_name = MOUNT_NAME,
+                                   period = PERIOD,
                                    con = CONN,
                                    dbname = INFLUX_DBNAME) {
   
-  if (is.null(mount_name)) {
-    
-    mount_name <- ''
-    
-  } else {
-    
-    mount_name <- "and mount_name = '%s'" %>% sprintf(mount_name)
-    
-  }
-  
   query <- "select mean(used_percent) as y
             from host_disk
-            where time > now() - 21d and
-                  agent_id = '%s' %s
-            group by time(1h), agent_id, mount_name, host_name, host_ip
+            where time > now() - %sd and
+                  agent_id = '%s'
+            group by time(1h), mount_name, host_name, host_ip
             fill(linear)" %>% 
-    sprintf(agent_id, mount_name)
+    sprintf(period, agent_id)
   
   cat('\n', query, '\n')
   

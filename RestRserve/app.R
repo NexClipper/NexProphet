@@ -1,4 +1,5 @@
 source('00.R')
+source('01.R')
 source('app_func.R')
 
 
@@ -97,11 +98,11 @@ FORECAST <- function(request, response) {
   
   metric <- request$query$metric
   
-  period <- request$query$period
+  period <- request$query$period %>% as.integer()
   
   # period <- ifelse(is.null(period), 6, period)
   
-  predicted_period <- request$query$predicted_period
+  predicted_period <- request$query$predicted_period %>% as.integer()
   
   # predicted_period <- ifelse(is.null(predicted_period), 2, predicted_period)
   
@@ -109,7 +110,7 @@ FORECAST <- function(request, response) {
   
   # groupby <- ifelse(is.null(groupby), '1h', groupby)
   
-  unit <- request$query$unit
+  unit <- request$query$unit %>% as.character()
   
   # unit <- ifelse(is.null(unit), '0', unit)
   
