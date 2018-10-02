@@ -56,6 +56,8 @@ CUT <- internal$cut
 CONN <- influx_connection(host = INFLUX_HOST,
                           port = INFLUX_PORT)
 
+START_TIME <- Sys.time() %>% as.character()
+
 #----
 
 
@@ -138,40 +140,6 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
          value.name = 'y') %>% 
     split(by = 'key') %>%
     return()
-  
-  # res %>% setkey('host_ip', 'mount_name') %>% 
-  #   .[, list('NA' = sum(is.na(y)), 'length' = length(y)),
-  #     by = c('host_ip', 'mount_name')] %>% View()
-  # 
-  # # res <- res[, .(ds = time + 9 * 60 * 60, host_name, y)] %>% 
-  # #   setkey(ds) %>% 
-  # #   dcast(ds ~ host_name, value.var = c('y'))
-  # 
-  # # ts <- seq.POSIXt(min(res$ds),
-  # #                  max(res$ds),
-  # #                  by = '1 hour')
-  # # 
-  # # df <- data.table(ds = ts, key = 'ds')
-  # # 
-  # # disk <- df[res]
-  # # 
-  # # disk[disk < 0] <- NA
-  # 
-  # disk[, devmaster := NULL]
-  # 
-  # disk[, lapply(.SD,
-  #               function(x) na.fill(na.approx(x, na.rm = F),
-  #                                   'extend')),
-  #      .SDcols = 2:length(disk)] %>% 
-  #   cbind(df[, 'ds']) %>% 
-  #   setcolorder(c(ncol(.), 1:(ncol(.) - 1))) %>% 
-  #   melt(id.vars = 1,
-  #        measure.vars = 2:ncol(.),
-  #        variable.name = 'host_name',
-  #        value.name = 'y') %>%
-  #   setkey(ds) %>%
-  #   split(by = 'host_name') %>% 
-  #   return()
   
 }
 
@@ -285,7 +253,8 @@ save_result_mysql <- function(dt_,
                               port = MYSQL_PORT,
                               threshold = THRESHOLD,
                               critical = CRITICAL,
-                              warning = WARNING) {
+                              warning = WARNING,
+                              start_time = START_TIME) {
   
   if (!'DFT' %in% names(dt_))
     
@@ -298,31 +267,7 @@ save_result_mysql <- function(dt_,
                    host = host, 
                    port = port)
   
-  # DFT <- NA
-  # 
-  # predicted <- NA
-  # 
-  # if (length(which(dt_$yhat > threshold)) != 0) {
-  #   
-  #   DFT <- dt_$ds[min(which(dt_$yhat > threshold))]
-  #   
-  #   predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
-  #   
-  # }
-  # 
-  # alertYN <- NA
-  # 
-  # if (!is.na(DFT))
-  #   
-  #   if (difftime(DFT, current_time, units = 'hours') <= alert) {
-  #     
-  #     alertYN <- T
-  #     
-  #   } else {alertYN <- F}
-  
-  current_time <- dt_[!is.na(origin_y), ds] %>% max()
-  
-  predicted_time <- dt_[!is.na(DFT), ds]
+  predicted_time <- dt_[!is.na(DFT), ds] %>% as.character()
   
   severity <- dt_[ds == predicted_time, severity]
   
@@ -342,8 +287,8 @@ save_result_mysql <- function(dt_,
   condition <- sprintf('>%s and <%sd',
                        threshold, cond_)
   
-  contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed threshold" %>% 
-    sprintf(target_ip, mount_name)
+  contents <- "[%s][%s] The disk usage of mount path : '%s' for Host will exceed threshold" %>% 
+    sprintf(target_ip, predicted_time, mount_name)
   
   info <- data.frame('agent_id' = agent_id,
                      'severity' = severity,
@@ -353,7 +298,7 @@ save_result_mysql <- function(dt_,
                      'metric' = 'used_percent',
                      'condition' = condition,
                      'id' = target_ip,
-                     'start_time' = predicted_time,
+                     'start_time' = start_time,
                      'contents' = contents,
                      stringsAsFactors = F)
   
@@ -372,29 +317,32 @@ save_result_mysql <- function(dt_,
 }
 
 
-draw_graph <- function(dt) {
+save_plot <- function(dt, target_ip, mount_name,
+                      start_time = START_TIME) {
+  # dt <- m$`192.168.0.161__/`
+  # target_ip <- '192.168.0.161'; mount_name='/'
+  # host_name <- dt$host_name[1] %>%
+  #   as.character() %>%
+  #   toupper()
   
-  if (!('DFT' %in% names(dt)))
-    return(dt)
+  # trunc_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max() - 24 * 14]
+  trunc_time <- dt[!is.na(origin_y), ds] %>% max() - 14 * 60 * 60
   
-  host_name <- dt$host_name[1] %>%
-    as.character() %>%
-    toupper()
+  # current_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max()] %>% 
+  #   as.character()
   
-  trunc_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max() - 24 * 14]
+  dt <- dt[ds > trunc_time, .SD, .SDcols = -'key']
   
-  current_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max()] %>% 
-    as.character()
-  
-  dt <- dt[ds > trunc_time, -3]
+  title <- "Host : %s, Mount path : '%s'" %>% 
+    sprintf(target_ip, mount_name)
   
   dt_ <- dt %>% 
     melt(id.vars = 1,
-         measure.vars = 2:3,
+         measure.vars = c('origin_y', 'yhat'),
          variable.name = 'key',
          value.name = 'value')
   
-  ggplot(dt_, aes(y = value, x = ds)) +
+  p <- ggplot(dt_, aes(y = value, x = ds)) +
     geom_line(aes(color = key), size = 1, na.rm = T) +
     geom_point(data = dt[, .(ds, DFT)],
                aes(x = ds, y = DFT),
@@ -415,9 +363,10 @@ draw_graph <- function(dt) {
                                           110, by = 10),
                                       -1)) +
     scale_color_manual(labels = c('Actual', 'Predicted'), values = c("blue", "red")) +
-    theme(legend.background = element_rect(fill = "grey90", size = 2),
-          legend.justification = c(0,1), legend.position = c(0,1),
+    theme(legend.justification = 'right',
+          legend.position = 'top',
           legend.direction = 'horizontal',
+          legend.margin = margin(-30, 0, 0, 0),
           legend.title = element_blank(),
           legend.text = element_text(size = 20),
           legend.spacing.x = unit(0.7, 'cm'),
@@ -425,11 +374,19 @@ draw_graph <- function(dt) {
                                     face = "bold",
                                     color = "darkgreen",
                                     hjust = 0.5)) +
-    labs(title = host_name,
+    labs(title = title,
          x = 'Time', y = 'Disk used(%)',
-         subtitle = current_time)
+         subtitle = start_time)
   
-  # send_slack()
+  filepath <- tempfile('', fileext = '.png')
+  
+  ggsave(filepath, p,
+         device = 'png',
+         width = 43,
+         height = 20,
+         units = 'cm')
+  
+  return(filepath)
   
 }
 
