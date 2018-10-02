@@ -15,23 +15,19 @@ bs.Library <- function(pkg, add = T) {
 }
 
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
-             'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales',
-             'lubridate'))
+             'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales'))
 
 
 #### CONSTANT ####
-envir_list <- Sys.getenv(c('ID', 'THRESHOLD', 'CRITICAL', 'WARNING',
-                           'PERIOD'))
+envir_list <- Sys.getenv(c('ID', 'MOUNT_NAME', 'THRESHOLD', 'ALERT'))
 
 ID <- envir_list['ID']
 
+MOUNT_NAME <- envir_list['MOUNT_NAME']
+
 THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
 
-CRITICAL <- envir_list['CRITICAL'] %>% as.integer()
-
-WARNING <- envir_list['WARNING'] %>% as.integer()
-
-PERIOD <- envir_list['PERIOD'] %>% as.integer()
+ALERT <- envir_list['ALERT'] %>% as.integer()
 
 internal <- read_json('internal.conf')
 
@@ -66,7 +62,7 @@ get_agent_id <- function(id = ID,
                          dbname = MYSQL_DBNAME,
                          host = MYSQL_HOST,
                          port = MYSQL_PORT) {
-  return(5)
+  # return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -90,95 +86,124 @@ get_agent_id <- function(id = ID,
 }
 
 
+create_mysql_table <- function(user = MYSQL_USER,
+                               password = MYSQL_PASSWORD,
+                               dbname = MYSQL_DBNAME,
+                               host = MYSQL_HOST,
+                               port = MYSQL_PORT) {
+  
+  con <- dbConnect(MySQL(), 
+                   user = user, 
+                   password = password,
+                   dbname = dbname,
+                   host = host, 
+                   port = port)
+  
+  ListTables <- dbListTables(con)
+  
+  if (!('monitoring_disk' %in% ListTables)) {
+    
+    dbGetQuery(con,
+               "CREATE TABLE `monitoring_disk` (
+               `id` int(11) NOT NULL,
+               `agent_id` int(11) NOT NULL,
+               `resource` varchar(10) CHARACTER SET utf8 NOT NULL,
+               `mount` varchar(1000) CHARACTER SET utf8 NOT NULL,
+               `current_time` datetime NOT NULL,
+               `DFT` datetime,
+               `predicted` float,
+               `alertYN` tinyint(1)
+    ) ENGINE=InnoDB DEFAULT CHARSET=latin1;")
+    
+    dbGetQuery(con,
+               "ALTER TABLE `monitoring_disk` ADD PRIMARY KEY (`id`);")
+    
+    dbGetQuery(con,
+               "ALTER TABLE `monitoring_disk` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;")
+    
+    print('Create monitoring_disk table')
+    
+    dbCommit(con)
+    
+  }
+  
+  dbDisconnect(con)
+  
+}
+
+
 AGENT_ID <- get_agent_id()
+
+create_mysql_table()
 
 
 load_disk_used_percent <- function(agent_id = AGENT_ID,
-                                   period = PERIOD,
+                                   mount_name = MOUNT_NAME,
                                    con = CONN,
                                    dbname = INFLUX_DBNAME) {
   
+  if (is.null(mount_name)) {
+    
+    mount_name <- ''
+    
+  } else {
+    
+    mount_name <- "and mount_name = '%s'" %>% sprintf(mount_name)
+    
+  }
+  
   query <- "select mean(used_percent) as y
             from host_disk
-            where time > now() - %sd and
-                  agent_id = '%s'
-            group by time(1h), mount_name, host_ip
-            fill(none)" %>% 
-    sprintf(period, agent_id)
+            where time > now() - 21d and
+                  agent_id = '%s' %s
+            group by time(1h), agent_id, mount_name, host_name, host_ip
+            fill(linear)" %>% 
+    sprintf(agent_id, mount_name)
   
   cat('\n', query, '\n')
   
-  influx_query(con,
-               dbname,
-               query,
-               return_xts = F)[[1]] %>% 
-    select(-1:-3) %>%
-    group_by(time, host_ip, mount_name) %>%
-    summarise('y' = mean(y, na.rm = T)) %>%
-    as.data.table() %>% 
-    setnames('time', 'ds') %>% 
-    setkey('ds', 'host_ip', 'mount_name') %>% 
-    merge(CJ(ds = seq.POSIXt(min(.$ds),
-                             max(.$ds),
-                             by = '1 hour'),
-             host_ip = unique(.$host_ip),
-             mount_name = unique(.$mount_name)),
-          by = c('ds', 'host_ip', 'mount_name'),
-          all = T) %>% 
-    dcast(ds ~ host_ip + mount_name, value.var = c('y'), sep = '__') %>% 
-    .[, .SD, .SDcols = .[, lapply(.SD, function(x) sum(is.na(x)) <= as.integer(length(x) * 0.10))] %>% 
-        unlist() %>% 
-        which()] %>% 
-    .[, lapply(.SD, function(x) na.approx(x) %>% na.fill('extend'))] %>% 
-    .[, ds := as_datetime(ds, origin = '1970-01-01', tz = 'Asia/Seoul')] %>% 
-    setkey(ds) %>%
+  res <- influx_query(con,
+                      dbname,
+                      query,
+                      return_xts = F)[[1]] %>% 
+    as.data.table()
+  
+  res <- res[, .(ds = time + 9 * 60 * 60, host_name, y)] %>% 
+    setkey(ds) %>% 
+    dcast(ds ~ host_name, value.var = c('y'))
+  
+  ts <- seq.POSIXt(min(res$ds),
+                   max(res$ds),
+                   by = '1 hour')
+  
+  df <- data.table(ds = ts, key = 'ds')
+  
+  disk <- df[res]
+  
+  disk[disk < 0] <- NA
+  
+  disk[, devmaster := NULL]
+  
+  disk[, lapply(.SD,
+                function(x) na.fill(na.approx(x, na.rm = F),
+                                    'extend')),
+       .SDcols = 2:length(disk)] %>% 
+    cbind(df[, 'ds']) %>% 
+    setcolorder(c(ncol(.), 1:(ncol(.) - 1))) %>% 
     melt(id.vars = 1,
          measure.vars = 2:ncol(.),
-         variable.name = 'key',
-         value.name = 'y') %>% 
-    split(by = 'key') %>%
+         variable.name = 'host_name',
+         value.name = 'y') %>%
+    setkey(ds) %>%
+    split(by = 'host_name') %>% 
     return()
-  
-  # res %>% setkey('host_ip', 'mount_name') %>% 
-  #   .[, list('NA' = sum(is.na(y)), 'length' = length(y)),
-  #     by = c('host_ip', 'mount_name')] %>% View()
-  # 
-  # # res <- res[, .(ds = time + 9 * 60 * 60, host_name, y)] %>% 
-  # #   setkey(ds) %>% 
-  # #   dcast(ds ~ host_name, value.var = c('y'))
-  # 
-  # # ts <- seq.POSIXt(min(res$ds),
-  # #                  max(res$ds),
-  # #                  by = '1 hour')
-  # # 
-  # # df <- data.table(ds = ts, key = 'ds')
-  # # 
-  # # disk <- df[res]
-  # # 
-  # # disk[disk < 0] <- NA
-  # 
-  # disk[, devmaster := NULL]
-  # 
-  # disk[, lapply(.SD,
-  #               function(x) na.fill(na.approx(x, na.rm = F),
-  #                                   'extend')),
-  #      .SDcols = 2:length(disk)] %>% 
-  #   cbind(df[, 'ds']) %>% 
-  #   setcolorder(c(ncol(.), 1:(ncol(.) - 1))) %>% 
-  #   melt(id.vars = 1,
-  #        measure.vars = 2:ncol(.),
-  #        variable.name = 'host_name',
-  #        value.name = 'y') %>%
-  #   setkey(ds) %>%
-  #   split(by = 'host_name') %>% 
-  #   return()
   
 }
 
 
 handling_disk_data <- function(data_, cut_ = CUT) {
   
-  data__ <- data_ %>% copy()
+  data__ <- data_[, .(ds, host_name, y)]
   
   trainM <- data__[, ':='(CR = y / shift(y, n = 1, type = "lag"),
                           Diff = y - shift(y, n = 1, type = "lag"))]
@@ -203,7 +228,7 @@ handling_disk_data <- function(data_, cut_ = CUT) {
                                     by = '-1 hour'))] %>% 
     .[, .(ds = New_ds, y = New)] %>% 
     setkey(ds) %>%
-    .[data_[, .(ds, key, origin_y = y)]] %>% 
+    .[data_[, .(ds, host_name, origin_y = y)]] %>% 
     .[!is.na(y)] %>% 
     setkey(ds) %>% 
     return()
@@ -212,7 +237,7 @@ handling_disk_data <- function(data_, cut_ = CUT) {
 
 
 diskForecasting <- function(train_,
-                            pred_period = WARNING,
+                            pred_period = 30,
                             changepoint.range = 0.7,
                             changepoint.prior.scale = 0.2) {
   
@@ -224,54 +249,14 @@ diskForecasting <- function(train_,
                                   periods = 24 * pred_period,
                                   freq = 3600)
   
-  train_[predict(model, future) %>%
+  dt_ <- train_[predict(model, future) %>%
     as.data.table(key = 'ds') %>%
     .[, .(ds, yhat)]] %>% 
-    .[, yhat := ifelse(is.na(y), yhat, NA)] %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>%
-    return()
+    .[, yhat := ifelse(is.na(y), yhat, NA)]
   
-}
-
-
-add_DFT <- function(dt,
-                    threshold = THRESHOLD,
-                    critical = CRITICAL) {
+  save_result_mysql(dt_)
   
-  dt[, ':='(DFT = -1, severity = 'null')]
-  
-  DFT_times <- dt[yhat > threshold, ds]
-  
-  current_time <- dt[!is.na(origin_y), ds] %>% max()
-  
-  if (length(DFT_times) != 0) {
-    
-    DFT_time <- min(DFT_times)
-    
-    dt[ds == DFT_time]$DFT <- dt[ds == DFT_time]$yhat
-    
-    if (DFT_time <= current_time + critical * 60 * 60) {
-      
-      dt[ds == DFT_time]$severity <- 'Critical'
-      
-    } else {
-      
-      dt[ds == DFT_time]$severity <- 'Warning'
-      
-    }
-    
-    dt <- dt[ds <= DFT_time,
-             .(ds, origin_y, key, yhat,
-               DFT = ifelse(DFT == -1, NA, DFT),
-               severity = ifelse(severity == 'null', NA, severity))]
-    
-  } else {
-    
-    dt[, c('DFT', 'y', 'severity') := NULL]
-    
-  }
-  
-  return(dt)
+  return(dt_)
   
 }
 
@@ -283,13 +268,9 @@ save_result_mysql <- function(dt_,
                               dbname = MYSQL_DBNAME,
                               host = MYSQL_HOST,
                               port = MYSQL_PORT,
+                              mount_name = MOUNT_NAME,
                               threshold = THRESHOLD,
-                              critical = CRITICAL,
-                              warning = WARNING) {
-  
-  if (!'DFT' %in% names(dt_))
-    
-    return()
+                              alert = ALERT) {
   
   con <- dbConnect(MySQL(), 
                    user = user, 
@@ -298,67 +279,41 @@ save_result_mysql <- function(dt_,
                    host = host, 
                    port = port)
   
-  # DFT <- NA
-  # 
-  # predicted <- NA
-  # 
-  # if (length(which(dt_$yhat > threshold)) != 0) {
-  #   
-  #   DFT <- dt_$ds[min(which(dt_$yhat > threshold))]
-  #   
-  #   predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
-  #   
-  # }
-  # 
-  # alertYN <- NA
-  # 
-  # if (!is.na(DFT))
-  #   
-  #   if (difftime(DFT, current_time, units = 'hours') <= alert) {
-  #     
-  #     alertYN <- T
-  #     
-  #   } else {alertYN <- F}
+  current_time <- dt_$ds[max(which(!is.na(dt_$y)))]
   
-  current_time <- dt_[!is.na(origin_y), ds] %>% max()
+  DFT <- NA
   
-  predicted_time <- dt_[!is.na(DFT), ds]
+  predicted <- NA
   
-  severity <- dt_[ds == predicted_time, severity]
+  if (length(which(dt_$yhat > threshold)) != 0) {
+    
+    DFT <- dt_$ds[min(which(dt_$yhat > threshold))]
+    
+    predicted <- dt_$yhat[min(which(dt_$yhat > threshold))]
+    
+  }
   
-  key_ <- dt_[1, key] %>%
-    as.character() %>%
-    strsplit('__') %>% 
-    unlist()
+  alertYN <- NA
   
-  target_ip <- key_[1]
-  
-  mount_name <- key_[2]
-  
-  cond_ <- switch(severity,
-                  'Critical' = critical,
-                  'Warning' = warning)
-  
-  condition <- sprintf('>%s and <%sd',
-                       threshold, cond_)
-  
-  contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed threshold" %>% 
-    sprintf(target_ip, mount_name)
+  if (!is.na(DFT))
+    
+    if (difftime(DFT, current_time, units = 'hours') <= alert) {
+      
+      alertYN <- T
+      
+    } else {alertYN <- F}
   
   info <- data.frame('agent_id' = agent_id,
-                     'severity' = severity,
-                     'target_system' = 'Host',
-                     'target_ip' = target_ip,
-                     'target' = 'Disk',
-                     'metric' = 'used_percent',
-                     'condition' = condition,
-                     'id' = target_ip,
-                     'start_time' = predicted_time,
-                     'contents' = contents,
+                     'resource' = dt_$host_name[1],
+                     'mount' = mount_name,
+                     'current_time' = current_time,
+                     'DFT' = DFT,
+                     'predicted' = predicted,
+                     'alertYN' = alertYN,
                      stringsAsFactors = F)
   
   dbWriteTable(con, 
-               name = 'nexclipper_incident_ai', 
+               name = 'monitoring_disk', 
                value = info,
                row.names = F,
                append = T)
@@ -368,6 +323,29 @@ save_result_mysql <- function(dt_,
   dbDisconnect(con)
   
   cat('\nSuccess to save predicted disk usage!\n\n')
+  
+}
+
+
+add_DFT <- function(dt, threshold = THRESHOLD) {
+  
+  dt[, DFT := -1]
+  
+  idx_ <- which(dt$yhat > threshold)
+  
+  if (length(idx_) != 0) {
+    
+    dt[min(idx_), 'DFT'] <- dt$yhat[min(idx_)]
+    
+    dt <- dt[1:min(idx_), .(ds, origin_y, host_name, yhat, DFT = ifelse(DFT == -1, NA, DFT))]
+    
+  } else {
+    
+    dt[, c('DFT', 'y') := NULL]
+    
+  }
+  
+  return(dt)
   
 }
 
@@ -429,7 +407,7 @@ draw_graph <- function(dt) {
          x = 'Time', y = 'Disk used(%)',
          subtitle = current_time)
   
-  # send_slack()
+  send_slack()
   
 }
 
