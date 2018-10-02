@@ -20,10 +20,10 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
 
 
 #### CONSTANT ####
-envir_list <- Sys.getenv(c('ID', 'THRESHOLD', 'CRITICAL', 'WARNING',
+envir_list <- Sys.getenv(c('AGENT_ID', 'THRESHOLD', 'CRITICAL', 'WARNING',
                            'PERIOD'))
 
-ID <- envir_list['ID']
+AGENT_ID <- envir_list['AGENT_ID'] %>% as.integer()
 
 THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
 
@@ -37,7 +37,7 @@ internal <- read_json('internal.conf')
 
 INFLUX_HOST <- internal$influx_host
 
-INFLUX_PORT <- internal$influx_port
+INFLUX_PORT <- internal$influx_port %>% as.integer()
 
 INFLUX_DBNAME <- internal$influx_dbname
 
@@ -49,9 +49,9 @@ MYSQL_DBNAME <- internal$mysql_dbname
 
 MYSQL_HOST <- internal$mysql_host
 
-MYSQL_PORT <- internal$mysql_port
+MYSQL_PORT <- internal$mysql_port %>% as.integer()
 
-CUT <- internal$cut
+CUT <- internal$cut %>% as.numeric()
 
 CONN <- influx_connection(host = INFLUX_HOST,
                           port = INFLUX_PORT)
@@ -62,38 +62,6 @@ START_TIME <- Sys.time() %>% as.character()
 
 
 #### functions ####
-get_agent_id <- function(id = ID,
-                         user = MYSQL_USER,
-                         password = MYSQL_PASSWORD,
-                         dbname = MYSQL_DBNAME,
-                         host = MYSQL_HOST,
-                         port = MYSQL_PORT) {
-  return(5)
-  con <- dbConnect(MySQL(), 
-                   user = user, 
-                   password = password,
-                   dbname = dbname,
-                   host = host, 
-                   port = port)
-  
-  query <- "select agent_id
-            from nexclipper_user
-            where user_id = '%s'" %>% 
-    sprintf(id)
-  
-  cat('\n', query, '\n')
-  
-  res <- dbGetQuery(con, query)
-  
-  dbDisconnect(con)
-  
-  return(res$agent_id)
-  
-}
-
-
-AGENT_ID <- get_agent_id()
-
 
 load_disk_used_percent <- function(agent_id = AGENT_ID,
                                    period = PERIOD,

@@ -14,14 +14,16 @@ WORKDIR /home
 
 RUN chmod o+w /usr/local/lib/R/site-library
 
-COPY disk00.R /home
-
-RUN Rscript disk00.R
-
-RUN mkdir log
+COPY 00.R /home
 
 ARG CACHEBUST=1
 
-COPY . /home
+RUN Rscript 00.R
+
+RUN mkdir event-disk
+
+COPY . event-disk/
+
+WORKDIR event-disk
 
 CMD Rscript app.R
