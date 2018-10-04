@@ -20,17 +20,6 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
 
 
 #### CONSTANT ####
-# envir_list <- Sys.getenv(c('THRESHOLD', 'CRITICAL', 'WARNING', 'PERIOD'))
-
-# AGENT_ID <- envir_list['AGENT_ID'] %>% as.integer()
-# 
-# THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
-# 
-# CRITICAL <- envir_list['CRITICAL'] %>% as.integer()
-# 
-# WARNING <- envir_list['WARNING'] %>% as.integer()
-# 
-# PERIOD <- envir_list['PERIOD'] %>% as.integer()
 
 internal <- read_json('internal.conf')
 
@@ -54,9 +43,6 @@ CUT <- internal$cut %>% as.numeric()
 
 CONN <- influx_connection(host = INFLUX_HOST,
                           port = INFLUX_PORT)
-
-CONN <- influx_connection(host = '192.168.0.162',
-                          port = 10091)
 
 START_TIME <- Sys.time()
 
