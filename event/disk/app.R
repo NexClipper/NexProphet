@@ -11,7 +11,7 @@ for (idx in 1:nrow(event_config)) {
     unlist() %>% 
     .[1]
   
-  if (15 != current_hour) next()
+  if (execution_hour != current_hour) next()
   
   agent_id <- event_config$agent_id[idx]
   
