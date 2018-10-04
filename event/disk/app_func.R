@@ -20,18 +20,17 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
 
 
 #### CONSTANT ####
-envir_list <- Sys.getenv(c('AGENT_ID', 'THRESHOLD', 'CRITICAL', 'WARNING',
-                           'PERIOD'))
+# envir_list <- Sys.getenv(c('THRESHOLD', 'CRITICAL', 'WARNING', 'PERIOD'))
 
-AGENT_ID <- envir_list['AGENT_ID'] %>% as.integer()
-
-THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
-
-CRITICAL <- envir_list['CRITICAL'] %>% as.integer()
-
-WARNING <- envir_list['WARNING'] %>% as.integer()
-
-PERIOD <- envir_list['PERIOD'] %>% as.integer()
+# AGENT_ID <- envir_list['AGENT_ID'] %>% as.integer()
+# 
+# THRESHOLD <- envir_list['THRESHOLD'] %>% as.integer()
+# 
+# CRITICAL <- envir_list['CRITICAL'] %>% as.integer()
+# 
+# WARNING <- envir_list['WARNING'] %>% as.integer()
+# 
+# PERIOD <- envir_list['PERIOD'] %>% as.integer()
 
 internal <- read_json('internal.conf')
 
@@ -56,32 +55,66 @@ CUT <- internal$cut %>% as.numeric()
 CONN <- influx_connection(host = INFLUX_HOST,
                           port = INFLUX_PORT)
 
-START_TIME <- Sys.time() %>% as.character()
+CONN <- influx_connection(host = '192.168.0.162',
+                          port = 10091)
+
+START_TIME <- Sys.time()
 
 #----
 
+#### AGENT_ID LIST ####
+get_event_config <- function(user = MYSQL_USER,
+                             password = MYSQL_PASSWORD,
+                             dbname = MYSQL_DBNAME,
+                             host = MYSQL_HOST,
+                             port = MYSQL_PORT) {
+  
+  con <- dbConnect(MySQL(), 
+                   user = user, 
+                   password = password,
+                   dbname = dbname,
+                   host = host, 
+                   port = port)
+  
+  query <- "select * from nexclipper_event_config"
+  
+  res <- dbGetQuery(con, query)
+  
+  dbDisconnect(con)
+  
+  return(res)
+  
+}
 
 #### functions ####
 
-load_disk_used_percent <- function(agent_id = AGENT_ID,
-                                   period = PERIOD,
+load_disk_used_percent <- function(agent_id,
+                                   metric, measurement,
+                                   period, timezone,
                                    con = CONN,
                                    dbname = INFLUX_DBNAME) {
   
-  query <- "select mean(used_percent) as y
-            from host_disk
+  query <- "select mean(%s) as y
+            from %s
             where time > now() - %sd and
                   agent_id = '%s'
             group by time(1h), mount_name, host_ip
             fill(none)" %>% 
-    sprintf(period, agent_id)
+    sprintf(metric,
+            measurement, 
+            period,
+            agent_id)
   
   cat('\n', query, '\n')
   
-  influx_query(con,
+  res <- influx_query(con,
                dbname,
                query,
-               return_xts = F)[[1]] %>% 
+               return_xts = F)[[1]]
+  
+  if (!('time' %in% names(res))) return(NULL)
+  
+  res %>% 
     select(-1:-3) %>%
     group_by(time, host_ip, mount_name) %>%
     summarise('y' = mean(y, na.rm = T)) %>%
@@ -100,7 +133,7 @@ load_disk_used_percent <- function(agent_id = AGENT_ID,
         unlist() %>% 
         which()] %>% 
     .[, lapply(.SD, function(x) na.approx(x) %>% na.fill('extend'))] %>% 
-    .[, ds := as_datetime(ds, origin = '1970-01-01', tz = 'Asia/Seoul')] %>% 
+    .[, ds := as_datetime(ds, origin = '1970-01-01', tz = timezone)] %>% 
     setkey(ds) %>%
     melt(id.vars = 1,
          measure.vars = 2:ncol(.),
@@ -148,7 +181,7 @@ handling_disk_data <- function(data_, cut_ = CUT) {
 
 
 diskForecasting <- function(train_,
-                            pred_period = WARNING,
+                            pred_period, timezone,
                             changepoint.range = 0.7,
                             changepoint.prior.scale = 0.2) {
   
@@ -164,15 +197,15 @@ diskForecasting <- function(train_,
     as.data.table(key = 'ds') %>%
     .[, .(ds, yhat)]] %>% 
     .[, yhat := ifelse(is.na(y), yhat, NA)] %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>%
+    .[, ds := with_tz(ds, timezone)] %>%
     return()
   
 }
 
 
 add_DFT <- function(dt,
-                    threshold = THRESHOLD,
-                    critical = CRITICAL) {
+                    threshold,
+                    critical) {
   
   dt[, ':='(DFT = -1, severity = 'null')]
   
@@ -213,20 +246,16 @@ add_DFT <- function(dt,
 
 
 save_result_mysql <- function(dt_,
-                              agent_id = AGENT_ID,
+                              agent_id, threshold,
+                              critical, warning,
+                              start_time = START_TIME,
                               user = MYSQL_USER,
                               password = MYSQL_PASSWORD,
                               dbname = MYSQL_DBNAME,
                               host = MYSQL_HOST,
-                              port = MYSQL_PORT,
-                              threshold = THRESHOLD,
-                              critical = CRITICAL,
-                              warning = WARNING,
-                              start_time = START_TIME) {
+                              port = MYSQL_PORT) {
   
-  if (!'DFT' %in% names(dt_))
-    
-    return()
+  if (!'DFT' %in% names(dt_)) return()
   
   con <- dbConnect(MySQL(), 
                    user = user, 
@@ -255,8 +284,8 @@ save_result_mysql <- function(dt_,
   condition <- sprintf('>%s and <%sd',
                        threshold, cond_)
   
-  contents <- "[%s][%s] The disk usage of mount path : '%s' for Host will exceed threshold" %>% 
-    sprintf(target_ip, predicted_time, mount_name)
+  contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed threshold at %s" %>% 
+    sprintf(target_ip, mount_name, predicted_time)
   
   info <- data.frame('agent_id' = agent_id,
                      'severity' = severity,
@@ -293,11 +322,9 @@ save_plot <- function(dt, target_ip, mount_name,
   #   as.character() %>%
   #   toupper()
   
-  # trunc_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max() - 24 * 14]
-  trunc_time <- dt[!is.na(origin_y), ds] %>% max() - 14 * 60 * 60
+  start_time <- start_time %>% as.character()
   
-  # current_time <- dt$ds[which(!is.na(dt$origin_y)) %>% max()] %>% 
-  #   as.character()
+  trunc_time <- dt[!is.na(origin_y), ds] %>% max() - 14 * 60 * 60
   
   dt <- dt[ds > trunc_time, .SD, .SDcols = -'key']
   

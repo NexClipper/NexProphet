@@ -1,4 +1,4 @@
-# Check library existance
+#### library ####
 bs.Library <- function(pkg, add = T) {
   
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -13,6 +13,4 @@ bs.Library <- function(pkg, add = T) {
   
 }
 
-
-# data manipulation
-bs.Library(c('lubridate', 'RMySQL', 'R.utils'))
+bs.Library(c('lubridate'))

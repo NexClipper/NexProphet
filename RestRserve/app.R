@@ -42,52 +42,44 @@ FORECAST <- function(request, response) {
   #'     required: true
   #'     
   #'   - name: "period"
-  #'     description: "select period to train model, default : 6"
+  #'     description: "select period to train model, default : 6 days"
   #'     in: query
   #'     schema:
-  #'       type: int
-  #'     example: 6
+  #'       type: string
+  #'     example: 6d
   #'     required: true
   #'     
   #'   - name: "predicted_period"
-  #'     description: "select period to predict, default : 2"
+  #'     description: "select period to predict, default : 2 days"
   #'     in: query
   #'     schema:
-  #'       type: int
-  #'     example: 2
+  #'       type: string
+  #'     example: 2d
   #'     required: true
   #'     
   #'   - name: "groupby"
-  #'     description: "select time to group by, default : 1h"
+  #'     description: "select time to group by, default : 1 hour"
   #'     in: query
   #'     schema:
   #'       type: string
   #'     example: '1h'
   #'     required: true
   #'     
-  #'   - name: "unit"
-  #'     description: "unit time; 0: hours, 1: seconds, default : 0"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: '0'
-  #'     required: true
-  #'     
   #'   - name: "mount"
-  #'     description: "available when metric related to disk. select mount path. default : 'null'"
+  #'     description: "available when metric related to disk. select mount path. default : null. if you want mount path : / or /var, insert total or var. "
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: 'null'
+  #'     example: null
   #'     required: true
   #'     
   #' responses:
   #'   200:
   #'     description: API response
   #'     content:
-  #'       application/json:
+  #'       text/plain:
   #'         schema:
-  #'           type: string
+  #'           type: json
   #' ---
   
   agent_id <- request$query$agent_id
@@ -122,7 +114,7 @@ FORECAST <- function(request, response) {
                             metric, period, predicted_period,
                             groupby, unit, mount)
   
-  response$content_type = "application/json"
+  response$content_type = "text/plain"
   
   response$headers = character(0)
   

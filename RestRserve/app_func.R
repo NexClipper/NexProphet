@@ -4,12 +4,16 @@ library(jsonlite)
 #### FORECAST ####
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
-                      groupby, unit, ...) {
+                      groupby, start_time, ...) {
   
-  dt_ <- load_single_metric(agent_id, measurement, host_ip, metric,
-                            period, groupby, unit, ...)
+  res <- load_single_metric(agent_id, measurement, host_ip, metric,
+                            period, groupby, start_time, ...)
   
-  result <- forecasting(dt_, groupby, predicted_period, unit,
+  if (res$status == '500')
+    
+    list('status' = 500) %>% toJSON() %>% as.character() %>% return()
+  
+  result <- forecasting(res$data, groupby, predicted_period,
                         changepoint.prior.scale = 0.1)
   
   result %>% toJSON() %>% as.character() %>% return()
@@ -17,18 +21,7 @@ forecast_ <- function(agent_id, measurement, host_ip,
 }
 
 
-#### EVENT ALARM ####
-
-select_unit <- function(x) {
-  
-  switch(x,
-         's' = 'sec',
-         'm' = 'min',
-         'h' = 'hour') %>% return()
-  
-}
-
-
+#### DB CONNECTION ####
 connect <- function() {
   
   # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
@@ -45,73 +38,29 @@ connect <- function() {
 }
 
 
-# in the case that mount path is not null
-load_single_metric_from_mount_path <- function(host, metric, period, groupby,
-                                               unit, agent_id, mount) {
-  # host='192.168.0.168';metric='used_percent';period=6;groupby='1h';unit='0';agent_id=27;mount='/'
-  con <- connect()
+MySQL_connect <- function() {
   
-  connector <- con$connector
+  dbConnect(MySQL(), 
+            user = 'admin', 
+            password = 'password',
+            dbname = 'defaultdb',
+            host = '192.168.0.165', 
+            port = 25322) %>% return()
   
-  dbname <- con$dbname
+}
+
+
+#### APP FUNCTION ####
+write_result_mysql <- function(dt_, key) {
   
-  if (unit == '0') {
-    
-    period <- paste0(period, 'd')
-    
-  } else {
-    
-    period <- paste0(period, 'h')
-    
-  }
   
-  query <- "select mean(%s) as y
-            from host_disk
-            where time > now() - %s and
-                  host_ip = '%s' and
-                  agent_id = '%s' and
-                  mount_name = '%s'
-            group by time(%s)
-            fill(none)" %>%
-    sprintf(metric,
-            period, host, agent_id, mount,
-            groupby)
-  
-  cat('\n', query, '\n')
-  
-  res <- influx_query(connector,
-                      db = dbname,
-                      query = query,
-                      simplifyList = T,
-                      return_xts = F)[[1]] %>%
-    as.data.table() %>% 
-    .[, -1:-4] %>% 
-    setnames('time', 'ds') %>% 
-    setkey(ds)
-  
-  unit <- str_extract(groupby, '[:alpha:]') %>%
-    posixt_helper_func()
-  
-  by <- str_extract(groupby, '\\d+') %>%
-    paste(unit)
-  
-  ts <- seq.POSIXt(min(res$ds),
-                   max(res$ds),
-                   by = by)
-  
-  df <- data.table(ds = ts, key = 'ds')
-  
-  res <- res[df]
-  
-  res$y <- na.approx(res$y) %>% na.fill('extend')
-  
-  return(res)
+  con <- MySQL_connect()
   
 }
 
 
 load_single_metric <- function(agent_id, measurement, host_ip, metric,
-                               period, groupby, unit, ...) {
+                               period, groupby, start_time, ...) {
   
   arg <- list(...)
   
@@ -119,49 +68,48 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
   
   period <- period %>% as.integer()
   
-  unit <- unit %>% as.character()
+  # unit <- unit %>% as.character()
   
-  switch(measurement,
-         'host' = load_host(agent_id, host_ip, metric, period, groupby, unit),
-         'host_disk' = load_host_disk(agent_id, host_ip, metric, period, groupby, unit,
+  res_ <- switch(measurement,
+         'host' = load_host(agent_id, host_ip, metric, period, groupby, start_time),
+         'host_disk' = load_host_disk(agent_id, host_ip, metric, period, groupby, start_time,
                                       arg$mount),
-         'host_net' = load_host_net(agent_id, host_ip, metric, period, groupby, unit,
+         'host_net' = load_host_net(agent_id, host_ip, metric, period, groupby, start_time,
                                     arg$hostIF),
-         'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, unit,
+         'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
                                             arg$pname),
-         'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, unit,
+         'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, start_time,
                                                     arg$dname),
-         'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, unit,
-                                                arg$dname, arg$dockerIF)) %>% 
-    return()
+         'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, start_time,
+                                                arg$dname, arg$dockerIF))
+  
+  
   
 }
 
-dtt <- load_single_metric(27, 'docker_network', '192.168.0.165', 'rx_bytes',
-                          6, '1h', 0, dname = 'mysql.8491cb20-acb7-11e8-ae9f-aae0d7e58657', dockerIF = 'eth0')
 
-load_docker_container <- function(agent_id, host_ip, metric, period, groupby, unit, dname) {
-  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period=6;groupby='1h';unit='0';dname='/Nexclipper-Agent'
+load_docker_container <- function(agent_id, host_ip, metric, period, groupby, start_time, dname) {
+  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';start_time='2018-10-04 10:31:05';dname='/Nexclipper-Agent'
   con <- connect()
   
   connector <- con$connector
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   query <- "select mean(%s) as y
             from docker_container
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s' and 
                   task_id = '%s'
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            start_time, period,
             host_ip,
             dname,
             groupby)
@@ -176,19 +124,22 @@ load_docker_container <- function(agent_id, host_ip, metric, period, groupby, un
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500,
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
   
 }
 
 
-load_docker_network <- function(agent_id, host_ip, metric, period, groupby, unit, dname, interface) {
+load_docker_network <- function(agent_id, host_ip, metric, period, groupby, start_time, dname, interface) {
   #agent_id=27;host_ip='192.168.0.165';metric='rx_bytes';period=6;groupby='1h';unit='0';dname='nexcloud_nexclipperui.081024c1-c2f2-11e8-8aa1-aae0d7e58657';interface='eth0'
   con <- connect()
   
@@ -196,21 +147,21 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, unit
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   query <- "select mean(%s) as y
             from docker_network
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s' and 
                   task_id = '%s' and
                   interface = '%s'
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            stat_time, period,
             host_ip,
             dname,
             interface,
@@ -226,19 +177,22 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, unit
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500, 
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
   
 }
 
 
-load_host <- function(agent_id, host_ip, metric, period, groupby, unit) {
+load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period=6;groupby='1h';unit='0'
   con <- connect()
   
@@ -246,19 +200,19 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, unit) {
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   query <- "select mean(%s) as y
             from host
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s'
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            start_time, period,
             host_ip,
             groupby)
   
@@ -272,19 +226,22 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, unit) {
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500,
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
   
 }
 
 
-load_host_disk <- function(agent_id, host_ip, metric, period, groupby, unit, mount) {
+load_host_disk <- function(agent_id, host_ip, metric, period, groupby, start_time, mount) {
   #agent_id=27;host_ip='192.168.0.165';metric='used_percent';period=6;groupby='1h';unit='0';mount='/'
   con <- connect()
   
@@ -292,20 +249,20 @@ load_host_disk <- function(agent_id, host_ip, metric, period, groupby, unit, mou
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   query <- "select mean(%s) as y
             from host_disk
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s' and
                   mount_name = '%s'
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            start_time, period,
             host_ip,
             mount,
             groupby)
@@ -320,19 +277,22 @@ load_host_disk <- function(agent_id, host_ip, metric, period, groupby, unit, mou
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500,
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
   
 }
 
 
-load_host_net <- function(agent_id, host_ip, metric, period, groupby, unit, interface) {
+load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time, interface) {
   #agent_id=27;host_ip='192.168.0.165';metric='rxbyte';period=6;groupby='1h';unit='0';interface='veth99a298c8'
   con <- connect()
   
@@ -340,20 +300,20 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, unit, inte
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   query <- "select mean(%s) as y
             from host_net
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s' and
                   interface = '%s'
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            start_time, period,
             host_ip,
             interface,
             groupby)
@@ -368,19 +328,22 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, unit, inte
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500,
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
   
 }
 
 
-load_host_process <- function(agent_id, host_ip, metric, period, groupby, unit, pname) {
+load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period=6;groupby='1h';unit='0';pname='mysqld'
   con <- connect()
   
@@ -388,9 +351,9 @@ load_host_process <- function(agent_id, host_ip, metric, period, groupby, unit, 
   
   dbname <- con$dbname
   
-  period <- ifelse(unit == '0',
-                   paste0(period, 'd'),
-                   paste0(period, 'h'))
+  # period <- ifelse(unit == '0',
+  #                  paste0(period, 'd'),
+  #                  paste0(period, 'h'))
   
   pname <- paste0('"name" = ', "'%s'") %>% 
     sprintf(pname)
@@ -398,13 +361,13 @@ load_host_process <- function(agent_id, host_ip, metric, period, groupby, unit, 
   query <- "select mean(%s) as y
             from host_process
             where agent_id = '%s' and
-                  time > now() - %s and
+                  time > '%s' - %s and
                   host_ip = '%s' and 
                   %s
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            period,
+            start_time, period,
             host_ip,
             pname,
             groupby)
@@ -419,14 +382,136 @@ load_host_process <- function(agent_id, host_ip, metric, period, groupby, unit, 
   
   if (!('time' %in% names(res)))
     
-    return(get_alternative_data(period, groupby))
+    return(list('status' = 500,
+                'data' = c()))
   
-  res %>% 
+  res <- res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% 
-    return()
+    setkey(ds)
+  
+  return(list('status' = 200,
+              'data' = res))
+  
+}
+
+
+forecasting <- function(tb_, groupby, predicted_period,
+                        changepoint.prior.scale = 0.01) {
+  
+  model <- prophet(tb_,
+                   changepoint.prior.scale = changepoint.prior.scale)
+  
+  unit_ <- str_extract(groupby, '[:alpha:]')
+  
+  groupby_ <- str_extract(groupby, '\\d+') %>% as.integer()
+  
+  freq <- switch(unit_,
+                 's' = groupby_,
+                 'm' = groupby_ * 60,
+                 'd' = groupby_ * 60 * 60)
+  
+  # if (str_sub(groupby, -1) == 's') {
+  #   
+  #   freq <- as.integer(str_sub(groupby, end = -2))
+  #   
+  # } 
+  # 
+  # else if (str_sub(groupby, -1) == 'm') {
+  #   
+  #   freq <- as.integer(str_sub(groupby, end = -2)) * 60
+  #   
+  # }
+  # 
+  # else {
+  #   
+  #   freq <- as.integer(str_sub(groupby, end = -2)) * 60 * 60
+  #   
+  # }
+  
+  unit_ <- str_extract(predicted_period, '[:alpha:]')
+  
+  predicted_period_ <- str_extract(predicted_period, '\\d+') %>% 
+    as.integer()
+  
+  pred_period <- switch(unit_,
+                        'd' = (predicted_period_ * 24 * 60 * 60) %/% freq,
+                        'h' = (predicted_period_ * 60 * 60) %/% freq)
+  
+  # if (unit == "0") {
+  #   
+  #   pred_period <- (pred_period * 24 * 60 * 60) %/% freq
+  #   
+  # } else {
+  #   
+  #   pred_period <- (pred_period * 60 * 60) %/% freq
+  #   
+  # }
+  browser()
+  future <- make_future_dataframe(model,
+                                  periods = pred_period,
+                                  freq = freq,
+                                  include_history = F)
+  
+  maxDate <- tb_$ds %>% max()
+  
+  pred_data <- predict(model, future) %>%
+    select(ds, yhat_lower, yhat_upper, yhat) %>%
+    full_join(tb_) %>%
+    as.data.table(key = 'ds')
+  
+  pred_data[ds < maxDate, 'yhat_lower'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat_upper'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat'] <- NA
+  
+  return(pred_data)
+  
+  # res <- list('model' = model,
+  #             'forecast' = fcst)
+  # 
+  # return(res)
+  
+}
+
+
+forecast_result <- function(tb_, fcst, metric) {
+  
+  maxDate <- tb_$ds %>% max()
+  
+  pred_data <- fcst %>%
+    select(ds, yhat_lower, yhat_upper, yhat) %>%
+    full_join(tb_) %>%
+    as.data.table(key = 'ds')
+  
+  pred_data[ds < maxDate, 'yhat_lower'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat_upper'] <- NA
+  
+  pred_data[ds < maxDate, 'yhat'] <- NA
+  
+  return(pred_data)
+  # p <- ggplot(pred_data, aes(x = ds)) +
+  #   geom_line(aes(y = y, colour = 'Actual'), size = 1, na.rm = T) +
+  #   geom_line(aes(y = yhat, color = 'Predicted'), size = 1, na.rm = T) +
+  #   geom_ribbon(aes(ymin = yhat_lower,
+  #                   ymax = yhat_upper),
+  #               alpha = 0.1, linetype = 2) +
+  #   scale_color_manual(labels = c('Actual', 'Predicted'),
+  #                      values = c("blue", "red")) +
+  #   theme(legend.background = element_rect(fill = "white", size = 2),
+  #         legend.justification = 'right',
+  #         legend.position = 'top',
+  #         legend.direction = 'horizontal',
+  #         legend.title = element_blank(),
+  #         legend.text = element_text(size = 10),
+  #         legend.spacing.x = unit(0.3, 'cm')) +
+  #   labs(x = 'time', y = metric)
+  
+  return(list('pred_data' = pred_data,
+              'plot' = p))
   
 }
 
@@ -497,12 +582,12 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
   }
   
   query <- "select mean(%s) as y
-            from %s
-            where time > now() - %s and
-                  %s = '%s' and
-                  agent_id = '%s' %s
-            group by time(%s), %s, agent_id %s
-            fill(none)" %>% 
+  from %s
+  where time > now() - %s and
+  %s = '%s' and
+  agent_id = '%s' %s
+  group by time(%s), %s, agent_id %s
+  fill(none)" %>% 
     sprintf(metric,
             measurement,
             period, tag, host, agent_id, docker_host_ip,
@@ -542,6 +627,70 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 }
 
 
+# in the case that mount path is not null
+load_single_metric_from_mount_path <- function(host, metric, period, groupby,
+                                               unit, agent_id, mount) {
+  # host='192.168.0.168';metric='used_percent';period=6;groupby='1h';unit='0';agent_id=27;mount='/'
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  if (unit == '0') {
+    
+    period <- paste0(period, 'd')
+    
+  } else {
+    
+    period <- paste0(period, 'h')
+    
+  }
+  
+  query <- "select mean(%s) as y
+  from host_disk
+  where time > now() - %s and
+  host_ip = '%s' and
+  agent_id = '%s' and
+  mount_name = '%s'
+  group by time(%s)
+  fill(none)" %>%
+    sprintf(metric,
+            period, host, agent_id, mount,
+            groupby)
+  
+  cat('\n', query, '\n')
+  
+  res <- influx_query(connector,
+                      db = dbname,
+                      query = query,
+                      simplifyList = T,
+                      return_xts = F)[[1]] %>%
+    as.data.table() %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds)
+  
+  unit <- str_extract(groupby, '[:alpha:]') %>%
+    posixt_helper_func()
+  
+  by <- str_extract(groupby, '\\d+') %>%
+    paste(unit)
+  
+  ts <- seq.POSIXt(min(res$ds),
+                   max(res$ds),
+                   by = by)
+  
+  df <- data.table(ds = ts, key = 'ds')
+  
+  res <- res[df]
+  
+  res$y <- na.approx(res$y) %>% na.fill('extend')
+  
+  return(res)
+  
+}
+
 get_alternative_data <- function(groupby) {
   # when no data!
   current <- as.POSIXlt(Sys.time())
@@ -553,107 +702,18 @@ get_alternative_data <- function(groupby) {
                     by = by)
   
   dt <- data.table('ds' = seq,
-                   'y' = 404, key = 'ds') %>% 
+                   'y' = 500, key = 'ds') %>% 
     setorder(ds)
   
   return(dt)
   
 }
 
-
-forecasting <- function(tb_, groupby, pred_period, unit,
-                        changepoint.prior.scale = 0.01) {
+select_unit <- function(x) {
   
-  model <- prophet(tb_,
-                   changepoint.prior.scale = changepoint.prior.scale)
-  
-  if (str_sub(groupby, -1) == 's') {
-    
-    freq <- as.integer(str_sub(groupby, end = -2))
-    
-  } else if (str_sub(groupby, -1) == 'm') {
-    
-    freq <- as.integer(str_sub(groupby, end = -2)) * 60
-    
-  } else {
-    
-    freq <- as.integer(str_sub(groupby, end = -2)) * 60 * 60
-    
-  }
-  
-  if (unit == "0") {
-    
-    pred_period <- (pred_period * 24 * 60 * 60) %/% freq
-    
-  } else {
-    
-    pred_period <- (pred_period * 60 * 60) %/% freq
-    
-  }
-  # browser()
-  future <- make_future_dataframe(model,
-                                  periods = pred_period,
-                                  freq = freq)
-  
-  maxDate <- tb_$ds %>% max()
-  
-  pred_data <- predict(model, future) %>%
-    select(ds, yhat_lower, yhat_upper, yhat) %>%
-    full_join(tb_) %>%
-    as.data.table(key = 'ds')
-  
-  pred_data[ds < maxDate, 'yhat_lower'] <- NA
-  
-  pred_data[ds < maxDate, 'yhat_upper'] <- NA
-  
-  pred_data[ds < maxDate, 'yhat'] <- NA
-  
-  return(pred_data)
-  
-  # res <- list('model' = model,
-  #             'forecast' = fcst)
-  # 
-  # return(res)
+  switch(x,
+         's' = 'sec',
+         'm' = 'min',
+         'h' = 'hour') %>% return()
   
 }
-
-
-forecast_result <- function(tb_, fcst, metric) {
-  
-  maxDate <- tb_$ds %>% max()
-  
-  pred_data <- fcst %>%
-    select(ds, yhat_lower, yhat_upper, yhat) %>%
-    full_join(tb_) %>%
-    as.data.table(key = 'ds')
-  
-  pred_data[ds < maxDate, 'yhat_lower'] <- NA
-  
-  pred_data[ds < maxDate, 'yhat_upper'] <- NA
-  
-  pred_data[ds < maxDate, 'yhat'] <- NA
-  
-  return(pred_data)
-  # p <- ggplot(pred_data, aes(x = ds)) +
-  #   geom_line(aes(y = y, colour = 'Actual'), size = 1, na.rm = T) +
-  #   geom_line(aes(y = yhat, color = 'Predicted'), size = 1, na.rm = T) +
-  #   geom_ribbon(aes(ymin = yhat_lower,
-  #                   ymax = yhat_upper),
-  #               alpha = 0.1, linetype = 2) +
-  #   scale_color_manual(labels = c('Actual', 'Predicted'),
-  #                      values = c("blue", "red")) +
-  #   theme(legend.background = element_rect(fill = "white", size = 2),
-  #         legend.justification = 'right',
-  #         legend.position = 'top',
-  #         legend.direction = 'horizontal',
-  #         legend.title = element_blank(),
-  #         legend.text = element_text(size = 10),
-  #         legend.spacing.x = unit(0.3, 'cm')) +
-  #   labs(x = 'time', y = metric)
-  
-  return(list('pred_data' = pred_data,
-              'plot' = p))
-  
-}
-
-
