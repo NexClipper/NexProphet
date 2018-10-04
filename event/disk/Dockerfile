@@ -20,6 +20,10 @@ ARG CACHEBUST=1
 
 RUN Rscript 00.R
 
+COPY 01.R /home
+
+RUN Rscript 01.R
+
 RUN mkdir event-disk
 
 COPY . event-disk/
