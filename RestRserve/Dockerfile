@@ -33,11 +33,11 @@ COPY 00.R .
 
 RUN Rscript 00.R
 
-COPY . analytics/
-
 COPY 01.R .
 
 RUN Rscript 01.R
+
+COPY . analytics
 
 WORKDIR analytics
 
