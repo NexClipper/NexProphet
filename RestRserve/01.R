@@ -15,4 +15,4 @@ bs.Library <- function(pkg, add = T) {
 
 
 # data manipulation
-bs.Library(c('lubridate', 'RMySQL', 'R.utils'))
+bs.Library(c('lubridate', 'R.utils', 'optparse'))

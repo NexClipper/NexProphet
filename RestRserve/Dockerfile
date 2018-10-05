@@ -35,6 +35,10 @@ RUN Rscript 00.R
 
 COPY . analytics/
 
+COPY 01.R .
+
+RUN Rscript 01.R
+
 WORKDIR analytics
 
 CMD Rscript app.R

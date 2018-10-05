@@ -1,6 +1,5 @@
 source('00.R')
 source('01.R')
-source('app_func.R')
 
 
 #### APP ####
@@ -17,16 +16,16 @@ FORECAST <- function(request, response) {
   #'       type: integer
   #'     required: true
   #'     
-  #'   - name: "resource"
-  #'     description: "select host or docker"
+  #'   - name: "measurement"
+  #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
   #'     in: query
   #'     schema:
   #'       type: string
   #'     example: host
   #'     required: true
   #'     
-  #'   - name: "host"
-  #'     description: "insert host ip or task id of docker container"
+  #'   - name: "host_ip"
+  #'     description: "insert host ip as measurement is related to host or docker"
   #'     in: query
   #'     schema:
   #'       type: string
@@ -49,7 +48,7 @@ FORECAST <- function(request, response) {
   #'     example: 6d
   #'     required: true
   #'     
-  #'   - name: "predicted_period"
+  #'   - name: "p_period"
   #'     description: "select period to predict, default : 2 days"
   #'     in: query
   #'     schema:
@@ -62,7 +61,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: '1h'
+  #'     example: 1h
   #'     required: true
   #'     
   #'   - name: "mount"
@@ -70,8 +69,21 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: null
-  #'     required: true
+  #'     required: false
+  #'     
+  #'   - name: "hostIF"
+  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     required: false
+  #'     
+  #'   - name: "dname"
+  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     required: false
   #'     
   #' responses:
   #'   200:
@@ -80,39 +92,48 @@ FORECAST <- function(request, response) {
   #'       text/plain:
   #'         schema:
   #'           type: json
+  #'           example : {"key" : "forecast_1389345221"}
   #' ---
   
   agent_id <- request$query$agent_id
   
-  resource <- request$query$resource
+  measurement <- request$query$measurement
   
-  host <- request$query$host
+  host_ip <- request$query$host_ip
   
   metric <- request$query$metric
   
-  period <- request$query$period %>% as.integer()
+  period <- request$query$period
   
-  # period <- ifelse(is.null(period), 6, period)
-  
-  predicted_period <- request$query$predicted_period %>% as.integer()
-  
-  # predicted_period <- ifelse(is.null(predicted_period), 2, predicted_period)
+  p_period <- request$query$p_period
   
   groupby <- request$query$groupby
   
-  # groupby <- ifelse(is.null(groupby), '1h', groupby)
-  
-  unit <- request$query$unit %>% as.character()
-  
-  # unit <- ifelse(is.null(unit), '0', unit)
+  start_time <- request$query$start_time
   
   mount <- request$query$mount
   
-  # mount <- ifelse(is.null(mount), 'null', mount)
+  key_ <- tempvar('forecast_')
   
-  response$body = forecast_(agent_id, resource, host,
-                            metric, period, predicted_period,
-                            groupby, unit, mount)
+  hostIF <- request$query$hostIF
+  
+  pname <- request$query$pname
+  
+  dname <- request$query$dname
+  
+  dockerIF <- request$query$dockerIF
+  
+  cmd <- "Rscript -e 'source(\"forecast.R\")' -id '%s' -m '%s' -ip '%s' -mtc '%s' -p '%s' -pp '%s' -g '%s' -t '%s' -k '%s' -mnt '%s' -hIF '%s' -pn '%s' -dn '%s' -dIF '%s'" %>% 
+    sprintf(agent_id, measurement, host_ip, metric, period, p_period,
+            groupby, start_time, key_, mount, hostIF, pname, dname, dockerIF)
+  
+  system(cmd, wait = F)
+  
+  body <- list(key = key_) %>%
+    toJSON() %>%
+    as.character()
+  
+  response$body = body
   
   response$content_type = "text/plain"
   
@@ -126,9 +147,10 @@ FORECAST <- function(request, response) {
 
 RestRserveApp <- RestRserveApplication$new()
 
-RestRserveApp$add_get(path = "/forecast", FUN = FORECAST)
+RestRserveApp$add_post(path = "/forecast", FUN = FORECAST)
 
-RestRserveApp$add_openapi(path = "/openapi.yaml", file_path = "openapi.yaml")
+RestRserveApp$add_openapi(path = "/openapi.yaml",
+                          file_path = "openapi.yaml")
 
 RestRserveApp$add_swagger_ui(path = "/swagger", 
                              path_openapi = "/openapi.yaml", 
