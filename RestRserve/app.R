@@ -1,4 +1,5 @@
 library('RestRserve')
+library(R.utils)
 
 #### APP ####
 
@@ -67,7 +68,6 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: \"2018-10-08 10:10:00\"
   #'     required: true
   #'     
   #'   - name: "mount"

@@ -1,8 +1,6 @@
 source('00.R')
 source('01.R')
 
-library(optparse)
-
 
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
