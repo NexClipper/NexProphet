@@ -1,6 +1,7 @@
 library('RestRserve')
 library(R.utils)
 library(tidyverse)
+library(jsonlite)
 
 #### APP ####
 
