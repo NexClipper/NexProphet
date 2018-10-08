@@ -65,6 +65,14 @@ FORECAST <- function(request, response) {
   #'     example: 1h
   #'     required: true
   #'     
+  #'   - name: "start_time"
+  #'     description: "select start time"
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     example: 2018-10-08 10:10:00
+  #'     required: true
+  #'     
   #'   - name: "mount"
   #'     description: "available when metric related to disk. select mount path. default : null. if you want mount path : / or /var, insert total or var. "
   #'     in: query
@@ -79,7 +87,21 @@ FORECAST <- function(request, response) {
   #'       type: string
   #'     required: false
   #'     
+  #'   - name: "pname"
+  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     required: false
+  #'     
   #'   - name: "dname"
+  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     required: false
+  #'     
+  #'   - name: "dockerIF"
   #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
   #'     in: query
   #'     schema:
