@@ -17,6 +17,14 @@ FORECAST <- function(request, response) {
   #'       type: integer
   #'     required: true
   #'     
+  #'   - name: "key"
+  #'     description: "key name to save to the influxdb"
+  #'     in: query
+  #'     schema:
+  #'       type: integer
+  #'     example: 817340112
+  #'     required: true
+  #'     
   #'   - name: "measurement"
   #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
   #'     in: query
@@ -70,6 +78,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: 2018-10-08 14:54:00
   #'     required: true
   #'     
   #'   - name: "mount"
@@ -124,6 +133,8 @@ FORECAST <- function(request, response) {
   
   agent_id <- request$query$agent_id
   
+  key_ <- request$query$key
+  
   measurement <- request$query$measurement
   
   host_ip <- request$query$host_ip
@@ -140,8 +151,6 @@ FORECAST <- function(request, response) {
   
   mount <- request$query$mount
   
-  key_ <- tempvar('forecast_')
-  
   hostIF <- request$query$hostIF
   
   pname <- request$query$pname
@@ -150,13 +159,13 @@ FORECAST <- function(request, response) {
   
   dockerIF <- request$query$dockerIF
   
-  cmd <- "Rscript forecast.R --agent_id '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --key '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>% 
-    sprintf(agent_id, measurement, host_ip, metric, period, p_period,
-            groupby, start_time, key_, mount, hostIF, pname, dname, dockerIF)
+  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>% 
+    sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
+            groupby, start_time, mount, hostIF, pname, dname, dockerIF)
   
   system(cmd, wait = F)
   
-  body <- list(key = key_) %>%
+  body <- request$query %>%
     toJSON() %>%
     as.character()
   
