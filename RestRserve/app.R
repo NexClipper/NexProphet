@@ -70,7 +70,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: 2018-10-08 10:10:00
+  #'     example: "2018-10-08 10:10:00"
   #'     required: true
   #'     
   #'   - name: "mount"
@@ -78,6 +78,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: /
   #'     required: false
   #'     
   #'   - name: "hostIF"
@@ -85,20 +86,23 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: docker0
   #'     required: false
   #'     
   #'   - name: "pname"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     description: "name of host process. available when measurement is host_process."
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: dockerd
   #'     required: false
   #'     
   #'   - name: "dname"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'     description: "name of docker container. available when measurement is host_net."
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: /Nexclipper-Agent
   #'     required: false
   #'     
   #'   - name: "dockerIF"
@@ -106,6 +110,7 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
+  #'     example: eth0
   #'     required: false
   #'     
   #' responses:
@@ -146,7 +151,7 @@ FORECAST <- function(request, response) {
   
   dockerIF <- request$query$dockerIF
   
-  cmd <- "Rscript -e 'source(\"forecast.R\")' -id '%s' -m '%s' -ip '%s' -mtc '%s' -p '%s' -pp '%s' -g '%s' -t '%s' -k '%s' -mnt '%s' -hIF '%s' -pn '%s' -dn '%s' -dIF '%s'" %>% 
+  cmd <- "Rscript -e 'source(\"forecast.R\")' --agent_id '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' -p_period '%s' --groupby '%s' --start_time '%s' --key '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>% 
     sprintf(agent_id, measurement, host_ip, metric, period, p_period,
             groupby, start_time, key_, mount, hostIF, pname, dname, dockerIF)
   
