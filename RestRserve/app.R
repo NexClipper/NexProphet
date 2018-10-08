@@ -128,7 +128,7 @@ FORECAST <- function(request, response) {
   #'       text/plain:
   #'         schema:
   #'           type: json
-  #'           example : {"key" : "forecast_1389345221"}
+  #'           example : {"status" : "200"}
   #' ---
   
   agent_id <- request$query$agent_id
@@ -165,8 +165,8 @@ FORECAST <- function(request, response) {
   
   system(cmd, wait = F)
   
-  body <- list(request$query) %>%
-    toJSON() %>%
+  body <- list('status' = 200) %>% 
+    toJSON() %>% 
     as.character()
   
   response$body = body
