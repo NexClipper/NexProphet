@@ -165,7 +165,7 @@ FORECAST <- function(request, response) {
   
   system(cmd, wait = F)
   
-  body <- request$query %>%
+  body <- list(request$query) %>%
     toJSON() %>%
     as.character()
   
