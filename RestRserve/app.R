@@ -78,7 +78,6 @@ FORECAST <- function(request, response) {
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: 2018-10-08 14:54:00
   #'     required: true
   #'     
   #'   - name: "mount"
