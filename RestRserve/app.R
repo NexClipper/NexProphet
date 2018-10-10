@@ -12,25 +12,17 @@ FORECAST <- function(request, response) {
   #' parameters:
   #'   - name: "agent_id"
   #'     description: "agent_id"
-  #'     in: query
+  #'     in: header
   #'     schema:
   #'       type: integer
   #'     required: true
   #'     
   #'   - name: "key"
   #'     description: "key name to save to the influxdb"
-  #'     in: query
+  #'     in: header
   #'     schema:
   #'       type: integer
   #'     example: 817340112
-  #'     required: true
-  #'     
-  #'   - name: "measurement"
-  #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: host
   #'     required: true
   #'     
   #'   - name: "host_ip"
@@ -39,6 +31,14 @@ FORECAST <- function(request, response) {
   #'     schema:
   #'       type: string
   #'     example: 192.168.0.165
+  #'     required: true
+  #'     
+  #'   - name: "measurement"
+  #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
+  #'     in: query
+  #'     schema:
+  #'       type: string
+  #'     example: host
   #'     required: true
   #'     
   #'   - name: "metric"
@@ -121,22 +121,22 @@ FORECAST <- function(request, response) {
   #'     required: false
   #'     
   #' responses:
-  #'   200:
+  #'   204:
   #'     description: API response
   #'     content:
   #'       text/plain:
   #'         schema:
   #'           type: json
-  #'           example : {"status" : "200"}
+  #'           example : {"status": 204}
   #' ---
   
-  agent_id <- request$query$agent_id
+  agent_id <- request$header$agent_id
   
-  key_ <- request$query$key
-  
-  measurement <- request$query$measurement
+  key_ <- request$header$key
   
   host_ip <- request$query$host_ip
+  
+  measurement <- request$query$measurement
   
   metric <- request$query$metric
   
@@ -158,23 +158,23 @@ FORECAST <- function(request, response) {
   
   dockerIF <- request$query$dockerIF
   
-  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>% 
+  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
             groupby, start_time, mount, hostIF, pname, dname, dockerIF)
-  
+
   system(cmd, wait = F)
   
-  body <- list('status' = 200) %>% 
-    toJSON() %>% 
-    as.character()
+  # body <- list('status' = 204) %>% 
+  #   toJSON() %>% 
+  #   as.character()
   
-  response$body = body
+  response$body = ''
   
   response$content_type = "text/plain"
   
   response$headers = character(0)
   
-  response$status_code = 200L
+  response$status_code = 204L
   
   forward()
   
@@ -182,12 +182,12 @@ FORECAST <- function(request, response) {
 
 RestRserveApp <- RestRserveApplication$new()
 
-RestRserveApp$add_post(path = "/forecast", FUN = FORECAST)
+RestRserveApp$add_get(path = "/v1/forecast", FUN = FORECAST)
 
 RestRserveApp$add_openapi(path = "/openapi.yaml",
                           file_path = "openapi.yaml")
 
-RestRserveApp$add_swagger_ui(path = "/swagger", 
+RestRserveApp$add_swagger_ui(path = "/api/swagger", 
                              path_openapi = "/openapi.yaml", 
                              path_swagger_assets = "/__swagger__")
 
