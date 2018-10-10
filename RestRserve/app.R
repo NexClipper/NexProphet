@@ -27,7 +27,7 @@ FORECAST <- function(request, response) {
   #'     
   #'   - name: "host_ip"
   #'     description: "insert host ip as measurement is related to host or docker"
-  #'     in: query
+  #'     in: path
   #'     schema:
   #'       type: string
   #'     example: 192.168.0.165
@@ -130,9 +130,9 @@ FORECAST <- function(request, response) {
   #'           example : {"status": 204}
   #' ---
   
-  agent_id <- request$header$agent_id
+  agent_id <- request$headers$agent_id
   
-  key_ <- request$header$key
+  key_ <- request$headers$key
   
   host_ip <- request$query$host_ip
   
