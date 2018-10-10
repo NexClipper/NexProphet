@@ -27,7 +27,7 @@ FORECAST <- function(request, response) {
   #'     
   #'   - name: "host_ip"
   #'     description: "insert host ip as measurement is related to host or docker"
-  #'     in: path
+  #'     in: query
   #'     schema:
   #'       type: string
   #'     example: 192.168.0.165
