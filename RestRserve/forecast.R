@@ -8,7 +8,7 @@ connect <- function() {
   con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
                            port = 8086)
   
-  dbname <- 'nexclipper_ai'
+  dbname <- 'nexclipper'
   
   conn <- list(connector = con, dbname = dbname)
   
@@ -24,9 +24,7 @@ write_result_to_influx <- function(dt_) {
   
   connector <- con$connector
   
-  dbname <- con$dbname
-  
-  influx_write(dt_, connector, dbname, 'forecast',
+  influx_write(dt_, connector, 'nexclipper_ai', 'forecast',
                time_col = 'ds', tag_cols = c('key'))
   
 }
@@ -54,7 +52,7 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
                                                     arg$dname),
          'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, start_time,
                                                 arg$dname, arg$dockerIF)) %>% 
-    return()
+    .[!is.na(y)] %>% return()
   
 }
 
@@ -163,7 +161,7 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            start_time, period,
+            start_time,period,
             host_ip,
             groupby)
   
@@ -413,3 +411,4 @@ forecast_(opt$agent_id, opt$measurement, opt$host_ip,
           mount = opt$mount, hostIF = opt$hostIF, pname = opt$pname,
           dname = opt$dname, dockerIF = opt$dockerIF)
 #----
+
