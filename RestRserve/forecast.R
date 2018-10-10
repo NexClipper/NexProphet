@@ -1,5 +1,7 @@
+write.table("-----------In", "logForecast.csv", append = T)
 source('00.R')
 source('01.R')
+
 
 
 #### DB CONNECTION ####

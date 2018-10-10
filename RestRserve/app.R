@@ -166,6 +166,9 @@ FORECAST <- function(request, response) {
 
   system(cmd, wait = F)
   
+  write.table(data.frame("-------"), "logR.csv", append=T)
+  
+  
   # body <- list('status' = 204) %>% 
   #   toJSON() %>% 
   #   as.character()
