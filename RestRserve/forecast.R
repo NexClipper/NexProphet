@@ -383,7 +383,7 @@ opt = parse_args(OptionParser(option_list = option_list))
 print('#######')
 opt %>% unlist() %>% print()
 print('#######')
-
+write.table(opt, "logForecast.csv", append = T)
 #----
 
 #### EXECUTION ####

@@ -158,6 +158,8 @@ FORECAST <- function(request, response) {
   
   dockerIF <- request$query$dockerIF
   
+  write.table(data.frame(measurement, metric), "logR.csv", append=T)
+  
   cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
             groupby, start_time, mount, hostIF, pname, dname, dockerIF)
