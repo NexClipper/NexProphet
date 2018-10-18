@@ -84,7 +84,7 @@ load_disk_used_percent <- function(agent_id,
             from %s
             where time > now() - %sd and
                   agent_id = '%s'
-            group by time(1h), mount_name, host_ip
+            group by time(1h), mount_name, host_ip, host_name
             fill(none)" %>% 
     sprintf(metric,
             measurement, 
@@ -102,19 +102,20 @@ load_disk_used_percent <- function(agent_id,
   
   res %>% 
     select(-1:-3) %>%
-    group_by(time, host_ip, mount_name) %>%
+    group_by(time, host_ip, host_name, mount_name) %>%
     summarise('y' = mean(y, na.rm = T)) %>%
     as.data.table() %>% 
     setnames('time', 'ds') %>% 
-    setkey('ds', 'host_ip', 'mount_name') %>% 
+    setkey('ds', 'host_ip', 'host_name', 'mount_name') %>% 
     merge(CJ(ds = seq.POSIXt(min(.$ds),
                              max(.$ds),
                              by = '1 hour'),
              host_ip = unique(.$host_ip),
+             host_name = unique(.$host_name),
              mount_name = unique(.$mount_name)),
-          by = c('ds', 'host_ip', 'mount_name'),
+          by = c('ds', 'host_ip', 'host_name', 'mount_name'),
           all = T) %>% 
-    dcast(ds ~ host_ip + mount_name, value.var = c('y'), sep = '__') %>% 
+    dcast(ds ~ host_ip + host_name + mount_name, value.var = c('y'), sep = '__') %>% 
     .[, .SD, .SDcols = .[, lapply(.SD, function(x) sum(is.na(x)) <= as.integer(length(x) * 0.10))] %>% 
         unlist() %>% 
         which()] %>% 
@@ -261,7 +262,9 @@ save_result_mysql <- function(dt_,
   
   target_ip <- key_[1]
   
-  mount_name <- key_[2]
+  host_name <- key_[2]
+  
+  mount_name <- key_[3]
   
   cond_ <- switch(severity,
                   'Critical' = critical,
@@ -270,6 +273,9 @@ save_result_mysql <- function(dt_,
   condition <- sprintf('>%s and <%sd',
                        threshold, cond_)
   
+  id <- '%s_%s' %>% 
+    sprintf(target_ip, mount_name)
+  
   contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed threshold at %s" %>% 
     sprintf(target_ip, mount_name, predicted_time)
   
@@ -277,10 +283,11 @@ save_result_mysql <- function(dt_,
                      'severity' = severity,
                      'target_system' = 'Host',
                      'target_ip' = target_ip,
+                     'host_name' = host_name,
                      'target' = 'Disk',
                      'metric' = 'used_percent',
                      'condition' = condition,
-                     'id' = target_ip,
+                     'id' = id,
                      'start_time' = start_time,
                      'contents' = contents,
                      stringsAsFactors = F)

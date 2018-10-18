@@ -6,12 +6,12 @@ current_hour <- START_TIME %>% format('%H')
 
 for (idx in 1:nrow(event_config)) {
   
-  execution_hour <- event_config$frequency[idx] %>%
-    strsplit(':') %>%
-    unlist() %>% 
-    .[1]
-  
-  if (execution_hour != current_hour) next()
+  # execution_hour <- event_config$frequency[idx] %>%
+  #   strsplit(':') %>%
+  #   unlist() %>% 
+  #   .[1]
+  # 
+  # if (execution_hour != current_hour) next()
   
   agent_id <- event_config$agent_id[idx]
   
