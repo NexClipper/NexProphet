@@ -251,7 +251,7 @@ save_result_mysql <- function(dt_,
                    host = host, 
                    port = port)
   
-  predicted_time <- dt_[!is.na(DFT), ds] %>% as.character()
+  predicted_time <- dt_[!is.na(DFT), ds]
   
   severity <- dt_[ds == predicted_time, severity]
   
@@ -276,8 +276,8 @@ save_result_mysql <- function(dt_,
   id <- '%s_%s' %>% 
     sprintf(target_ip, mount_name)
   
-  contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed threshold at %s" %>% 
-    sprintf(target_ip, mount_name, predicted_time)
+  contents <- "[%s] The disk usage of mount path : '%s' for Host will exceed %s at %s" %>% 
+    sprintf(target_ip, mount_name, threshold, predicted_time)
   
   info <- data.frame('agent_id' = agent_id,
                      'severity' = severity,
