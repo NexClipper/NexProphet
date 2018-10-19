@@ -233,44 +233,12 @@ CORRELATION <- function(request, response) {
   #'     example: 817340112
   #'     required: true
   #'     
-  #'   - name: "host_ip"
-  #'     description: "insert host ip as measurement is related to host or docker"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 192.168.0.165
-  #'     required: true
-  #'     
-  #'   - name: "measurement"
-  #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: host
-  #'     required: true
-  #'     
-  #'   - name: "metric"
-  #'     description: "select metric to predict"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: cpu_used_percent
-  #'     required: true
-  #'     
   #'   - name: "period"
   #'     description: "select period to train model, default : 6 days"
   #'     in: query
   #'     schema:
   #'       type: string
   #'     example: 6d
-  #'     required: true
-  #'     
-  #'   - name: "p_period"
-  #'     description: "select period to predict, default : 2 days"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 2d
   #'     required: true
   #'     
   #'   - name: "groupby"
@@ -288,45 +256,19 @@ CORRELATION <- function(request, response) {
   #'       type: string
   #'     required: true
   #'     
-  #'   - name: "mount"
-  #'     description: "available when metric related to disk. select mount path. default : null. if you want mount path : / or /var, insert total or var. "
+  #'   - name: "start_time"
+  #'     description: "select start time"
   #'     in: query
   #'     schema:
   #'       type: string
-  #'     example: /
-  #'     required: false
+  #'     required: true
   #'     
-  #'   - name: "hostIF"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
+  #'   - name: "docker_container"
+  #'     description: "docker_container"
   #'     in: query
   #'     schema:
-  #'       type: string
-  #'     example: docker0
-  #'     required: false
-  #'     
-  #'   - name: "pname"
-  #'     description: "name of host process. available when measurement is host_process."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: dockerd
-  #'     required: false
-  #'     
-  #'   - name: "dname"
-  #'     description: "name of docker container. available when measurement is host_net."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: /Nexclipper-Agent
-  #'     required: false
-  #'     
-  #'   - name: "dockerIF"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: eth0
-  #'     required: false
+  #'       type: object
+  #'     required: true
   #'     
   #' responses:
   #'   204:
@@ -342,31 +284,13 @@ CORRELATION <- function(request, response) {
   
   key_ <- request$headers$key
   
-  host_ip <- request$query$host_ip
-  
-  measurement <- request$query$measurement
-  
-  metric <- request$query$metric
-  
   period <- request$query$period
-  
-  p_period <- request$query$p_period
   
   groupby <- request$query$groupby
   
   start_time <- request$query$start_time
   
-  mount <- request$query$mount
-  
-  hostIF <- request$query$hostIF
-  
-  pname <- request$query$pname
-  
-  dname <- request$query$dname
-  
-  dockerIF <- request$query$dockerIF
-  
-  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
+  cmd <- "Rscript correlation.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
             groupby, start_time, mount, hostIF, pname, dname, dockerIF)
   
@@ -387,6 +311,8 @@ CORRELATION <- function(request, response) {
 RestRserveApp <- RestRserveApplication$new()
 
 RestRserveApp$add_get(path = "/v1/forecast", FUN = FORECAST)
+
+RestRserveApp$add_get(path = "/v1/correlation", FUN = CORRELATION)
 
 RestRserveApp$add_openapi(path = "/openapi.yaml",
                           file_path = "openapi.yaml")

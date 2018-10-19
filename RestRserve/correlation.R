@@ -1,5 +1,7 @@
 source('00.R')
 source('01.R')
+source('02.R')
+
 
 #### DB CONNECTION ####
 connect <- function() {
@@ -607,11 +609,7 @@ dt <- load_multiple_metric(27, '7d', '1h', '2018-10-18 17:00:00',
 #### ARGUMENT PARSING ####
 option_list <- list(
   make_option(c("-id", "--agent_id"), action = "store", type = 'character'),
-  make_option(c("-m", "--measurement"), action = "store", type = 'character'),
-  make_option(c("-ip", "--host_ip"), action = "store", type = 'character'),
-  make_option(c("-mtc", "--metric"), action = "store", type = 'character'),
   make_option(c("-p", "--period"), action = "store", type = 'character'),
-  make_option(c("-pp", "--p_period"), action = "store", type = 'character'),
   make_option(c("-g", "--groupby"), action = "store", type = 'character'),
   make_option(c("-t", "--start_time"), action = "store", type = 'character'),
   make_option(c("-k", "--key"), action = "store", type = 'character'),
@@ -624,6 +622,13 @@ option_list <- list(
 
 opt = parse_args(OptionParser(option_list = option_list))
 
-print('#####################')
+print('########METRIC ASSOCIATION########')
 opt %>% unlist() %>% print()
-print('#####################')
+print('##################################')
+
+#### EXECUTION ####
+# agent_id, period, groupby, start_time, key_, ...
+get_corr_mtx(opt$agent_id, opt$period, opt$groupby,
+             opt$start_time, opt$key,
+             mount = opt$mount, hostIF = opt$hostIF, pname = opt$pname,
+             dname = opt$dname, dockerIF = opt$dockerIF)
