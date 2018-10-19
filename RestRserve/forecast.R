@@ -1,7 +1,5 @@
-write.table("-----------In", "logForecast.csv", append = T)
 source('00.R')
 source('01.R')
-
 
 
 #### DB CONNECTION ####
@@ -120,7 +118,7 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, star
             group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
-            stat_time, period,
+            start_time, period,
             host_ip,
             dname,
             interface,
@@ -275,7 +273,7 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time
 
 
 load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
-  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period=6;groupby='1h';unit='0';pname='mysqld'
+  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';pname='mysqld'
   con <- connect()
   
   connector <- con$connector
@@ -382,10 +380,45 @@ option_list <- list(
 
 opt = parse_args(OptionParser(option_list = option_list))
 
-print('#######')
+print('#####################')
 opt %>% unlist() %>% print()
-print('#######')
-write.table(opt, "logForecast.csv", append = T)
+print('#####################')
+#----
+
+#### write mysql ####
+update_key_id_to_mysql <- function(agent_id, key_,
+                                   status, message) {
+  
+  # con <- dbConnect(MySQL(), 
+  #                  user = 'admin', 
+  #                  password = 'password',
+  #                  dbname = 'defaultdb',
+  #                  host = 'mysql.marathon.l4lb.thisdcos.directory', 
+  #                  port = 3306)
+  con <- dbConnect(MySQL(), 
+                   user = 'admin', 
+                   password = 'password',
+                   dbname = 'defaultdb',
+                   host = '192.168.0.165', 
+                   port = 25322)
+  
+  query <- "update nexclipper_key
+            set end_time = '%s',
+                status = %s, 
+                message = '%s'
+            where agent_id = '%s' and key_id = '%s'" %>% 
+    sprintf(Sys.time(), status, message,
+            agent_id, key_)
+  
+  cat('\n', query, '\n')
+  
+  dbGetQuery(con, query)
+  
+  dbCommit(con)
+  
+  dbDisconnect(con)
+  
+}
 #----
 
 #### EXECUTION ####
@@ -405,6 +438,8 @@ forecast_ <- function(agent_id, measurement, host_ip,
   
   write_result_to_influx(result)
   
+  update_key_id_to_mysql(agent_id, key, 200, 'Success')
+  
 }
 
 forecast_(opt$agent_id, opt$measurement, opt$host_ip,
@@ -413,4 +448,5 @@ forecast_(opt$agent_id, opt$measurement, opt$host_ip,
           mount = opt$mount, hostIF = opt$hostIF, pname = opt$pname,
           dname = opt$dname, dockerIF = opt$dockerIF)
 #----
+
 
