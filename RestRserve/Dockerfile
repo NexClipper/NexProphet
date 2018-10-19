@@ -37,6 +37,10 @@ COPY 01.R .
 
 RUN Rscript 01.R
 
+COPY 02.R .
+
+RUN Rscript 02.R
+
 COPY . analytics
 
 WORKDIR analytics
