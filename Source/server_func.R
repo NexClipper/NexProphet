@@ -1,3 +1,8 @@
+envir_list <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT'))
+
+INFLUX_ADDRESS <- envir_list['INFLUX_ADDRESS']
+
+INFLUX_PORT <- envir_list['INFLUX_PORT']
 
 #### COMMON FUNCTION ####
 
@@ -12,8 +17,10 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-                           port = 8086)
+  # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
+  #                          port = 8086)
+  con <- influx_connection(host = INFLUX_ADDRESS,
+                           port = INFLUX_PORT)
   # con <- influx_connection(host = '13.77.154.37',
   #                          port = 10091)
   
