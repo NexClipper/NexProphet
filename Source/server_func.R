@@ -2,7 +2,7 @@ envir_list <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT'))
 
 INFLUX_ADDRESS <- envir_list['INFLUX_ADDRESS']
 
-INFLUX_PORT <- envir_list['INFLUX_PORT']
+INFLUX_PORT <- envir_list['INFLUX_PORT'] %>% as.integer()
 
 #### COMMON FUNCTION ####
 
