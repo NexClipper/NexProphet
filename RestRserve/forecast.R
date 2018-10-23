@@ -47,8 +47,8 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
                                       arg$mount),
          'host_net' = load_host_net(agent_id, host_ip, metric, period, groupby, start_time,
                                     arg$hostIF),
-         'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
-                                            arg$pname),
+         # 'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
+         #                                    arg$pname),
          'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, start_time,
                                                     arg$dname),
          'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, start_time,
@@ -95,7 +95,6 @@ load_docker_container <- function(agent_id, host_ip, metric, period, groupby, st
   res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
     setkey(ds) %>% return()
   
 }
@@ -140,7 +139,6 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, star
   res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
     setkey(ds) %>% return()
   
 }
@@ -181,7 +179,6 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
     setkey(ds) %>% return()
   
 }
@@ -224,7 +221,6 @@ load_host_disk <- function(agent_id, host_ip, metric, period, groupby, start_tim
   res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
     setkey(ds) %>% return()
   
 }
@@ -267,56 +263,55 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time
   res %>% 
     .[, -1:-4] %>% 
     setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
     setkey(ds) %>% return()
   
 }
 
 
-load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
-  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';pname='mysqld'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
-  pname <- paste0('"name" = ', "'%s'") %>% 
-    sprintf(pname)
-  
-  query <- "select mean(%s) as y
-            from host_process
-            where agent_id = '%s' and
-                  time > '%s' - %s and
-                  host_ip = '%s' and 
-                  %s
-            group by time(%s)" %>% 
-    sprintf(metric,
-            agent_id,
-            start_time, period,
-            host_ip,
-            pname,
-            groupby)
-  
-  cat('\n', query, '\n\n')
-  
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
-                      simplifyList = T)[[1]] %>% 
-    as.data.table()
-  
-  if (!('time' %in% names(res)))
-    
-    return(NULL)
-  
-  res %>% 
-    .[, -1:-4] %>% 
-    setnames('time', 'ds') %>% 
-    .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
-    setkey(ds) %>% return()
-  
-}
+# load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
+#   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';pname='mysqld'
+#   con <- connect()
+#   
+#   connector <- con$connector
+#   
+#   dbname <- con$dbname
+#   
+#   pname <- paste0('"name" = ', "'%s'") %>% 
+#     sprintf(pname)
+#   
+#   query <- "select mean(%s) as y
+#             from host_process
+#             where agent_id = '%s' and
+#                   time > '%s' - %s and
+#                   host_ip = '%s' and 
+#                   %s
+#             group by time(%s)" %>% 
+#     sprintf(metric,
+#             agent_id,
+#             start_time, period,
+#             host_ip,
+#             pname,
+#             groupby)
+#   
+#   cat('\n', query, '\n\n')
+#   
+#   res <- influx_query(connector,
+#                       dbname,
+#                       query, return_xts = F,
+#                       simplifyList = T)[[1]] %>% 
+#     as.data.table()
+#   
+#   if (!('time' %in% names(res)))
+#     
+#     return(NULL)
+#   
+#   res %>% 
+#     .[, -1:-4] %>% 
+#     setnames('time', 'ds') %>% 
+#     .[, ds := with_tz(ds, 'Asia/Seoul')] %>% 
+#     setkey(ds) %>% return()
+#   
+# }
 
 
 forecasting <- function(tb_, groupby, predicted_period,
@@ -390,25 +385,21 @@ print('########################')
 update_key_id_to_mysql <- function(agent_id, key_,
                                    status, message) {
   
-  # con <- dbConnect(MySQL(), 
-  #                  user = 'admin', 
-  #                  password = 'password',
-  #                  dbname = 'defaultdb',
-  #                  host = 'mysql.marathon.l4lb.thisdcos.directory', 
-  #                  port = 3306)
-  con <- dbConnect(MySQL(), 
-                   user = 'admin', 
+  con <- dbConnect(MySQL(),
+                   user = 'admin',
                    password = 'password',
                    dbname = 'defaultdb',
-                   host = '192.168.0.165', 
-                   port = 25322)
+                   host = 'mysql.marathon.l4lb.thisdcos.directory',
+                   port = 3306)
+  
+  end_time <- Sys.time()
   
   query <- "update nexclipper_key
             set end_time = '%s',
                 status = %s, 
                 message = '%s'
             where agent_id = '%s' and key_id = '%s'" %>% 
-    sprintf(Sys.time(), status, message,
+    sprintf(end_time, status, message,
             agent_id, key_)
   
   cat('\n', query, '\n')
@@ -418,6 +409,8 @@ update_key_id_to_mysql <- function(agent_id, key_,
   dbCommit(con)
   
   dbDisconnect(con)
+  
+  cat('\n', 'write key id to mysql', '\n')
   
 }
 #----

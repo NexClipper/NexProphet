@@ -3,21 +3,16 @@ library(tidyverse)
 library(jsonlite)
 library(RMySQL)
 
+
 #### MYSQL ####
 write_init_to_mysql <- function(agent_id, key_, start_time) {
   
-  # con <- dbConnect(MySQL(), 
-  #                  user = 'admin', 
-  #                  password = 'password',
-  #                  dbname = 'defaultdb',
-  #                  host = 'mysql.marathon.l4lb.thisdcos.directory', 
-  #                  port = 3306)
-  con <- dbConnect(MySQL(), 
-                   user = 'admin', 
+  con <- dbConnect(MySQL(),
+                   user = 'admin',
                    password = 'password',
                    dbname = 'defaultdb',
-                   host = '192.168.0.165', 
-                   port = 25322)
+                   host = 'mysql.marathon.l4lb.thisdcos.directory',
+                   port = 3306)
   
   info <- data.frame('agent_id' = agent_id,
                      'key_id' = key_,
@@ -256,20 +251,6 @@ CORRELATION <- function(request, response) {
   #'       type: string
   #'     required: true
   #'     
-  #'   - name: "start_time"
-  #'     description: "select start time"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     required: true
-  #'     
-  #'   - name: "docker_container"
-  #'     description: "docker_container"
-  #'     in: query
-  #'     schema:
-  #'       type: object
-  #'     required: true
-  #'     
   #' responses:
   #'   204:
   #'     description: API response
@@ -290,9 +271,12 @@ CORRELATION <- function(request, response) {
   
   start_time <- request$query$start_time
   
-  cmd <- "Rscript correlation.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
-    sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
-            groupby, start_time, mount, hostIF, pname, dname, dockerIF)
+  request_body <- request$body %>% rawToChar()
+  
+  write_init_to_mysql(agent_id, key_, start_time)
+  
+  cmd <- "Rscript correlation.R --agent_id '%s' --key '%s' --period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
+    sprintf(agent_id, key_, period, groupby, start_time, request_body)
   
   system(cmd, wait = F)
   
@@ -308,11 +292,12 @@ CORRELATION <- function(request, response) {
   
 }
 
+
 RestRserveApp <- RestRserveApplication$new()
 
 RestRserveApp$add_get(path = "/v1/forecast", FUN = FORECAST)
 
-RestRserveApp$add_get(path = "/v1/correlation", FUN = CORRELATION)
+RestRserveApp$add_post(path = "/v1/correlation", FUN = CORRELATION)
 
 RestRserveApp$add_openapi(path = "/openapi.yaml",
                           file_path = "openapi.yaml")
@@ -322,17 +307,3 @@ RestRserveApp$add_swagger_ui(path = "/api/swagger",
                              path_swagger_assets = "/__swagger__")
 
 RestRserveApp$run(http_port = "8484")
-
-# configuration = c("http.port" = "8484",
-#                   "encoding" = "utf8",
-#                   "port" = "6311")
-# 
-# dir = tempdir()
-# 
-# app_path <- getwd() %>% paste0('/app.R')
-# 
-# restrserve_deploy(file = app_path,
-#                   dir = dir,
-#                   configuration = configuration)
-# 
-# restrserve_start(dir)
