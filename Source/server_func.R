@@ -1,8 +1,12 @@
-envir_list <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT'))
+envir_list <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME', 'HOSTAPI_ADDRESS'))
 
 INFLUX_ADDRESS <- envir_list['INFLUX_ADDRESS']
 
 INFLUX_PORT <- envir_list['INFLUX_PORT'] %>% as.integer()
+
+INFLUX_DBNAME <- envir_list['INFLUX_DBNAME']
+
+HOSTAPI_ADDRESS <- envir_list['HOSTAPI_ADDRESS']
 
 #### COMMON FUNCTION ####
 
@@ -17,14 +21,10 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-  #                          port = 8086)
   con <- influx_connection(host = INFLUX_ADDRESS,
                            port = INFLUX_PORT)
-  # con <- influx_connection(host = '13.77.154.37',
-  #                          port = 10091)
   
-  dbname <- 'nexclipper'
+  dbname <- INFLUX_DBNAME
   
   conn <- list(connector = con, dbname = dbname)
   
@@ -697,11 +697,9 @@ load_tag_list <- function(measurement, agent_id, default_ = T) {
 
 load_docker_tag_list <- function(agent_id, default_) {
   # agent_id <- 47
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
+  url <- 'http://%s/v1/docker/snapshot' %>% sprintf(HOSTAPI_ADDRESS)
+  
+  res <- GET(url,
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
@@ -770,11 +768,10 @@ load_docker_tag_list <- function(agent_id, default_) {
 
 load_host_tag_list <- function(agent_id, default_) {
   # agent_id <- 13
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+  url <- 'http://%s/v1/agent/status' %>% 
+    sprintf(HOSTAPI_ADDRESS)
+  
+  res <- GET(url,
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
