@@ -30,10 +30,16 @@ RUN Rscript 01.R
 
 RUN apt-get install -y git
 
+RUN apt-get install -y vim
+
 RUN rm -f 00.R 01.R
 
-ARG CACHEBUST=1
+ARG CACHEBUST
 
 RUN apt-get update -y
 
 RUN git clone -b Ops --single-branch https://github.com/NexClipper/NexProphet.git .
+
+RUN env > /home/shiny/.Renviron
+
+RUN chown shiny.shiny /home/shiny/.Renviron
