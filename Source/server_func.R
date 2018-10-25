@@ -1,21 +1,24 @@
 #### ENVIRONMENT VARIABLE ####
 
-# system('env > /srv/shiny-server/env.txt')
+system('env > /srv/shiny-server/env.txt')
 # 
 # env <- read.csv('/srv/shiny-server/env.txt',
 #                 header = F,
 #                 stringsAsFactors = F) %>% 
 #   separate(1, c('key', 'value'), sep = '=') %>% 
 #   spread(key, value)
-env <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME'))
-write.table(env, '/srv/shiny-server/env.txt')
-INFLUX_ADDRESS <- env['INFLUX_ADDRESS']
+env <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME', 'HOSTAPI_ADDRESS',
+                    'R_INFLUX_ADDRESS', 'R_INFLUX_PORT', 'R_INFLUX_DBNAME', 'R_HOSTAPI_ADDRESS'))
 
-INFLUX_PORT <- env['INFLUX_PORT'] %>% as.integer()
+write.table(env, '/srv/shiny-server/R_env.txt')
 
-INFLUX_DBNAME <- env['INFLUX_DBNAME']
+INFLUX_ADDRESS <- env['R_INFLUX_ADDRESS']
 
-HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'#env['HOSTAPI_ADDRESS']
+INFLUX_PORT <- env['R_INFLUX_PORT'] %>% as.integer()
+
+INFLUX_DBNAME <- env['R_INFLUX_DBNAME']
+
+HOSTAPI_ADDRESS <- env['R_HOSTAPI_ADDRESS']
 
 #----
 
