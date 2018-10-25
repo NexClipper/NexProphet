@@ -55,7 +55,7 @@ get_event_config <- function(user = MYSQL_USER,
                              dbname = MYSQL_DB,
                              host = MYSQL_HOST,
                              port = MYSQL_PORT) {
-  return(5)
+  
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
