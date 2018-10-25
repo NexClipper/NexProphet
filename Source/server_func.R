@@ -1,20 +1,21 @@
 #### ENVIRONMENT VARIABLE ####
 
-system('env > /srv/shiny-server/env.txt')
-
-env <- read.csv('/srv/shiny-server/env.txt',
-                header = F,
-                stringsAsFactors = F) %>% 
-  separate(1, c('key', 'value'), sep = '=') %>% 
-  spread(key, value)
-
+# system('env > /srv/shiny-server/env.txt')
+# 
+# env <- read.csv('/srv/shiny-server/env.txt',
+#                 header = F,
+#                 stringsAsFactors = F) %>% 
+#   separate(1, c('key', 'value'), sep = '=') %>% 
+#   spread(key, value)
+env <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME'))
+write.table(env, '/srv/shiny-server/env.txt')
 INFLUX_ADDRESS <- env['INFLUX_ADDRESS']
 
 INFLUX_PORT <- env['INFLUX_PORT'] %>% as.integer()
 
 INFLUX_DBNAME <- env['INFLUX_DBNAME']
 
-HOSTAPI_ADDRESS <- env['HOSTAPI_ADDRESS']
+HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'#env['HOSTAPI_ADDRESS']
 
 #----
 
