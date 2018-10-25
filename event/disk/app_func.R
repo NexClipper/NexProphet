@@ -24,11 +24,11 @@ ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB',
                     'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
                     'CUT'))
 
-INFLUX_HOST <- ENV['INFLUX_HOST']
+INFLUX_HOST <- '13.77.154.37'#ENV['INFLUX_HOST']
 
-INFLUX_PORT <- ENV['INFLUX_PORT'] %>% as.integer()
+INFLUX_PORT <- 10091#ENV['INFLUX_PORT'] %>% as.integer()
 
-INFLUX_DB <- ENV['INFLUX_DB']
+INFLUX_DB <- 'nexclipper'#ENV['INFLUX_DB']
 
 MYSQL_USER <- ENV['MYSQL_USER']
 
@@ -40,7 +40,7 @@ MYSQL_HOST <- ENV['MYSQL_HOST']
 
 MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
 
-CUT <- ENV['CUT'] %>% as.numeric()
+CUT <- '0.95'#ENV['CUT'] %>% as.numeric()
 
 INFLUX_CONN <- influx_connection(host = INFLUX_HOST,
                                  port = INFLUX_PORT)
@@ -55,7 +55,7 @@ get_event_config <- function(user = MYSQL_USER,
                              dbname = MYSQL_DB,
                              host = MYSQL_HOST,
                              port = MYSQL_PORT) {
-  
+  return(5)
   con <- dbConnect(MySQL(), 
                    user = user, 
                    password = password,
@@ -254,7 +254,7 @@ save_result_mysql <- function(dt_,
   predicted_time <- dt_[!is.na(DFT), ds]
   
   current_usage <- dt_[!is.na(origin_y), origin_y] %>%
-    tail(1)
+    tail(1) %>% round(2)
   
   severity <- dt_[ds == predicted_time, severity]
   
@@ -264,8 +264,8 @@ save_result_mysql <- function(dt_,
     unlist()
   
   target_ip <- key_[1]
-  
-  host_name <- key_[2]
+  browser()
+  host_name <- key_[2] %>% is.null() %>% ifelse('NoName', key_[2])
   
   mount_name <- key_[3]
   
