@@ -40,6 +40,3 @@ RUN apt-get update -y
 
 RUN git clone -b Ops --single-branch https://github.com/NexClipper/NexProphet.git .
 
-RUN env > /home/shiny/.Renviron
-
-RUN chown shiny.shiny /home/shiny/.Renviron

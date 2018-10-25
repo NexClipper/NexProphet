@@ -1,12 +1,22 @@
-envir_list <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME', 'HOSTAPI_ADDRESS'))
+#### ENVIRONMENT VARIABLE ####
 
-INFLUX_ADDRESS <- envir_list['INFLUX_ADDRESS']
+system('env > /srv/shiny-server/env.txt')
 
-INFLUX_PORT <- envir_list['INFLUX_PORT'] %>% as.integer()
+env <- read.csv('/srv/shiny-server/env.txt',
+                header = F,
+                stringsAsFactors = F) %>% 
+  separate(1, c('key', 'value'), sep = '=') %>% 
+  spread(key, value)
 
-INFLUX_DBNAME <- envir_list['INFLUX_DBNAME']
+INFLUX_ADDRESS <- env['INFLUX_ADDRESS']
 
-HOSTAPI_ADDRESS <- envir_list['HOSTAPI_ADDRESS']
+INFLUX_PORT <- env['INFLUX_PORT'] %>% as.integer()
+
+INFLUX_DBNAME <- env['INFLUX_DBNAME']
+
+HOSTAPI_ADDRESS <- env['HOSTAPI_ADDRESS']
+
+#----
 
 #### COMMON FUNCTION ####
 
