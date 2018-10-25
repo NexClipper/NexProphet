@@ -29,7 +29,7 @@ for (idx in 1:nrow(event_config)) {
   
   period <- event_config$period[idx]
 
-  data_ <- load_disk_used_percent(agent_id, metric, measurement, period, timezone)
+  data_ <- load_disk_used_percent(agent_id, timezone)
   
   if (is.null(data_)) next()
   

@@ -21,7 +21,7 @@ bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
 
 #### CONSTANT ####
 ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB',
-                    'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_PW', 'MYSQL_',
+                    'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
                     'CUT'))
 
 INFLUX_HOST <- ENV$INFLUX_HOST
@@ -51,8 +51,8 @@ START_TIME <- Sys.time()
 
 #### AGENT_ID LIST ####
 get_event_config <- function(user = MYSQL_USER,
-                             password = MYSQL_PASSWORD,
-                             dbname = MYSQL_DBNAME,
+                             password = MYSQL_PW,
+                             dbname = MYSQL_DB,
                              host = MYSQL_HOST,
                              port = MYSQL_PORT) {
   
@@ -75,29 +75,24 @@ get_event_config <- function(user = MYSQL_USER,
 
 #### functions ####
 
-load_disk_used_percent <- function(agent_id,
-                                   metric, measurement,
-                                   period, timezone,
-                                   con = CONN,
-                                   dbname = INFLUX_DBNAME) {
+load_disk_used_percent <- function(agent_id, timezone,
+                                   con = INFLUX_CONN,
+                                   dbname = INFLUX_DB) {
   
-  query <- "select mean(%s) as y
-            from %s
-            where time > now() - %sd and
+  query <- "select mean(used_percent) as y
+            from host_disk
+            where time > now() - 21d and
                   agent_id = '%s'
             group by time(1h), mount_name, host_ip, host_name
             fill(none)" %>% 
-    sprintf(metric,
-            measurement, 
-            period,
-            agent_id)
+    sprintf(agent_id)
   
   cat('\n', query, '\n')
   
   res <- influx_query(con,
-               dbname,
-               query,
-               return_xts = F)[[1]]
+                      dbname,
+                      query,
+                      return_xts = F)[[1]]
   
   if (!('time' %in% names(res))) return(NULL)
   
@@ -107,7 +102,7 @@ load_disk_used_percent <- function(agent_id,
     summarise('y' = mean(y, na.rm = T)) %>%
     as.data.table() %>% 
     setnames('time', 'ds') %>% 
-    setkey('ds', 'host_ip', 'host_name', 'mount_name') %>% 
+    setkey('ds') %>% 
     # merge(CJ(ds = seq.POSIXt(min(.$ds),
     #                          max(.$ds),
     #                          by = '1 hour'),
@@ -123,7 +118,9 @@ load_disk_used_percent <- function(agent_id,
         unlist() %>% 
         which()] %>% 
     .[, lapply(.SD, function(x) na.approx(x) %>% na.fill('extend'))] %>% 
-    .[, ds := as_datetime(ds, origin = '1970-01-01', tz = timezone)] %>% 
+    .[, ds := as_datetime(ds,
+                          origin = '1970-01-01',
+                          tz = timezone)] %>% 
     setkey(ds) %>%
     melt(id.vars = 1,
          measure.vars = 2:ncol(.),
@@ -240,8 +237,8 @@ save_result_mysql <- function(dt_,
                               critical, warning, timezone,
                               start_time = START_TIME,
                               user = MYSQL_USER,
-                              password = MYSQL_PASSWORD,
-                              dbname = MYSQL_DBNAME,
+                              password = MYSQL_PW,
+                              dbname = MYSQL_DB,
                               host = MYSQL_HOST,
                               port = MYSQL_PORT) {
   
@@ -255,6 +252,9 @@ save_result_mysql <- function(dt_,
                    port = port)
   
   predicted_time <- dt_[!is.na(DFT), ds]
+  
+  current_usage <- dt_[!is.na(origin_y), origin_y] %>%
+    tail(1)
   
   severity <- dt_[ds == predicted_time, severity]
   
@@ -279,10 +279,12 @@ save_result_mysql <- function(dt_,
   id <- '%s_%s' %>% 
     sprintf(target_ip, mount_name)
   
-  start_time <- start_time %>% as_datetime(tz = timezone)
+  start_time <- start_time %>%
+    as_datetime(tz = timezone) %>% 
+    as.character()
   
-  contents <- "[%s][Path : '%s'] The disk usage %s for Host will exceed %s at %s" %>% 
-    sprintf(target_ip, mount_name, threshold, predicted_time)
+  contents <- "[%s][Path : '%s'] The disk usage %s%% for Host will exceed %s at %s" %>% 
+    sprintf(start_time, mount_name, current_usage, threshold, predicted_time)
   
   info <- data.frame('agent_id' = agent_id,
                      'severity' = severity,
