@@ -24,23 +24,23 @@ ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB',
                     'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
                     'CUT'))
 
-INFLUX_HOST <- ENV$INFLUX_HOST
+INFLUX_HOST <- ENV['INFLUX_HOST']
 
-INFLUX_PORT <- ENV$INFLUX_PORT %>% as.integer()
+INFLUX_PORT <- ENV['INFLUX_PORT'] %>% as.integer()
 
-INFLUX_DB <- ENV$INFLUX_DB
+INFLUX_DB <- ENV['INFLUX_DB']
 
-MYSQL_USER <- ENV$MYSQL_USER
+MYSQL_USER <- ENV['MYSQL_USER']
 
-MYSQL_PW <- ENV$MYSQL_PW
+MYSQL_PW <- ENV['MYSQL_PW']
 
-MYSQL_DB <- ENV$MYSQL_DB
+MYSQL_DB <- ENV['MYSQL_DB']
 
-MYSQL_HOST <- ENV$MYSQL_HOST
+MYSQL_HOST <- ENV['MYSQL_HOST']
 
-MYSQL_PORT <- ENV$MYSQL_PORT %>% as.integer()
+MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
 
-CUT <- ENV$CUT %>% as.numeric()
+CUT <- ENV['CUT'] %>% as.numeric()
 
 INFLUX_CONN <- influx_connection(host = INFLUX_HOST,
                                  port = INFLUX_PORT)
