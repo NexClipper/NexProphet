@@ -15,34 +15,35 @@ bs.Library <- function(pkg, add = T) {
 }
 
 bs.Library(c('prophet', 'tidyverse', 'xts', 'influxdbr', 'zoo',
-             'data.table', 'jsonlite', 'RMySQL', 'slackr', 'scales',
+             'data.table', 'RMySQL', 'slackr', 'scales',
              'lubridate'))
 
 
 #### CONSTANT ####
+ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB',
+                    'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_PW', 'MYSQL_',
+                    'CUT'))
 
-internal <- read_json('internal.conf')
+INFLUX_HOST <- ENV$INFLUX_HOST
 
-INFLUX_HOST <- internal$influx_host
+INFLUX_PORT <- ENV$INFLUX_PORT %>% as.integer()
 
-INFLUX_PORT <- internal$influx_port %>% as.integer()
+INFLUX_DB <- ENV$INFLUX_DB
 
-INFLUX_DBNAME <- internal$influx_dbname
+MYSQL_USER <- ENV$MYSQL_USER
 
-MYSQL_USER <- internal$mysql_user
+MYSQL_PW <- ENV$MYSQL_PW
 
-MYSQL_PASSWORD <- internal$mysql_password
+MYSQL_DB <- ENV$MYSQL_DB
 
-MYSQL_DBNAME <- internal$mysql_dbname
+MYSQL_HOST <- ENV$MYSQL_HOST
 
-MYSQL_HOST <- internal$mysql_host
+MYSQL_PORT <- ENV$MYSQL_PORT %>% as.integer()
 
-MYSQL_PORT <- internal$mysql_port %>% as.integer()
+CUT <- ENV$CUT %>% as.numeric()
 
-CUT <- internal$cut %>% as.numeric()
-
-CONN <- influx_connection(host = INFLUX_HOST,
-                          port = INFLUX_PORT)
+INFLUX_CONN <- influx_connection(host = INFLUX_HOST,
+                                 port = INFLUX_PORT)
 
 START_TIME <- Sys.time()
 
@@ -107,15 +108,17 @@ load_disk_used_percent <- function(agent_id,
     as.data.table() %>% 
     setnames('time', 'ds') %>% 
     setkey('ds', 'host_ip', 'host_name', 'mount_name') %>% 
-    merge(CJ(ds = seq.POSIXt(min(.$ds),
-                             max(.$ds),
-                             by = '1 hour'),
-             host_ip = unique(.$host_ip),
-             host_name = unique(.$host_name),
-             mount_name = unique(.$mount_name)),
-          by = c('ds', 'host_ip', 'host_name', 'mount_name'),
-          all = T) %>% 
-    dcast(ds ~ host_ip + host_name + mount_name, value.var = c('y'), sep = '__') %>% 
+    # merge(CJ(ds = seq.POSIXt(min(.$ds),
+    #                          max(.$ds),
+    #                          by = '1 hour'),
+    #          host_ip = unique(.$host_ip),
+    #          host_name = unique(.$host_name),
+    #          mount_name = unique(.$mount_name)),
+    #       by = c('ds', 'host_ip', 'host_name', 'mount_name'),
+    #       all = T) %>% 
+    dcast(ds ~ host_ip + host_name + mount_name,
+          value.var = c('y'),
+          sep = '__') %>% 
     .[, .SD, .SDcols = .[, lapply(.SD, function(x) sum(is.na(x)) <= as.integer(length(x) * 0.10))] %>% 
         unlist() %>% 
         which()] %>% 
@@ -234,7 +237,7 @@ add_DFT <- function(dt,
 
 save_result_mysql <- function(dt_,
                               agent_id, threshold,
-                              critical, warning,
+                              critical, warning, timezone,
                               start_time = START_TIME,
                               user = MYSQL_USER,
                               password = MYSQL_PASSWORD,
@@ -276,7 +279,9 @@ save_result_mysql <- function(dt_,
   id <- '%s_%s' %>% 
     sprintf(target_ip, mount_name)
   
-  contents <- "[%s][Path : '%s'] The disk usage for Host will exceed %s at %s" %>% 
+  start_time <- start_time %>% as_datetime(tz = timezone)
+  
+  contents <- "[%s][Path : '%s'] The disk usage %s for Host will exceed %s at %s" %>% 
     sprintf(target_ip, mount_name, threshold, predicted_time)
   
   info <- data.frame('agent_id' = agent_id,
