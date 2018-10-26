@@ -56,7 +56,7 @@ FORECAST <- function(request, response) {
   
   key_ <- request$headers$key
   
-  host_ip <- request$path$host_ip
+  host_ip <- request$query$host_ip
   
   measurement <- request$query$measurement
   
@@ -82,7 +82,7 @@ FORECAST <- function(request, response) {
   
   response$body = ''
   
-  response$content_type = "application/json"
+  response$content_type = "text/plain"
   
   response$headers = character(0)
   
@@ -116,7 +116,7 @@ CORRELATION <- function(request, response) {
   
   response$body = ''
   
-  response$content_type = "applcation/json"
+  response$content_type = "text/plain"
   
   response$headers = character(0)
   
