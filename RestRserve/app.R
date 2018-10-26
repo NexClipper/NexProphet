@@ -1,4 +1,4 @@
-library('RestRserve')
+library(RestRserve)
 library(tidyr)
 library(jsonlite)
 library(RMySQL)
@@ -52,134 +52,11 @@ write_init_to_mysql <- function(agent_id, key_, start_time) {
 
 FORECAST <- function(request, response) {
   
-  #' ---
-  #' description: Prediction for host or docker metric
-  #' parameters:
-  #'   - name: "agent_id"
-  #'     description: "agent_id"
-  #'     in: header
-  #'     schema:
-  #'       type: integer
-  #'     required: true
-  #'     
-  #'   - name: "key"
-  #'     description: "key name to save to the influxdb"
-  #'     in: header
-  #'     schema:
-  #'       type: integer
-  #'     example: 817340112
-  #'     required: true
-  #'     
-  #'   - name: "host_ip"
-  #'     description: "insert host ip as measurement is related to host or docker"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 192.168.0.165
-  #'     required: true
-  #'     
-  #'   - name: "measurement"
-  #'     description: "one of host, host_disk, host_net, host_process, docker_container, docker_network"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: host
-  #'     required: true
-  #'     
-  #'   - name: "metric"
-  #'     description: "select metric to predict"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: cpu_used_percent
-  #'     required: true
-  #'     
-  #'   - name: "period"
-  #'     description: "select period to train model, default : 6 days"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 6d
-  #'     required: true
-  #'     
-  #'   - name: "p_period"
-  #'     description: "select period to predict, default : 2 days"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 2d
-  #'     required: true
-  #'     
-  #'   - name: "groupby"
-  #'     description: "select time to group by, default : 1 hour"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 1h
-  #'     required: true
-  #'     
-  #'   - name: "start_time"
-  #'     description: "select start time"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     required: true
-  #'     
-  #'   - name: "mount"
-  #'     description: "available when metric related to disk. select mount path. default : null. if you want mount path : / or /var, insert total or var. "
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: /
-  #'     required: false
-  #'     
-  #'   - name: "hostIF"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: docker0
-  #'     required: false
-  #'     
-  #'   - name: "pname"
-  #'     description: "name of host process. available when measurement is host_process."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: dockerd
-  #'     required: false
-  #'     
-  #'   - name: "dname"
-  #'     description: "name of docker container. available when measurement is host_net."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: /Nexclipper-Agent
-  #'     required: false
-  #'     
-  #'   - name: "dockerIF"
-  #'     description: "interface of host, which is related to host network metric. available when measurement is host_net."
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: eth0
-  #'     required: false
-  #'     
-  #' responses:
-  #'   204:
-  #'     description: API response
-  #'     content:
-  #'       text/plain:
-  #'         schema:
-  #'           type: json
-  #'           example : {"status": 204}
-  #' ---
-  
   agent_id <- request$headers$agent_id
   
   key_ <- request$headers$key
   
-  host_ip <- request$query$host_ip
+  host_ip <- request$path$host_ip
   
   measurement <- request$query$measurement
   
@@ -193,27 +70,19 @@ FORECAST <- function(request, response) {
   
   start_time <- request$query$start_time
   
-  mount <- request$query$mount
-  
-  hostIF <- request$query$hostIF
-  
-  pname <- request$query$pname
-  
-  dname <- request$query$dname
-  
-  dockerIF <- request$query$dockerIF
+  request_body <- request$body %>% rawToChar()
   
   write_init_to_mysql(agent_id, key_, start_time)
   
-  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --mount '%s' --hostIF '%s' --pname '%s' --dname '%s' --dockerIF '%s'" %>%
+  cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
-            groupby, start_time, mount, hostIF, pname, dname, dockerIF)
+            groupby, start_time, request_body)
 
   system(cmd, wait = F)
   
   response$body = ''
   
-  response$content_type = "text/plain"
+  response$content_type = "application/json"
   
   response$headers = character(0)
   
@@ -225,57 +94,6 @@ FORECAST <- function(request, response) {
 
 
 CORRELATION <- function(request, response) {
-  
-  #' ---
-  #' description: get correlation matrix between metrics
-  #' parameters:
-  #'   - name: "agent_id"
-  #'     description: "agent_id"
-  #'     in: header
-  #'     schema:
-  #'       type: integer
-  #'     required: true
-  #'     
-  #'   - name: "key"
-  #'     description: "key name to save to the influxdb"
-  #'     in: header
-  #'     schema:
-  #'       type: integer
-  #'     example: 817340112
-  #'     required: true
-  #'     
-  #'   - name: "period"
-  #'     description: "select period to train model, default : 6 days"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 6d
-  #'     required: true
-  #'     
-  #'   - name: "groupby"
-  #'     description: "select time to group by, default : 1 hour"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     example: 1h
-  #'     required: true
-  #'     
-  #'   - name: "start_time"
-  #'     description: "select start time"
-  #'     in: query
-  #'     schema:
-  #'       type: string
-  #'     required: true
-  #'     
-  #' responses:
-  #'   204:
-  #'     description: API response
-  #'     content:
-  #'       text/plain:
-  #'         schema:
-  #'           type: json
-  #'           example : {"status": 204}
-  #' ---
   
   agent_id <- request$headers$agent_id
   
@@ -298,7 +116,7 @@ CORRELATION <- function(request, response) {
   
   response$body = ''
   
-  response$content_type = "text/plain"
+  response$content_type = "applcation/json"
   
   response$headers = character(0)
   
@@ -311,15 +129,15 @@ CORRELATION <- function(request, response) {
 
 RestRserveApp <- RestRserveApplication$new()
 
-RestRserveApp$add_get(path = "/v1/forecast", FUN = FORECAST)
+RestRserveApp$add_get(path = "/v0/forecast", FUN = FORECAST)
 
-RestRserveApp$add_post(path = "/v1/correlation", FUN = CORRELATION)
+RestRserveApp$add_post(path = "/v0/correlation", FUN = CORRELATION)
 
-RestRserveApp$add_openapi(path = "/openapi.yaml",
-                          file_path = "openapi.yaml")
+# RestRserveApp$add_openapi(path = "/openapi.yaml",
+#                           file_path = "openapi.yaml")
 
 RestRserveApp$add_swagger_ui(path = "/api/swagger", 
-                             path_openapi = "/openapi.yaml", 
+                             path_openapi = "/nexopenapi.yaml", 
                              path_swagger_assets = "/__swagger__")
 
 RestRserveApp$run(http_port = "8484")

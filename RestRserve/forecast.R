@@ -1,27 +1,16 @@
 source('00.R')
 source('01.R')
 source('02.R')
+source('app_func.R')
 
 #### ENVIRONMENT VARIABLE ####
-ENV <- Sys.getenv(c('MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
-                    'MYSQL_HOST', 'MYSQL_PORT',
-                    'INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
+INFLUX_ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
 
-MYSQL_USER <- ENV['MYSQL_USER']
+INFLUX_HOST <- INFLUX_ENV['INFLUX_HOST']
 
-MYSQL_PW <- ENV['MYSQL_PW']
+INFLUX_PORT <- INFLUX_ENV['INFLUX_PORT'] %>% as.integer()
 
-MYSQL_DB <- ENV['MYSQL_DB']
-
-MYSQL_HOST <- ENV['MYSQL_HOST']
-
-MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
-
-INFLUX_HOST <- ENV['INFLUX_HOST']
-
-INFLUX_PORT <- ENV['INFLUX_PORT'] %>% as.integer()
-
-INFLUX_DB <- ENV['INFLUX_DB']
+INFLUX_DB <- INFLUX_ENV['INFLUX_DB']
 #----
 
 #### DB CONNECTION ####
@@ -402,39 +391,39 @@ opt %>% unlist() %>% print()
 print('########################')
 #----
 
-#### write mysql ####
-update_key_id_to_mysql <- function(agent_id, key_,
-                                   status, message) {
-  
-  con <- dbConnect(MySQL(),
-                   user = MYSQL_USER,
-                   password = MYSQL_PW,
-                   dbname = MYSQL_DB,
-                   host = MYSQL_HOST,
-                   port = MYSQL_PORT)
-  
-  end_time <- Sys.time()
-  
-  query <- "update nexclipper_key
-            set end_time = '%s',
-                status = %s, 
-                message = '%s'
-            where agent_id = '%s' and key_id = '%s'" %>% 
-    sprintf(end_time, status, message,
-            agent_id, key_)
-  
-  cat('\n', query, '\n')
-  
-  dbGetQuery(con, query)
-  
-  dbCommit(con)
-  
-  dbDisconnect(con)
-  
-  cat('\n', 'write key id to mysql', '\n')
-  
-}
-#----
+# #### write mysql ####
+# update_key_id_to_mysql <- function(agent_id, key_,
+#                                    status, message) {
+#   
+#   con <- dbConnect(MySQL(),
+#                    user = MYSQL_USER,
+#                    password = MYSQL_PW,
+#                    dbname = MYSQL_DB,
+#                    host = MYSQL_HOST,
+#                    port = MYSQL_PORT)
+#   
+#   end_time <- Sys.time()
+#   
+#   query <- "update nexclipper_key
+#             set end_time = '%s',
+#                 status = %s, 
+#                 message = '%s'
+#             where agent_id = '%s' and key_id = '%s'" %>% 
+#     sprintf(end_time, status, message,
+#             agent_id, key_)
+#   
+#   cat('\n', query, '\n')
+#   
+#   dbGetQuery(con, query)
+#   
+#   dbCommit(con)
+#   
+#   dbDisconnect(con)
+#   
+#   cat('\n', 'write key id to mysql', '\n')
+#   
+# }
+# #----
 
 #### EXECUTION ####
 forecast_ <- function(agent_id, measurement, host_ip,

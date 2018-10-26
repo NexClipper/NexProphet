@@ -1,38 +1,25 @@
 source('00.R')
 source('01.R')
 source('02.R')
+source('app_func.R')
 
 #### ENVIRONMENT VARIABLE ####
-ENV <- Sys.getenv(c('MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
-                    'MYSQL_HOST', 'MYSQL_PORT',
-                    'INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
+INFLUX_ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
 
-MYSQL_USER <- ENV['MYSQL_USER']
+INFLUX_HOST <- INFLUX_ENV['INFLUX_HOST']
 
-MYSQL_PW <- ENV['MYSQL_PW']
+INFLUX_PORT <- INFLUX_ENV['MYSQL_PORT'] %>% as.integer()
 
-MYSQL_DB <- ENV['MYSQL_DB']
-
-MYSQL_HOST <- ENV['MYSQL_HOST']
-
-MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
-
-INFLUX_HOST <- ENV['INFLUX_HOST']
-
-INFLUX_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
-
-INFLUX_DB <- ENV['INFLUX_DB']
+INFLUX_DB <- INFLUX_ENV['INFLUX_DB']
 #----
 
 #### DB CONNECTION ####
 connect <- function() {
   
-  # con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-  #                          port = 8086)
-  con <- influx_connection(host = '192.168.0.162',
-                           port = 10091)
+  con <- influx_connection(host = INFLUX_HOST,
+                           port = INFLUX_PORT)
   
-  dbname <- 'nexclipper'
+  dbname <- INFLUX_DB
   
   conn <- list(connector = con, dbname = dbname)
   
@@ -55,8 +42,6 @@ write_result_to_influx <- function(dt_, key_) {
   
 }
 #----
-
-
 
 #### APP FUNCTIONS ####
 get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
@@ -626,27 +611,27 @@ pre_processing <- function(dt_, threshold = 0.3) {
   
 }
 #----
-dt <- load_multiple_metric(27, '7d', '1h', '2018-10-18 17:00:00', 
-                           'docker_container' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                                     'metric' = c('cpu_used_percent', 'mem_used_percent'),
-                                                     dname = c('/Nexclipper-Agent',
-                                                             'kafka-manager.fbed1a44-d187-11e8-b067-aae0d7e58657')),
-                           'docker_network' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                                   'metric' = c('rx_bytes', 'tx_bytes'),
-                                                   'dname' = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657',
-                                                               'nexcloud_fullfillment.020b05f9-d122-11e8-b067-aae0d7e58657'),
-                                                   'interface' = c('eth0')),
-                           'host' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                         'metric' = c('cpu_used_percent', 'mem_used_percent')),
-                           'host_disk' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                              'metric' = c('used_percent'),
-                                              'mount' = c('/', '/var')),
-                           'host_net' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                             'metric' = c('txbyte', 'rxbyte'),
-                                             'interface' = c('eth0', 'docker0')),
-                           'host_process' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-                                                 'metric' = c('cpu_used_percent', 'mem_used_percent'),
-                                                 'pname' = c('mysqld', 'dockerd')))
+# dt <- load_multiple_metric(27, '7d', '1h', '2018-10-18 17:00:00', 
+#                            'docker_container' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                                      'metric' = c('cpu_used_percent', 'mem_used_percent'),
+#                                                      dname = c('/Nexclipper-Agent',
+#                                                              'kafka-manager.fbed1a44-d187-11e8-b067-aae0d7e58657')),
+#                            'docker_network' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                                    'metric' = c('rx_bytes', 'tx_bytes'),
+#                                                    'dname' = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657',
+#                                                                'nexcloud_fullfillment.020b05f9-d122-11e8-b067-aae0d7e58657'),
+#                                                    'interface' = c('eth0')),
+#                            'host' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                          'metric' = c('cpu_used_percent', 'mem_used_percent')),
+#                            'host_disk' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                               'metric' = c('used_percent'),
+#                                               'mount' = c('/', '/var')),
+#                            'host_net' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                              'metric' = c('txbyte', 'rxbyte'),
+#                                              'interface' = c('eth0', 'docker0')),
+#                            'host_process' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
+#                                                  'metric' = c('cpu_used_percent', 'mem_used_percent'),
+#                                                  'pname' = c('mysqld', 'dockerd')))
 
 
 
@@ -667,40 +652,6 @@ opt %>% unlist() %>% print()
 print('##################################')
 #-----
 
-#### write mysql ####
-update_key_id_to_mysql <- function(agent_id, key_,
-                                   status, message) {
-  
-  con <- dbConnect(MySQL(),
-                   user = 'admin',
-                   password = 'password',
-                   dbname = 'defaultdb',
-                   host = 'mysql.marathon.l4lb.thisdcos.directory',
-                   port = 3306)
-  
-  end_time <- Sys.time()
-  
-  query <- "update nexclipper_key
-            set end_time = '%s',
-                status = %s, 
-                message = '%s'
-            where agent_id = '%s' and
-                  key_id = '%s'" %>% 
-    sprintf(end_time, status, message,
-            agent_id, key_)
-  
-  cat('\n', query, '\n')
-  
-  dbGetQuery(con, query)
-  
-  dbCommit(con)
-  
-  dbDisconnect(con)
-  
-  cat('\n', 'write key id to mysql', '\n')
-  
-}
-#----
 
 #### EXECUTION ####
 get_corr_mtx(opt$agent_id, opt$period, opt$groupby,
