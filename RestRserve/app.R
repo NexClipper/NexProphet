@@ -129,15 +129,15 @@ CORRELATION <- function(request, response) {
 
 RestRserveApp <- RestRserveApplication$new()
 
-RestRserveApp$add_get(path = "/v0/forecast", FUN = FORECAST)
+RestRserveApp$add_post(path = "/v0/forecast", FUN = FORECAST)
 
 RestRserveApp$add_post(path = "/v0/correlation", FUN = CORRELATION)
 
-# RestRserveApp$add_openapi(path = "/openapi.yaml",
-#                           file_path = "openapi.yaml")
+RestRserveApp$add_static(path = '/nexopenapi.yaml', 
+                         file_path = 'nexopenapi.yaml', 
+                         content_type = "application/yaml")
 
-RestRserveApp$add_swagger_ui(path = "/api/swagger", 
-                             path_openapi = "/nexopenapi.yaml", 
-                             path_swagger_assets = "/__swagger__")
+RestRserveApp$add_swagger_ui(path = "/api/swagger",
+                             path_openapi = "/nexopenapi.yaml")
 
 RestRserveApp$run(http_port = "8484")
