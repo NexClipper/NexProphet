@@ -41,6 +41,8 @@ COPY 02.R .
 
 RUN Rscript 02.R
 
+RUN apt-get install -y vim
+
 COPY . analytics
 
 WORKDIR analytics

@@ -43,13 +43,11 @@ write_result_to_influx <- function(dt_) {
 
 #### APP FUNCTIONS ####
 load_single_metric <- function(agent_id, measurement, host_ip, metric,
-                               period, groupby, start_time, ...) {
+                               period, groupby, start_time, request_body) {
   
-  arg <- list(...)
+  arg <- request_body %>% fromJSON(simplifyDataFrame = F)
   
   agent_id <- agent_id %>% as.integer()
-  
-  # unit <- unit %>% as.character()
   
   switch(measurement,
          'host' = load_host(agent_id, host_ip, metric, period, groupby, start_time),
@@ -424,12 +422,12 @@ print('########################')
 #### EXECUTION ####
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
-                      groupby, start_time, key, ...) {
+                      groupby, start_time, key, request_body) {
   #agent_id=27;measurement='host';host_ip='192.168.0.165';metric='cpu_used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';key='forecast_618827342'
   #agent_id=27;measurement='host_disk';host_ip='192.168.0.165';metric='used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';mount='/';key='forecast_618827342'
   #agent_id=27;measurement='host_disk';host_ip='192.168.0.169';metric='used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';mount='/';key='forecast_618827342'
   res <- load_single_metric(agent_id, measurement, host_ip, metric,
-                            period, groupby, start_time, ...)
+                            period, groupby, start_time, request_body)
   
   result <- forecasting(res, groupby, predicted_period,
                         changepoint.prior.scale = 0.1)
@@ -444,9 +442,7 @@ forecast_ <- function(agent_id, measurement, host_ip,
 
 forecast_(opt$agent_id, opt$measurement, opt$host_ip,
           opt$metric, opt$period, opt$p_period,
-          opt$groupby, opt$start_time, opt$key,
-          mount = opt$mount, hostIF = opt$hostIF, pname = opt$pname,
-          dname = opt$dname, dockerIF = opt$dockerIF)
+          opt$groupby, opt$start_time, opt$key, opt$request_body)
 #----
 
 
