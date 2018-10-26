@@ -377,11 +377,7 @@ option_list <- list(
   make_option(c("-g", "--groupby"), action = "store", type = 'character'),
   make_option(c("-t", "--start_time"), action = "store", type = 'character'),
   make_option(c("-k", "--key"), action = "store", type = 'character'),
-  make_option(c("-mnt", "--mount"), action = "store", type = 'character'),
-  make_option(c("-hIF", "--hostIF"), action = "store", type = 'character'),
-  make_option(c("-pn", "--pname"), action = "store", type = 'character'),
-  make_option(c("-dn", "--dname"), action = "store", type = 'character'),
-  make_option(c("-dIF", "--dockerIF"), action = "store", type = 'character')
+  make_option(c("-req", "--request_body"), action = "store", type = 'character')
 )
 
 opt = parse_args(OptionParser(option_list = option_list))
