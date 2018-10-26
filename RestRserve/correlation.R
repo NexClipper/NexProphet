@@ -5,7 +5,7 @@ source('02.R')
 #### ENVIRONMENT VARIABLE ####
 ENV <- Sys.getenv(c('MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
                     'MYSQL_HOST', 'MYSQL_PORT',
-                    'INFULX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
+                    'INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
 
 MYSQL_USER <- ENV['MYSQL_USER']
 
