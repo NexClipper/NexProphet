@@ -170,7 +170,7 @@ paths:
                 example:
                   status: 204
                   data: ''
-  '/forecast/{host_ip}':
+  /forecast:
     post:
       tags:
         - forecast metric
@@ -191,7 +191,7 @@ paths:
           required: true
         - name: host_ip
           description: insert host ip as measurement is related to host or docker
-          in: path
+          in: query
           schema:
             type: string
           example: 192.168.0.165
