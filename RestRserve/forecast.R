@@ -19,7 +19,7 @@ MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
 
 INFLUX_HOST <- ENV['INFLUX_HOST']
 
-INFLUX_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
+INFLUX_PORT <- ENV['INFLUX_PORT'] %>% as.integer()
 
 INFLUX_DB <- ENV['INFLUX_DB']
 #----
@@ -407,11 +407,11 @@ update_key_id_to_mysql <- function(agent_id, key_,
                                    status, message) {
   
   con <- dbConnect(MySQL(),
-                   user = 'admin',
-                   password = 'password',
-                   dbname = 'defaultdb',
-                   host = 'mysql.marathon.l4lb.thisdcos.directory',
-                   port = 3306)
+                   user = MYSQL_USER,
+                   password = MYSQL_PW,
+                   dbname = MYSQL_DB,
+                   host = MYSQL_HOST,
+                   port = MYSQL_PORT)
   
   end_time <- Sys.time()
   
