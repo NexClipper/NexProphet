@@ -1,18 +1,34 @@
 library('RestRserve')
-library(tidyverse)
+library(tidyr)
 library(jsonlite)
 library(RMySQL)
 
+#### ENVIRONMENT VARIABLE ####
+
+MYSQL_ENV <- Sys.getenv(c('MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
+                          'MYSQL_HOST', 'MYSQL_PORT'))
+
+MYSQL_USER <- MYSQL_ENV['MYSQL_USER']
+
+MYSQL_PW <- MYSQL_ENV['MYSQL_PW']
+
+MYSQL_DB <- MYSQL_ENV['MYSQL_DB']
+
+MYSQL_HOST <- MYSQL_ENV['MYSQL_HOST']
+
+MYSQL_PORT <- MYSQL_ENV['MYSQL_PORT']
+
+#----
 
 #### MYSQL ####
 write_init_to_mysql <- function(agent_id, key_, start_time) {
   
   con <- dbConnect(MySQL(),
-                   user = 'admin',
-                   password = 'password',
-                   dbname = 'defaultdb',
-                   host = 'mysql.marathon.l4lb.thisdcos.directory',
-                   port = 3306)
+                   user = MYSQL_USER,
+                   password = MYSQL_PW,
+                   dbname = MYSQL_DB,
+                   host = MYSQL_HOST,
+                   port = MYSQL_PORT)
   
   info <- data.frame('agent_id' = agent_id,
                      'key_id' = key_,

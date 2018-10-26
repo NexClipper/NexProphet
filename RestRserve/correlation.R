@@ -2,6 +2,27 @@ source('00.R')
 source('01.R')
 source('02.R')
 
+#### ENVIRONMENT VARIABLE ####
+ENV <- Sys.getenv(c('MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
+                    'MYSQL_HOST', 'MYSQL_PORT',
+                    'INFULX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
+
+MYSQL_USER <- ENV['MYSQL_USER']
+
+MYSQL_PW <- ENV['MYSQL_PW']
+
+MYSQL_DB <- ENV['MYSQL_DB']
+
+MYSQL_HOST <- ENV['MYSQL_HOST']
+
+MYSQL_PORT <- ENV['MYSQL_PORT']
+
+INFLUX_HOST <- ENV['INFLUX_HOST']
+
+INFLUX_PORT <- ENV['MYSQL_PORT']
+
+INFLUX_DB <- ENV['INFLUX_DB']
+#----
 
 #### DB CONNECTION ####
 connect <- function() {
