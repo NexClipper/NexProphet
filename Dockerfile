@@ -38,5 +38,5 @@ ARG CACHEBUST
 
 RUN apt-get update -y
 
-RUN git clone -b Ops --single-branch https://github.com/NexClipper/NexProphet.git .
+RUN git clone -b AJ --single-branch https://github.com/NexClipper/NexProphet.git .
 
