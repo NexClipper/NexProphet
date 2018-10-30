@@ -103,14 +103,6 @@ load_disk_used_percent <- function(agent_id, timezone,
     as.data.table() %>% 
     setnames('time', 'ds') %>% 
     setkey('ds') %>% 
-    # merge(CJ(ds = seq.POSIXt(min(.$ds),
-    #                          max(.$ds),
-    #                          by = '1 hour'),
-    #          host_ip = unique(.$host_ip),
-    #          host_name = unique(.$host_name),
-    #          mount_name = unique(.$mount_name)),
-    #       by = c('ds', 'host_ip', 'host_name', 'mount_name'),
-    #       all = T) %>% 
     dcast(ds ~ host_ip + host_name + mount_name,
           value.var = c('y'),
           sep = '__') %>% 
@@ -295,7 +287,7 @@ save_result_mysql <- function(dt_,
                      'metric' = 'used_percent',
                      'condition' = condition,
                      'id' = id,
-                     'start_time' = start_time,
+                     'start_time' = predicted_time,
                      'contents' = contents,
                      stringsAsFactors = F)
   
