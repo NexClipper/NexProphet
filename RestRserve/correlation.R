@@ -47,7 +47,7 @@ write_result_to_influx <- function(dt_, key_) {
 get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
                          request_body) {
   
-  arg <- request_body#request_body %>% fromJSON(simplifyDataFrame = F)
+  arg <- request_body %>% fromJSON(simplifyDataFrame = F)
   
   whole_data <- NULL
   
@@ -615,32 +615,32 @@ pre_processing <- function(dt_, threshold = 0.33) {
   
 }
 #----
-request_body <- list('docker_network' = list('metric' = c('rx_bytes',
-                                                          'tx_bytes'),
-                                             'host_ip' = c('192.168.0.168'),
-                                             'interface' = c('eth0'),
-                                             'dname' = c("influxdb.131a06b9-afee-11e8-ae9f-aae0d7e58657")),
-                     'docker_container' = list('metric' = c('cpu_used_percent',
-                                                            'mem_used_percent'),
-                                               'host_ip' = c('192.168.0.165',
-                                                             '192.168.0.166'),
-                                               'dname' = c('/Nexclipper-Agent')),
-                     'host_net' = list('metric' = c('rxbyte',
-                                                    'txbyte'),
-                                       'host_ip' = c('192.168.0.165',
-                                                     '192.168.0.166'),
-                                       'interface' = c('eth0',
-                                                       'docker0')),
-                     'host_disk' = list('metric' = c('used_percent'),
-                                        'host_ip' = c('192.168.0.165',
-                                                      '192.168.0.166'),
-                                        'mount' = c('/', '/var')),
-                     'host' = list('metric' = c('cpu_used_percent',
-                                                'mem_used_percent'),
-                                   'host_ip' = c('192.168.0.165',
-                                                 '192.168.0.166')))
-
-dt <- get_corr_mtx(27, '10d', '1h', '2018-10-31 02:00:00', '123132', request_body = request_body)
+# request_body <- list('docker_network' = list('metric' = c('rx_bytes',
+#                                                           'tx_bytes'),
+#                                              'host_ip' = c('192.168.0.168'),
+#                                              'interface' = c('eth0'),
+#                                              'dname' = c("influxdb.131a06b9-afee-11e8-ae9f-aae0d7e58657")),
+#                      'docker_container' = list('metric' = c('cpu_used_percent',
+#                                                             'mem_used_percent'),
+#                                                'host_ip' = c('192.168.0.165',
+#                                                              '192.168.0.166'),
+#                                                'dname' = c('/Nexclipper-Agent')),
+#                      'host_net' = list('metric' = c('rxbyte',
+#                                                     'txbyte'),
+#                                        'host_ip' = c('192.168.0.165',
+#                                                      '192.168.0.166'),
+#                                        'interface' = c('eth0',
+#                                                        'docker0')),
+#                      'host_disk' = list('metric' = c('used_percent'),
+#                                         'host_ip' = c('192.168.0.165',
+#                                                       '192.168.0.166'),
+#                                         'mount' = c('/', '/var')),
+#                      'host' = list('metric' = c('cpu_used_percent',
+#                                                 'mem_used_percent'),
+#                                    'host_ip' = c('192.168.0.165',
+#                                                  '192.168.0.166')))
+# 
+# dt <- get_corr_mtx(27, '10d', '1h', '2018-10-31 02:00:00', '123132', request_body = request_body)
 
 
 
