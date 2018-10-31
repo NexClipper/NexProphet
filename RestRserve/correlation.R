@@ -47,7 +47,7 @@ write_result_to_influx <- function(dt_, key_) {
 get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
                          request_body) {
   
-  arg <- request_body %>% fromJSON(simplifyDataFrame = F)
+  arg <- request_body#request_body %>% fromJSON(simplifyDataFrame = F)
   
   whole_data <- NULL
   
@@ -602,7 +602,7 @@ load_host_net <- function(agent_id, request, period, groupby, start_time) {
 # }
 
 
-pre_processing <- function(dt_, threshold = 0.3) {
+pre_processing <- function(dt_, threshold = 0.33) {
   
   dt_ %>% copy() %>% 
     .[, .SD, .SDcols = dt_[, lapply(.SD, function(x) sum(is.na(x)) <= as.integer(length(x) * threshold))] %>% 
@@ -615,27 +615,32 @@ pre_processing <- function(dt_, threshold = 0.3) {
   
 }
 #----
-# dt <- load_multiple_metric(27, '7d', '1h', '2018-10-18 17:00:00', 
-#                            'docker_container' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                                      'metric' = c('cpu_used_percent', 'mem_used_percent'),
-#                                                      dname = c('/Nexclipper-Agent',
-#                                                              'kafka-manager.fbed1a44-d187-11e8-b067-aae0d7e58657')),
-#                            'docker_network' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                                    'metric' = c('rx_bytes', 'tx_bytes'),
-#                                                    'dname' = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657',
-#                                                                'nexcloud_fullfillment.020b05f9-d122-11e8-b067-aae0d7e58657'),
-#                                                    'interface' = c('eth0')),
-#                            'host' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                          'metric' = c('cpu_used_percent', 'mem_used_percent')),
-#                            'host_disk' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                               'metric' = c('used_percent'),
-#                                               'mount' = c('/', '/var')),
-#                            'host_net' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                              'metric' = c('txbyte', 'rxbyte'),
-#                                              'interface' = c('eth0', 'docker0')),
-#                            'host_process' = list('host_ip' = c('192.168.0.165', '192.168.0.166'),
-#                                                  'metric' = c('cpu_used_percent', 'mem_used_percent'),
-#                                                  'pname' = c('mysqld', 'dockerd')))
+request_body <- list('docker_network' = list('metric' = c('rx_bytes',
+                                                          'tx_bytes'),
+                                             'host_ip' = c('192.168.0.168'),
+                                             'interface' = c('eth0'),
+                                             'dname' = c("influxdb.131a06b9-afee-11e8-ae9f-aae0d7e58657")),
+                     'docker_container' = list('metric' = c('cpu_used_percent',
+                                                            'mem_used_percent'),
+                                               'host_ip' = c('192.168.0.165',
+                                                             '192.168.0.166'),
+                                               'dname' = c('/Nexclipper-Agent')),
+                     'host_net' = list('metric' = c('rxbyte',
+                                                    'txbyte'),
+                                       'host_ip' = c('192.168.0.165',
+                                                     '192.168.0.166'),
+                                       'interface' = c('eth0',
+                                                       'docker0')),
+                     'host_disk' = list('metric' = c('used_percent'),
+                                        'host_ip' = c('192.168.0.165',
+                                                      '192.168.0.166'),
+                                        'mount' = c('/', '/var')),
+                     'host' = list('metric' = c('cpu_used_percent',
+                                                'mem_used_percent'),
+                                   'host_ip' = c('192.168.0.165',
+                                                 '192.168.0.166')))
+
+dt <- get_corr_mtx(27, '10d', '1h', '2018-10-31 02:00:00', '123132', request_body = request_body)
 
 
 

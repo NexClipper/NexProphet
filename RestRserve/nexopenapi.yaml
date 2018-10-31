@@ -45,7 +45,7 @@ paths:
           in: query
           schema:
             type: string
-          example: 6d
+          example: 10d
           required: true
         - name: groupby
           description: 'select time to group by, default : 1 hour'
@@ -223,7 +223,7 @@ paths:
           in: query
           schema:
             type: string
-          example: 6d
+          example: 7d
           required: true
         - name: p_period
           description: 'select period to predict, default : 2 days'
