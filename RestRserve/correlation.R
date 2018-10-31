@@ -343,7 +343,7 @@ load_docker_network <- function(agent_id, request, period, groupby, start_time) 
     setkey(ds) %>%
     dcast(ds ~ host_ip + task_id + interface,
           value.var = metric,
-          sep = '__') %>% print()
+          sep = '__') %>% 
     return()
   
 }
