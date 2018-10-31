@@ -54,9 +54,9 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # docker container
   if (!is.null(arg$docker_container)) {
     
-    docker_container <- load_docker_container(agent_id, arg$docker_container[[1]], period, groupby, start_time)
+    docker_container <- load_docker_container(agent_id, arg$docker_container, period, groupby, start_time)
     
-    if (is.null(whole_data))
+    if (!is.null(docker_container))
       
       whole_data <- docker_container
   }
@@ -64,18 +64,19 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # docker network
   if (!is.null(arg$docker_network)) {
     
-    docker_network <- load_docker_network(agent_id, arg$docker_network[[1]], period, groupby, start_time)
+    docker_network <- load_docker_network(agent_id, arg$docker_network, period, groupby, start_time)
     
-    if (is.null(whole_data)) {
+    if (!is.null(docker_network)) {
       
-      whole_data <- docker_network
-      
-    } else {
-      
-      whole_data <- ifelse(is.null(docker_network),
-                           whole_data,
-                           docker_network[whole_data])
-      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- docker_network[whole_data]
+        
+      } else {
+        
+        whole_data <- docker_network
+        
+      }
     }
     
   }
@@ -83,18 +84,19 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # host
   if (!is.null(arg$host)) {
     
-    host <- load_host(agent_id, arg$host[[1]], period, groupby, start_time)
+    host <- load_host(agent_id, arg$host, period, groupby, start_time)
     
-    if (is.null(whole_data)) {
+    if (!is.null(host)) {
       
-      whole_data <- host
-      
-    } else {
-      
-      whole_data <- ifelse(is.null(host),
-                           whole_data,
-                           host[whole_data])
-      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- host[whole_data]
+        
+      } else {
+        
+        whole_data <- host
+        
+      }
     }
     
   }
@@ -104,16 +106,17 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     
     host_disk <- load_host_disk(agent_id, arg$host_disk, period, groupby, start_time)
     
-    if (is.null(whole_data)) {
+    if (!is.null(host_disk)) {
       
-      whole_data <- host_disk
-      
-    } else {
-      
-      whole_data <- ifelse(is.null(host_disk),
-                           whole_data,
-                           host_disk[whole_data])
-      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- host_disk[whole_data]
+        
+      } else {
+        
+        whole_data <- host_disk
+        
+      }
     }
     
   }
@@ -121,18 +124,19 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # host network
   if (!is.null(arg$host_net)) {
     
-    host_net <- load_host_net(agent_id, arg$host_net[[1]], period, groupby, start_time)
+    host_net <- load_host_net(agent_id, arg$host_net, period, groupby, start_time)
     
-    if (is.null(whole_data)) {
+    if (!is.null(host_net)) {
       
-      whole_data <- host_net
-      
-    } else {
-      
-      whole_data <- ifelse(is.null(host_net),
-                           whole_data,
-                           host_net[whole_data])
-      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- host_net[whole_data]
+        
+      } else {
+        
+        whole_data <- host_net
+        
+      }
     }
     
   }
@@ -273,8 +277,8 @@ load_docker_container <- function(agent_id, request, period, groupby, start_time
 
 
 load_docker_network <- function(agent_id, request, period, groupby, start_time) {
-  #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('rx_bytes', 'tx_bytes');period='6d';groupby='1h';dname=c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657', 'nexcloud_fullfillment.020b05f9-d122-11e8-b067-aae0d7e58657');interface=c('eth0')
-  #request <- list(host_ip, metric, dname, interface)
+  #agent_id=27;period='6d';groupby='1h';start_time='2018-10-30 10:00:00'
+  #request <- list('host_ip' = c('192.168.0.168'), 'metric' = c('rx_bytes', 'tx_bytes'), dname = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657'), interface = c('eth0'))
   con <- connect()
   
   connector <- con$connector
@@ -339,7 +343,7 @@ load_docker_network <- function(agent_id, request, period, groupby, start_time) 
     setkey(ds) %>%
     dcast(ds ~ host_ip + task_id + interface,
           value.var = metric,
-          sep = '__') %>%
+          sep = '__') %>% print()
     return()
   
 }
