@@ -54,7 +54,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # docker container
   if (!is.null(arg$docker_container)) {
     
-    docker_container <- load_docker_container(agent_id, arg$docker_container, period, groupby, start_time)
+    docker_container <- load_docker_containers(agent_id, arg$docker_container, period, groupby, start_time)
     
     if (!is.null(docker_container))
       
@@ -64,7 +64,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # docker network
   if (!is.null(arg$docker_network)) {
     
-    docker_network <- load_docker_network(agent_id, arg$docker_network, period, groupby, start_time)
+    docker_network <- load_docker_networks(agent_id, arg$docker_network, period, groupby, start_time)
     
     if (!is.null(docker_network)) {
       
@@ -84,7 +84,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # host
   if (!is.null(arg$host)) {
     
-    host <- load_host(agent_id, arg$host, period, groupby, start_time)
+    host <- load_hosts(agent_id, arg$host, period, groupby, start_time)
     
     if (!is.null(host)) {
       
@@ -104,7 +104,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # host disk
   if (!is.null(arg$host_disk)) {
     
-    host_disk <- load_host_disk(agent_id, arg$host_disk, period, groupby, start_time)
+    host_disk <- load_host_disks(agent_id, arg$host_disk, period, groupby, start_time)
     
     if (!is.null(host_disk)) {
       
@@ -124,7 +124,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # host network
   if (!is.null(arg$host_net)) {
     
-    host_net <- load_host_net(agent_id, arg$host_net, period, groupby, start_time)
+    host_net <- load_host_nets(agent_id, arg$host_net, period, groupby, start_time)
     
     if (!is.null(host_net)) {
       
@@ -145,7 +145,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   # holding,,,
   # if (!is.null(arg$host_process)) {
   #   
-  #   host_process <- load_host_process(agent_id, arg$host_process, period, groupby, start_time)
+  #   host_process <- load_host_processes(agent_id, arg$host_process, period, groupby, start_time)
   #   
   #   if (is.null(whole_data)) {
   #     
@@ -211,7 +211,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
 }
 
 
-load_docker_container <- function(agent_id, request, period, groupby, start_time) {
+load_docker_containers <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.164');metric=c('cpu_used_percent', 'mem_used_percent');period='6d';groupby='1h';start_time='2018-10-18 14:30:00';dname=c('/Nexclipper-Agent', 'kafka-manager.fbed1a44-d187-11e8-b067-aae0d7e58657')
   #request <- host_ip, metric, dname
   con <- connect()
@@ -276,7 +276,7 @@ load_docker_container <- function(agent_id, request, period, groupby, start_time
 }
 
 
-load_docker_network <- function(agent_id, request, period, groupby, start_time) {
+load_docker_networks <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;period='6d';groupby='1h';start_time='2018-10-30 10:00:00'
   #request <- list('host_ip' = c('192.168.0.168'), 'metric' = c('rx_bytes', 'tx_bytes'), dname = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657'), interface = c('eth0'))
   con <- connect()
@@ -349,7 +349,7 @@ load_docker_network <- function(agent_id, request, period, groupby, start_time) 
 }
 
 
-load_host <- function(agent_id, request, period, groupby, start_time) {
+load_hosts <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('cpu_used_percent', 'mem_used_percent');period='6d';groupby='1h'
   #request <- host_ip, metric
   con <- connect()
@@ -406,7 +406,7 @@ load_host <- function(agent_id, request, period, groupby, start_time) {
 }
 
 
-load_host_disk <- function(agent_id, request, period, groupby, start_time) {
+load_host_disks <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('used_percent');period='6d';groupby='1h';mount=c('/', '/var')
   #request <- host_ip, metric, mount
   con <- connect()
@@ -471,7 +471,7 @@ load_host_disk <- function(agent_id, request, period, groupby, start_time) {
 }
 
 
-load_host_net <- function(agent_id, request, period, groupby, start_time) {
+load_host_nets <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('rxbyte', 'txbyte');period='6d';groupby='1h';interface=c('eth0', 'docker0')
   #request <- host_ip, metric, interface
   con <- connect()
@@ -536,7 +536,7 @@ load_host_net <- function(agent_id, request, period, groupby, start_time) {
 }
 
 
-# load_host_process <- function(agent_id, request, period, groupby, start_time) {
+# load_host_processes <- function(agent_id, request, period, groupby, start_time) {
 #   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('cpu_used_percent', 'mem_used_percent');period='6d';groupby='1h';pname=c('mysqld', 'dockerd')
 #   #request <- host_ip, metric, pname
 #   con <- connect()

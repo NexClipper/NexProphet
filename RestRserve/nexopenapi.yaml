@@ -204,7 +204,7 @@ paths:
           required: true
         - name: measurement
           description: >-
-            one of host, host_disk, host_net, host_process, docker_container,
+            one of host, host_disk, host_net, docker_container,
             docker_network
           in: query
           schema:
@@ -231,6 +231,116 @@ paths:
           schema:
             type: string
           example: 2d
+          required: true
+        - name: groupby
+          description: 'select time to group by, default : 1 hour'
+          in: query
+          schema:
+            type: string
+          example: 1h
+          required: true
+      requestBody:
+        description: A JSON object containing additional condition
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mount:
+                  format: string
+                  description: >-
+                    available when metric related to disk. select mount path.
+                    default : null. if you want mount path : / or /var, insert
+                    total or var. 
+                  example:
+                    - null
+                hostIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+                dname:
+                  format: string
+                  description: >-
+                    name of docker container. available when measurement is
+                    host_net.
+                  example:
+                    - null
+                dockerIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+        required: false
+      responses:
+        '204':
+          description: no return
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 204
+                  data: ''
+  /anomaly:
+    post:
+      tags:
+        - detect anomaly of metric
+      description: Detection anomaly for host or docker metric
+      parameters:
+        - name: agent_id
+          description: agent_id
+          in: header
+          schema:
+            type: integer
+          required: true
+        - name: key
+          description: key name to save to the influxdb
+          in: header
+          schema:
+            type: integer
+          example: 817340112
+          required: true
+        - name: host_ip
+          description: insert host ip as measurement is related to host or docker
+          in: query
+          schema:
+            type: string
+          example: 192.168.0.165
+          required: true
+        - name: start_time
+          description: select start time
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: measurement
+          description: >-
+            one of host, host_disk, host_net, docker_container,
+            docker_network
+          in: query
+          schema:
+            type: string
+          example: host
+          required: true
+        - name: metric
+          description: select metric to predict
+          in: query
+          schema:
+            type: string
+          example: cpu_used_percent
+          required: true
+        - name: period
+          description: 'select period to train model, default : 6 days'
+          in: query
+          schema:
+            type: string
+          example: 7d
           required: true
         - name: groupby
           description: 'select time to group by, default : 1 hour'
