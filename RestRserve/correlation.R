@@ -267,10 +267,15 @@ load_docker_containers <- function(agent_id, request, period, groupby, start_tim
   res %>% 
     .[, -1:-3] %>% 
     setnames('time', 'ds') %>% 
-    setkey(ds) %>%
-    dcast(ds ~ host_ip + task_id,
-          value.var = metric,
-          sep = '__') %>%
+    setkey(ds) %>% 
+    melt(id.vars = 1:3,
+         measure.vars = 4:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, task_id, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
     return()
   
 }
@@ -278,7 +283,7 @@ load_docker_containers <- function(agent_id, request, period, groupby, start_tim
 
 load_docker_networks <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;period='6d';groupby='1h';start_time='2018-10-30 10:00:00'
-  #request <- list('host_ip' = c('192.168.0.168'), 'metric' = c('rx_bytes', 'tx_bytes'), dname = c('nexcloud_nexclipperui.84abc80e-d127-11e8-b067-aae0d7e58657'), interface = c('eth0'))
+  #request <- list('host_ip' = c('192.168.0.168'), 'metric' = c('rx_bytes', 'tx_bytes'), dname = c('influxdb.131a06b9-afee-11e8-ae9f-aae0d7e58657'), interface = c('eth0'))
   con <- connect()
   
   connector <- con$connector
@@ -338,12 +343,17 @@ load_docker_networks <- function(agent_id, request, period, groupby, start_time)
     return(NULL)
   
   res %>% 
-    .[, -1:-3] %>% 
-    setnames('time', 'ds') %>% 
-    setkey(ds) %>%
-    dcast(ds ~ host_ip + task_id + interface,
-          value.var = metric,
-          sep = '__') %>% 
+    .[, -1:-3] %>%
+    setnames('time', 'ds') %>%
+    setkey(ds) %>% 
+    melt(id.vars = 1:4,
+         measure.vars = 5:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, task_id, interface, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
     return()
   
 }
@@ -351,6 +361,7 @@ load_docker_networks <- function(agent_id, request, period, groupby, start_time)
 
 load_hosts <- function(agent_id, request, period, groupby, start_time) {
   #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('cpu_used_percent', 'mem_used_percent');period='6d';groupby='1h'
+  #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('cpu_used_percent');period='6d';groupby='1h'
   #request <- host_ip, metric
   con <- connect()
   
@@ -397,17 +408,22 @@ load_hosts <- function(agent_id, request, period, groupby, start_time) {
   res %>% 
     .[, -1:-3] %>% 
     setnames('time', 'ds') %>% 
-    setkey(ds) %>%
-    dcast(ds ~ host_ip,
-          value.var = metric,
-          sep = '__') %>%
+    setkey(ds) %>% 
+    melt(id.vars = 1:2,
+         measure.vars = 3:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>%
+    dcast(ds ~ key,
+          value.var = 'y') %>%
     return()
   
 }
 
 
 load_host_disks <- function(agent_id, request, period, groupby, start_time) {
-  #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('used_percent');period='6d';groupby='1h';mount=c('/', '/var')
+  #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('used_percent');period='7d';groupby='1h';mount=c('/', '/var')
   #request <- host_ip, metric, mount
   con <- connect()
   
@@ -463,9 +479,14 @@ load_host_disks <- function(agent_id, request, period, groupby, start_time) {
     .[, -1:-3] %>% 
     setnames('time', 'ds') %>% 
     setkey(ds) %>%
-    dcast(ds ~ host_ip + mount_name,
-          value.var = metric,
-          sep = '__') %>%
+    melt(id.vars = 1:3,
+         measure.vars = 4:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, mount_name, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
     return()
   
 }
@@ -528,9 +549,14 @@ load_host_nets <- function(agent_id, request, period, groupby, start_time) {
     .[, -1:-3] %>% 
     setnames('time', 'ds') %>% 
     setkey(ds) %>%
-    dcast(ds ~ host_ip + interface,
-          value.var = metric,
-          sep = '__') %>% 
+    melt(id.vars = 1:3,
+         measure.vars = 4:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, interface, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
     return()
   
 }
