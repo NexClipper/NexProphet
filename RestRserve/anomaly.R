@@ -346,7 +346,8 @@ anomalyDetection <- function(tb_, groupby,
     as.data.table() %>%
     setkey(ds) %>% 
     .[tb_] %>% 
-    .[, anomaly := ifelse(y < yhat_lower | y > yhat_upper, 1, 0)]
+    .[, anomaly := ifelse(y < yhat_lower | y > yhat_upper, 1, 0)] %>% 
+    .[, c('yhat_lower', 'yhat_upper') := NULL]
   
   if (nrow(ano_result) > 1000)
     
