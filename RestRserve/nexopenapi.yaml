@@ -16,6 +16,8 @@ tags:
     description: return forecast data
   - name: detect anomaly metric
     description: return anomaly
+  - name: check health
+    description: health check
 paths:
   /correlation:
     post:
@@ -399,3 +401,19 @@ paths:
                 example:
                   status: 204
                   data: ''
+  /check:
+    get:
+      tags:
+        - check health
+      description: check health
+      responses:
+        '200':
+          description: good health
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 200
+                  data: 'Running'

@@ -168,6 +168,22 @@ CORRELATION <- function(request, response) {
 }
 
 
+HEALTHCHECK <- function(request, response) {
+  
+  response$body = data.frame('status' = 200,
+                             'data' = 'Running') %>% toJSON()
+  
+  response$content_type = "text/plain"
+  
+  response$headers = character(0)
+  
+  response$status_code = 200L
+  
+  forward()
+  
+}
+
+
 RestRserveApp <- RestRserveApplication$new()
 
 RestRserveApp$add_post(path = "/v0/forecast", FUN = FORECAST)
@@ -175,6 +191,8 @@ RestRserveApp$add_post(path = "/v0/forecast", FUN = FORECAST)
 RestRserveApp$add_post(path = "/v0/anomaly", FUN = ANOMALY)
 
 RestRserveApp$add_post(path = "/v0/correlation", FUN = CORRELATION)
+
+RestRserveApp$add_get(path = "/v0/check", FUN = HEALTHCHECK)
 
 RestRserveApp$add_static(path = '/nexopenapi.yaml', 
                          file_path = 'nexopenapi.yaml', 
