@@ -203,24 +203,25 @@ ui <- fluidPage(
             
           )
           
-        ),
+        )#,
         
-        column(
-          
-          width = 6,
-          
-          fluidRow(
-            
-            class = 'graph_panel',
-            
-            br(),
-            
-            h4(class = 'h4_alter', "Forecasting Statistics"),
-            
-            hr()
-            
-          )
-        )
+        # column(
+        #   
+        #   width = 6,
+        #   
+        #   fluidRow(
+        #     
+        #     class = 'graph_panel',
+        #     
+        #     br(),
+        #     
+        #     # h4(class = 'h4_alter', "Forecasting Statistics"),
+        #     imageOutput('comingsoon')
+        #     
+        #     # hr()
+        #     
+        #   )
+        # )
       )
       
     ) # mainPanel
@@ -243,6 +244,18 @@ server <- function(input, output, session) {
     agent[2]
     
   })
+  
+  # output$comingsoon <- renderImage({
+  #   
+  #   figFile.name <- '../Image/coming-soon-image.png'
+  #   
+  #   return(list(
+  #     src = figFile.name,
+  #     filetype = "image/png",
+  #     width = "100%",
+  #     height = '95%'))
+  #   
+  # }, deleteFile = FALSE)
   
   
   observeEvent(AGENT_ID(), {
@@ -387,7 +400,9 @@ server <- function(input, output, session) {
   
   observeEvent(input$resource_assist, {
     
-    if (input$resource == 'host' & input$resource_assist != '') {
+    if (input$resource == 'host' &
+        input$resource_assist != '' &
+        !str_detect(input$resource_assist, 'Choose')) {
       
       HOST_MOUNT_PATH <<- load_host_disk_mount_path(input$resource_assist,
                                                     AGENT_ID())

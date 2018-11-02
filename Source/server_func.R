@@ -1,3 +1,26 @@
+#### ENVIRONMENT VARIABLE ####
+
+# system('env > /srv/shiny-server/env.txt')
+# 
+# env <- read.csv('/srv/shiny-server/env.txt',
+#                 header = F,
+#                 stringsAsFactors = F) %>% 
+#   separate(1, c('key', 'value'), sep = '=') %>% 
+#   spread(key, value)
+# env <- Sys.getenv(c('INFLUX_ADDRESS', 'INFLUX_PORT', 'INFLUX_DBNAME', 'HOSTAPI_ADDRESS',
+#                     'R_INFLUX_ADDRESS', 'R_INFLUX_PORT', 'R_INFLUX_DBNAME', 'R_HOSTAPI_ADDRESS'))
+
+# write.table(env, '/srv/shiny-server/R_env.txt')
+
+INFLUX_ADDRESS <- 'influxdb.marathon.l4lb.thisdcos.directory'#env['R_INFLUX_ADDRESS']
+
+INFLUX_PORT <- 8086#env['R_INFLUX_PORT'] %>% as.integer()
+
+INFLUX_DBNAME <- 'nexclipper'#env['R_INFLUX_DBNAME']
+
+HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'#env['R_HOSTAPI_ADDRESS']
+
+#----
 
 #### COMMON FUNCTION ####
 
@@ -12,10 +35,10 @@ posixt_helper_func <- function(x) {
 
 connect <- function() {
   
-  con <- influx_connection(host = 'influxdb.marathon.l4lb.thisdcos.directory',
-                           port = 8086)
+  con <- influx_connection(host = INFLUX_ADDRESS,
+                           port = INFLUX_PORT)
   
-  dbname <- 'nexclipper'
+  dbname <- INFLUX_DBNAME
   
   conn <- list(connector = con, dbname = dbname)
   
@@ -25,6 +48,8 @@ connect <- function() {
 
 
 standardization <- function(mtx) {
+  
+  # mtx <- as.numeric(mtx)
   
   col_min <- as.vector(apply(mtx, 2, function(x) min(x, na.rm = T)))
   col_max <- as.vector(apply(mtx, 2, function(x) max(x, na.rm = T)))
@@ -119,84 +144,6 @@ load_single_metric_from_mount_path <- function(host, metric, period, groupby,
 }
 
 
-# load_single_metric_from_docker <- function(host, metric, period, groupby,
-#                                            unit, agent_id) {
-#   # host = 'redis.0529f75a-8697-11e8-80dc-664d329f843c';
-#   # metric='cpu_used_percent'; period=2; groupby='1h';unit='0';agent_id=27
-#   con <- connect()
-#   
-#   connector <- con$connector
-#   
-#   dbname <- con$dbname
-#   
-#   if (unit == '0') {
-#     
-#     period <- paste0(period, 'd')
-#     
-#   } else {
-#     
-#     period <- paste0(period, 'h')
-#     
-#   }
-#   
-#   query <- "select mean(%s) as metric
-#             from docker_container
-#             where time > now() - %s and agent_id = '%s' and task_id = '%s'
-#             group by time(%s), agent_id, task_id" %>% 
-#     sprintf(metric,
-#             period, agent_id, host,
-#             groupby)
-#   
-#   res_docker <- influx_query(connector,
-#                              db = dbname,
-#                              query = query,
-#                              simplifyList = T,
-#                              return_xts = F)[[1]] %>% 
-#     as.data.frame()
-#   
-#   if (!('metric' %in% names(res_docker))) {
-#     
-#     query <- "select mean(%s) as metric
-#               from docker_network
-#               where time > now() - %s and agent_id = '%s'
-#                     and task_id = '%s'
-#               group by time(%s), agent_id, task_id" %>% 
-#       sprintf(metric,
-#               period, agent_id, host,
-#               groupby)
-#     
-#     res_docker <- influx_query(connector,
-#                                db = dbname,
-#                                query = query,
-#                                simplifyList = T,
-#                                return_xts = F)[[1]] %>% 
-#       as.data.frame()
-#   }
-#   
-#   res_docker <- res_docker %>% 
-#     select(c(time, metric))
-#   
-#   unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-#   
-#   by <- str_extract(groupby, '\\d+') %>% paste(unit)
-#   
-#   ts <- seq.POSIXt(min(res_docker$time),
-#                    max(res_docker$time),
-#                    by = by)
-#   
-#   df <- tibble(ds = ts)
-#   
-#   tb <- full_join(df, res_docker, by = c('ds' = 'time'))
-#   
-#   tb$metric <- na.approx(tb$metric)
-#   
-#   names(tb) <- c("ds", "y")
-#   
-#   return(tb)
-#     
-# }
-
-
 load_single_metric <- function(measurement, host, metric, period, groupby,
                                unit, agent_id, mount = 'null') {
   # For forecasting, anomaly detection, read only one metric
@@ -215,6 +162,10 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   dbname <- con$dbname
   
+  if (str_detect(host, 'Choose') | str_detect(metric, 'Choose')) 
+    
+    return(default_time_seqeunce(period, groupby))
+    
   if (measurement == 'host' & mount != 'null')
     
     return(load_single_metric_from_mount_path(host, metric, period, groupby,
@@ -241,7 +192,7 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   tag <- switch(measurement,
                 'host' = 'host_ip',
-                'task' = 'executor_id',
+                # 'task' = 'executor_id',
                 'docker' = 'task_id')
   
   docker_host_ip <- ''
@@ -313,6 +264,75 @@ load_single_metric <- function(measurement, host, metric, period, groupby,
 
   return(tb)
 
+}
+
+
+load_multiple_metric <- function(period, groupby,
+                                 host_list, metric_list,
+                                 agent_id) {
+  
+  connector <- connect()
+  
+  con <- connector$connector
+  
+  dbname <- connector$dbname
+  
+  whole_data <- NULL
+  
+  if (!is.null(metric_list$host)) {
+    
+    host_metric <- load_metric_from_host(period = period,
+                                         groupby = groupby,
+                                         host_list = host_list$host,
+                                         metric_list = metric_list$host,
+                                         agent_id)
+    
+    whole_data <- host_metric
+    
+  }
+  
+  if (!is.null(metric_list$docker)) {
+    
+    docker_metric <- load_metric_from_docker(period = period,
+                                             groupby = groupby,
+                                             host_list = host_list$docker,
+                                             metric_list = metric_list$docker,
+                                             agent_id)
+    # browser()
+    if (is.null(whole_data)) {
+      
+      whole_data <- docker_metric
+      
+    } else {
+      
+      whole_data <- inner_join(whole_data, docker_metric, by = 'time')
+      
+    }
+    
+  }
+  
+  # if (!is.null(metric_list$task)) {
+  #   
+  #   task_metric <- load_metric_from_task(period = period,
+  #                                        groupby = groupby,
+  #                                        host_list = host_list$task,
+  #                                        metric_list = metric_list$task,
+  #                                        agent_id)
+  #   
+  #   if (is.null(whole_data)) {
+  #     
+  #     whole_data <- task_metric
+  #     
+  #   } else {
+  #     
+  #     whole_data <- inner_join(whole_data, task_metric, by = 'time')
+  #     
+  #   }
+  #   
+  # }
+  
+  return(whole_data)
+  
 }
 
 
@@ -437,79 +457,6 @@ load_metric_from_host <- function(period, groupby,
 }
 
 
-load_metric_from_task <- function(period, groupby,
-                                  host_list, metric_list,
-                                  agent_id) {
-  
-  # metric_list <- c("cpu_used_percent", "mem_used_percent")
-  # host_list <- c('kafka', 'agent.nexcloud')
-  # period = 5
-  # agent_id <- 27
-  # groupby = "1h"
-  
-  connector <- connect()
-  
-  con <- connector$connector
-  
-  dbname <- connector$dbname
-  
-  period <- paste0(period, 'd')
-  
-  # browser()
-  task <- paste('executor_id', "'%s'", sep = ' = ') %>%
-    sprintf(host_list) %>% 
-    paste(collapse = ' or ')
-  
-  query <- "select mean(*)
-            from %s
-            where time > now() - %s and agent_id = '%s' and (%s)
-            group by time(%s), executor_id, agent_id
-            fill(none)"
-  
-  query <- sprintf(query, 
-                   'task', 
-                   period, agent_id, task,
-                   groupby)
-  cat('\n', query, '\n')
-  res_task <- influx_query(con,
-                           db = dbname,
-                           query = query,
-                           simplifyList = T,
-                           return_xts = F)[[1]]
-  # browser()
-  if (!('executor_id' %in% names(res_task)))
-    
-    return(default_time_seqeunce(period, groupby))
-  
-  names(res_task) <- gsub('mean_', '', names(res_task))
-  
-  res_task <- res_task %>%
-    select(which(names(res_task) %in%
-                   c('time', 'executor_id', metric_list)))
-  
-  unit <- str_extract(groupby, '[:alpha:]') %>% posixt_helper_func()
-  
-  by <- str_extract(groupby, '\\d+') %>% paste(unit)
-  
-  ts <- seq.POSIXt(min(res_task$time),
-                   max(res_task$time),
-                   by = by)
-  
-  df <- tibble(time = ts)
-  
-  res_task <- full_join(df, res_task, by = 'time')
-  
-  res_task <- gather(res_task, var, value, c(-time, -executor_id)) %>% 
-    unite(var_new, executor_id, var, sep = ', ') %>% 
-    spread(var_new, value)
-  
-  print('Load multiple metrics for task')
-  
-  return(res_task)
-  
-}
-
-
 load_metric_from_docker <- function(period, groupby,
                                     host_list, metric_list,
                                     agent_id) {
@@ -534,11 +481,11 @@ load_metric_from_docker <- function(period, groupby,
     separate(var, c('col1', 'col2'), sep = '/-/')
   
   task_id <- paste('task_id', "'%s'", sep = ' = ') %>%
-    sprintf(host_df$col1) %>% 
+    sprintf(unique(host_df$col1)) %>% 
     paste(collapse = ' or ')
   
   host_ip <- paste('host_ip', "'%s'", sep = ' = ') %>%
-    sprintf(host_df$col2) %>% 
+    sprintf(unique(host_df$col2)) %>% 
     paste(collapse = ' or ')
   # browser()
   #### Read docker container ####
@@ -546,12 +493,12 @@ load_metric_from_docker <- function(period, groupby,
             from docker_container
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, host_ip, agent_id
-            fill(none)"
+            fill(linear)" %>% 
+    sprintf(period, agent_id, task_id, host_ip,
+            groupby)
   
-  query <- sprintf(query, 
-                   period, agent_id, task_id, host_ip,
-                   groupby)
   cat('\n', query, '\n')
+  
   res_container <- influx_query(con,
                                 db = dbname,
                                 query = query,
@@ -569,11 +516,11 @@ load_metric_from_docker <- function(period, groupby,
             from docker_network
             where time > now() - %s and agent_id = '%s' and (%s) and (%s)
             group by time(%s), task_id, agent_id, host_ip
-            fill(none)"
+            fill(linear)" %>% 
+    sprintf(period, agent_id, task_id, host_ip,
+            groupby)
+  
   cat('\n', query, '\n')
-  query <- sprintf(query, 
-                   period, agent_id, task_id, host_ip,
-                   groupby)
   
   res_network <- influx_query(con,
                               db = dbname,
@@ -587,14 +534,28 @@ load_metric_from_docker <- function(period, groupby,
     select(which(names(res_network) %in%
                    c('time', 'task_id', 'host_ip', metric_list)))
   
+  
+  #### inner join res_container with res_network ####
   if (length(names(res_container)) + length(names(res_network)) == 0)
     
     return(tibble(ds = NA, y = NA))
-  
-  #### inner join res_container with res_network ####
-  res_docker <- full_join(res_container,
-                          res_network,
-                          by = c('time', 'task_id', 'host_ip'))
+  if (length(names(res_container)) == 0 &
+      length(names(res_network)) != 0) {
+    
+    res_docker <- res_network
+    
+  } else if (length(names(res_container)) != 0 &
+             length(names(res_network)) == 0) {
+    
+    res_docker <- res_container
+    
+  } else {
+    
+    res_docker <- full_join(res_container,
+                            res_network,
+                            by = c('time', 'task_id', 'host_ip'))
+    
+  }
   
   res_docker$task_id <- str_extract(res_docker$task_id, '[[:alpha:]\\d-_]+')
   
@@ -609,107 +570,21 @@ load_metric_from_docker <- function(period, groupby,
   df <- tibble(time = ts)
   
   res_docker <- full_join(df, res_docker, by = 'time')
-  # browser()
-  res_docker <- gather(res_docker, var, value, c(-time, -task_id, -host_ip)) %>% 
+  # sapply(res_docker, function(x) sum(is.na(x)))
+  # res_docker[, -1:-3] <- na.approx(res_docker[, -1:-3])
+  
+  gather(res_docker, var, value, -1:-3) %>% 
     unite(var_new, task_id, host_ip, var, sep = ', ') %>% 
-    spread(var_new, value)
+    group_by(time, var_new) %>% 
+    summarise('value' = mean(value)) %>% 
+    spread(var_new, value) %>% 
+    return()
   # browser()
-  print('Load multiple metrics for docker')
+  # print('Load multiple metrics for docker')
   
-  return(res_docker)
-  
-}
-
-
-load_multiple_metric <- function(period, groupby,
-                                 host_list, metric_list,
-                                 agent_id) {
-  
-  connector <- connect()
-  
-  con <- connector$connector
-  
-  dbname <- connector$dbname
-  
-  whole_data <- NULL
-  
-  if (!is.null(metric_list$host)) {
-    
-    host_metric <- load_metric_from_host(period = period,
-                                         groupby = groupby,
-                                         host_list = host_list$host,
-                                         metric_list = metric_list$host,
-                                         agent_id)
-    
-    whole_data <- host_metric
-    
-  }
-  
-  if (!is.null(metric_list$docker)) {
-    
-    docker_metric <- load_metric_from_docker(period = period,
-                                             groupby = groupby,
-                                             host_list = host_list$docker,
-                                             metric_list = metric_list$docker,
-                                             agent_id)
-    # browser()
-    if (is.null(whole_data)) {
-      
-      whole_data <- docker_metric
-      
-    } else {
-      
-      whole_data <- inner_join(whole_data, docker_metric, by = 'time')
-      
-    }
-    
-  }
-  
-  if (!is.null(metric_list$task)) {
-    
-    task_metric <- load_metric_from_task(period = period,
-                                         groupby = groupby,
-                                         host_list = host_list$task,
-                                         metric_list = metric_list$task,
-                                         agent_id)
-    
-    if (is.null(whole_data)) {
-      
-      whole_data <- task_metric
-      
-    } else {
-      
-      whole_data <- inner_join(whole_data, task_metric, by = 'time')
-      
-    }
-    
-  }
-  
-  return(whole_data)
+  # return(res_docker)
   
 }
-
-
-# load_multiple_metric(5, '1h',
-#                      list('host'=c('192.168.0.162',
-#                                    '192.168.0.163')),
-#                      list('cluster' = c('cpu_used_percent',
-#                                         'mem_used_percent'),
-#                           'host' = c('load1')))
-
-
-# mtx <- load_multiple_metric(period = 5,
-#                      groupby = '1h',
-#                      host_list = list('cluster'='192.168.0.161',
-#                                       'host'=c('192.168.0.162',
-#                                                '192.168.0.163'),
-#                                       'task'=c('agent.nexcloud')),
-#                      metric_list = list('cluster'=c('cpu_used_percent',
-#                                                     'mem_used_percent',
-#                                                     'disk_used_percent'),
-#                                         'host'=c('load1'),
-#                                         'task'=c('cpu_used_percent'))
-#                      ) %>% as.matrix()
 
 
 default_time_seqeunce <- function(period, groupby) {
@@ -748,7 +623,7 @@ default_time_seqeunce <- function(period, groupby) {
 }
 
 
-load_metric_list <- function(measurement) {
+load_metric_list <- function(measurement, default_ = T) {
   # measurement <- 'host, host_disk, host_net'; measurement <- 'task'; measurement <- 'docker'
   # agent_id <- 27
   connector <- connect()
@@ -778,6 +653,12 @@ load_metric_list <- function(measurement) {
     select(c(series_names, fieldKey)) %>% 
     subset(fieldKey != 'timestamp' & !str_detect(fieldKey, '_per$'))
   
+  if (!default_)
+    return(split(res$fieldKey,
+                 res$series_names))
+  
+  res <- rbind(c('Choose Metric', 'Choose Metric'), res)
+  
   metric <- split(res$fieldKey, res$series_names)
   
   return(metric)
@@ -788,7 +669,7 @@ load_metric_list <- function(measurement) {
 load_host_disk_mount_path <- function(host_ip, agent_id) {
   
   # host_ip='172.17.0.1';agent_id='60'
-  # host_ip='192.168.0.162';agent_id='27'
+  # host_ip='192.168.0.163';agent_id='27'
   connector <- connect()
   print('disk mount path')
   con <- connector$connector
@@ -815,54 +696,28 @@ load_host_disk_mount_path <- function(host_ip, agent_id) {
 }
 
 
-load_tag_list <- function(measurement, agent_id) {
+load_tag_list <- function(measurement, agent_id, default_ = T) {
   # measurement <- 'docker'; agent_id <- 27
   
   tag_list <- switch(measurement,
-                     'host' = load_host_tag_list(agent_id),
-                     'task' = load_task_tag_list(agent_id),
-                     'docker' = load_docker_tag_list(agent_id))
+                     'host' = load_host_tag_list(agent_id, default_),
+                     # 'task' = load_task_tag_list(agent_id),
+                     'docker' = load_docker_tag_list(agent_id, default_))
   
   return(tag_list)
   
 }
 
 
-load_task_tag_list <- function(agent_id) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_mesosapi/v1/dashboard/task',
+load_docker_tag_list <- function(agent_id, default_) {
+  # agent_id <- 47
+  url <- 'http://%s/v1/docker/snapshot' %>% sprintf(HOSTAPI_ADDRESS)
+  
+  res <- GET(url,
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_mesosapi/v1/dashboard/task',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
   
-  task <- res$data %>%
-    fromJSON(simplifyVector = F, flatten = T) %>%
-    unlist()
-  
-  task_name_list <- data.frame('node_ip' = as.vector(task[grep("tasks.node_ip", names(task))]),
-                               'executor_id' = as.vector(task[grep("tasks.executor_id", names(task))]),
-                               stringsAsFactors = F)
-  
-  return(split(task_name_list$executor_id,
-               task_name_list$node_ip))
-  
-}
-
-
-load_docker_tag_list <- function(agent_id) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/docker/snapshot',
-             content_type_json(),
-             add_headers('agent_id' = agent_id)) %>%
-    content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/docker/snapshot',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
   if ((res$status != 200) |
       (res$data == '[]') |
       (res$data == '{}'))
@@ -904,51 +759,53 @@ load_docker_tag_list <- function(agent_id) {
   
   docker_name_list$name <- united$name
   
-  # docker_name_list %>% separate(name, c('col1', 'col2'), '/-/')
+  unique_ip <- which(table(docker_name_list$host_ip) == 1) %>% names()
   
-  return(split(docker_name_list$name,
-               docker_name_list$host_ip))
+  idx <- which(docker_name_list$host_ip %in% unique_ip)
+  
+  docker_name_list$host_ip[idx] <- docker_name_list$name[idx]
+  
+  name_split <- split(docker_name_list$name,
+                      docker_name_list$host_ip)
+  
+  if (!default_)
+    return(name_split)
+  
+  names_ <- c('Choose Container', names(name_split))
+  
+  name_split$`Choose Container` <- 'Choose Container'
+  
+  name_split[names_] %>% return()
   
 }
 
 
-load_host_tag_list <- function(agent_id, split_ = T) {
-  # agent_id <- 11
-  res <- GET('http://192.168.0.162:10100/nexcloud_hostapi/v1/agent/status',
+load_host_tag_list <- function(agent_id, default_) {
+  # agent_id <- 13
+  url <- 'http://%s/v1/agent/status' %>% 
+    sprintf(HOSTAPI_ADDRESS)
+  
+  res <- GET(url,
              content_type_json(),
              add_headers('agent_id' = agent_id)) %>%
     content('parsed')
-  # res <- GET('http://13.77.154.37:10100/nexcloud_hostapi/v1/agent/status',
-  #            content_type_json(),
-  #            add_headers('agent_id' = agent_id)) %>%
-  #   content('parsed')
+  
   if ((res$status != 200) |
       (res$data == '[]') |
       (res$data == '{}'))
-    return(list('null' = 'null',
-                'null' = 'null'))
+    return(list('null' = 'null'))
   
   host <- res$data %>%
     fromJSON(simplifyVector = F, flatten = T) %>%
     unlist()
   
-  name <- as.vector(host[grep('host_name', names(host))])
+  names_ <- as.vector(host[grep('host_ip', names(host))])
   
-  host_ip <- as.vector(host[grep('host_ip', names(host))])
+  if (!default_)
+    return(names_)
   
-  if (length(name) == 0) {
-    
-    name <- rep(NA, length(host_ip))
-    
-  }
-  
-  host_name_list <- data.frame('name' = name,
-                               'host_ip' = host_ip,
-                               stringsAsFactors = F)
-  if (split_)
-    return(split(host_name_list$host_ip, host_name_list$name))
-  
-  return(host_name_list)
+  c('Choose Host', names_) %>% 
+    return()
   
 }
 
@@ -979,242 +836,6 @@ load_trace <- function(agent_id, period) {
   
   stamp <- as.vector(trace[grep('stamp', names(trace))])
 }
-
-# load_host_tag_list <- function(agent_id) {
-#   # agent_id <- '60'
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from host where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame() 
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3', 'col4'), ',') %>% 
-#     select(-col1) %>% 
-#     separate(col2, c('col5', 'col6'), '=') %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') #%>% 
-#   # subset(col6 != 'null' & col8 != 'null' & col10 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- split(res$col8, res$col10)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_task_tag_list <- function(agent_id) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from task where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>%
-#     separate(key, c('col1', 'col2', 'col3',
-#                     'col4', 'col5', 'col6'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col7', 'col8'), '=') %>% 
-#     separate(col4, c('col9', 'col10'), '=') %>% 
-#     separate(col5, c('col11', 'col12'), '=') %>%
-#     separate(col6, c('col13', 'col14'), '=') #%>% 
-#   # subset(col8 != 'null' & col10 != 'null' & col12 != 'nul' & col14 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col12, col14)), c('col12', 'col14')]
-#   
-#   res <- split(res$col14, res$col12)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_docker_tag_list <- function(agent_id) {
-#   # agent_id <- 60
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- 'SHOW series from docker_container where agent_id =~ /%s/' %>%
-#     sprintf(agent_id)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F)[[1]] %>%
-#     as.data.frame()
-#   
-#   if (!('key' %in% names(res))) return(NULL)
-#   
-#   res <- res %>% select(key) %>% separate(key, c('col1', 'col2', 'col3', 'col4', 
-#                                                  'col5', 'col6', 'col7'), ',') %>% 
-#     select(c(-col1, -col2)) %>% 
-#     separate(col3, c('col13', 'col14'), '=') %>% 
-#     separate(col4, c('col15', 'col16'), '=') %>% 
-#     separate(col5, c('col17', 'col18'), '=') %>% 
-#     separate(col6, c('col19', 'col20'), '=') %>% 
-#     separate(col7, c('col21', 'col22'), '=') #%>% 
-#   # subset(col14 != 'null' & col16 != 'null' & col18 != 'null' &
-#   #          col20 != 'null' & col22 != 'null')
-#   
-#   # if (nrow(res) == 0) return(NULL)
-#   
-#   res <- res[!duplicated(res %>% select(col18, col20)), c('col18', 'col20')]
-#   
-#   res <- split(res$col20, res$col18)
-#   
-#   return(res)
-#   
-# }
-
-
-# load_host_list_for_task <- function(task_name) {
-#   
-#   connector <- connect()
-#   
-#   con <- connector$con
-#   
-#   dbname <- connector$dbname
-#   
-#   query <- "show tag values
-#             from task
-#             with key = node_ip
-#             where task =~ /%s/" %>% 
-#     sprintf(task_name)
-#   
-#   res <- influx_query(con,
-#                       dbname,
-#                       query,
-#                       return_xts = F,
-#                       simplifyList = T)[[1]] %>% as.data.frame()
-#   
-#   # if (!('node_ip' %in% names(res))) return('Not Exist!')
-#   
-#   return(res$value)
-#   
-# }
-
-
-# connect_MySQL <- function() {
-#   
-#   con <- dbConnect(MySQL(), user = 'admin', password = 'password',
-#                    host = '192.168.0.168', port = 18951,
-#                    dbname = 'defaultdb')
-#   
-#   return(con)
-#   
-# }
-
-
-# load_event_data <- function() {
-#   
-#   con <- connect_MySQL()
-#   
-#   columns <- c('start_time', "target_system", "target_ip", "target", "metric",
-#                "condition", "id")
-#   
-#   query <- 'SELECT * \
-#             FROM nexclipper_incident \
-#             order by start_time'
-#   
-#   raw_data <- as.data.frame(dbGetQuery(con, query))
-#   
-#   raw_data <- raw_data[, columns]
-#   
-#   #### Task parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Task', 'id'],
-#                       '[.]|(__)|(_\\d+)', simplify = T)
-#   
-#   raw_data[raw_data$target_system == 'Task', 'id'] <- parsed[, 1]
-#   
-#   # table(raw_data[raw_data$target_system == 'Task', 'id'])
-#   
-#   
-#   #### Agent parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Agent', 'id'],
-#                       '_', simplify = T)
-#   
-#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
-#   
-#   raw_data[raw_data$target_system == 'Agent', 'id'] <- id_
-#   
-#   # table(raw_data[raw_data$target_system == 'Agent', 'id'])
-#   
-#   
-#   #### Host parsing ####
-#   parsed <- str_split(raw_data[raw_data$target_system == 'Host', 'id'],
-#                       '_', simplify = T)
-#   
-#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
-#   
-#   raw_data[raw_data$target_system == 'Host', 'id'] <- id_
-#   
-#   # table(raw_data[raw_data$target_system == 'Host', 'id'])
-#   
-#   
-#   #### Docker parsing ####
-#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')))
-#   
-#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')[idx]
-#   
-#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')))
-#   
-#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')[idx]
-#   
-#   raw_data$id[str_detect(raw_data$id, 'influxdb')] <- 'influxdb'
-#   
-#   # table(raw_data[raw_data$target_system == 'Docker', 'id'])
-#   
-#   df <- raw_data
-#   
-#   names(df)[6] <- 'service_id'
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target_system, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target_ip, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(target, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(metric, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(service_id, key, value, sep = '=')
-#   
-#   df <- gather(df, key, value, 2) %>% unite(id, key, value, sep = '=')
-#   
-#   df <- unite(df, item, 2:7, sep = ', ') %>% as.data.table()
-#   
-#   return(df)
-#   
-# }
 
 
 #### FORECAST ####
@@ -1343,6 +964,7 @@ render_forecast_component <- function(result) {
 
 
 
+
 #### ANOMALY ####
 
 
@@ -1428,15 +1050,9 @@ renew <- function(renewal) {
 #   
 # }
 
+
 #### METRIC CORRELATION ####
-horizon.panel.ggplot <- function(df,  add_text=NULL) {
-  
-  #df parameter should be in form of date (x), grouping, and a value (y)
-  colnames(df) <- c("date","grouping","y")
-  #get some decent colors from RColorBrewer
-  #we will use colors on the edges so 2:4 for red and 7:9 for blue
-  
-  df$grouping <- as.factor(df$grouping)
+horizon.panel.ggplot <- function(df, add_text=NULL) {
   
   lv <- levels(df$grouping)
   
@@ -1445,25 +1061,29 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
     add_text = ""
     
   } else {
+    
     add_text = paste0("(", add_text, ")")  
+    
   }
-  # browser()
+  
   labeli2 <- function(variable, value) {
     
     value <- droplevels(value)
-    names_li <- as.list(paste(lv, add_text, sep = '\n'))
+    
+    names_li <- as.list(paste(lv, add_text, sep = ' '))
+    
     names(names_li) <- lv
     
     return(names_li[value])
     
   }
   
-  #use ggplot to produce an area plot
-  p <- ggplot(data = df) +
-    geom_line(aes(x = date, y = y), size = 0.75, color = "darkgoldenrod") + 
-    facet_grid(grouping ~ ., labeller = labeli2, scales="free_y") +    #do new subplot for each group
+  ggplot(data = df) +
+    geom_line(aes(x = time, y = y), size = 0.75, color = "darkgoldenrod") + 
+    facet_wrap(. ~ grouping, labeller = labeli2, scales = "free_y", ncol = 1) +    #do new subplot for each group
     theme_bw() +                  #this is optional, but I prefer to default
     theme(legend.position = "none",    #remove legend
+          strip.text = element_text(size = 15),
           strip.text.y = element_text(angle = 0),#rotate strip text to horizontal
           strip.background = element_rect(fill = 'grey95'),
           axis.text.y = element_blank(),#remove y axis labels
@@ -1472,10 +1092,7 @@ horizon.panel.ggplot <- function(df,  add_text=NULL) {
           axis.title.x = element_blank()
     )
   
-  return(p)
-  
 }
-
 
 
 #### METRIC CASUALITY ####
@@ -2065,3 +1682,86 @@ select_lags <- function(x, y, max.lag) {
 #   return(tb)
 #   
 # }
+
+
+# load_event_data <- function() {
+#   
+#   con <- connect_MySQL()
+#   
+#   columns <- c('start_time', "target_system", "target_ip", "target", "metric",
+#                "condition", "id")
+#   
+#   query <- 'SELECT * \
+#             FROM nexclipper_incident \
+#             order by start_time'
+#   
+#   raw_data <- as.data.frame(dbGetQuery(con, query))
+#   
+#   raw_data <- raw_data[, columns]
+#   
+#   #### Task parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Task', 'id'],
+#                       '[.]|(__)|(_\\d+)', simplify = T)
+#   
+#   raw_data[raw_data$target_system == 'Task', 'id'] <- parsed[, 1]
+#   
+#   # table(raw_data[raw_data$target_system == 'Task', 'id'])
+#   
+#   
+#   #### Agent parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Agent', 'id'],
+#                       '_', simplify = T)
+#   
+#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+#   
+#   raw_data[raw_data$target_system == 'Agent', 'id'] <- id_
+#   
+#   # table(raw_data[raw_data$target_system == 'Agent', 'id'])
+#   
+#   
+#   #### Host parsing ####
+#   parsed <- str_split(raw_data[raw_data$target_system == 'Host', 'id'],
+#                       '_', simplify = T)
+#   
+#   id_ <- apply(parsed, 1, function(x) ifelse(x[2] == "", x[1], x[2]))
+#   
+#   raw_data[raw_data$target_system == 'Host', 'id'] <- id_
+#   
+#   # table(raw_data[raw_data$target_system == 'Host', 'id'])
+#   
+#   
+#   #### Docker parsing ####
+#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')))
+#   
+#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+_[:alpha:]+')[idx]
+#   
+#   idx <- which(!is.na(str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')))
+#   
+#   raw_data$id[idx] <- str_extract(raw_data$id, '[:alpha:]+-[:alpha:]+')[idx]
+#   
+#   raw_data$id[str_detect(raw_data$id, 'influxdb')] <- 'influxdb'
+#   
+#   # table(raw_data[raw_data$target_system == 'Docker', 'id'])
+#   
+#   df <- raw_data
+#   
+#   names(df)[6] <- 'service_id'
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target_system, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target_ip, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(target, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(metric, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(service_id, key, value, sep = '=')
+#   
+#   df <- gather(df, key, value, 2) %>% unite(id, key, value, sep = '=')
+#   
+#   df <- unite(df, item, 2:7, sep = ', ') %>% as.data.table()
+#   
+#   return(df)
+#   
+# }
+

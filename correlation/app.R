@@ -242,17 +242,17 @@ server <- function(input, output, session) {
   
   observeEvent(AGENT_ID(), {
     
-    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID())
+    HOST_TAG_LIST <<- load_tag_list('host', AGENT_ID(), F)
     
     # TASK_TAG_LIST <<- load_tag_list('task', AGENT_ID())
     
-    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID())
+    DOCKER_TAG_LIST <<- load_tag_list('docker', AGENT_ID(), F)
     
-    HOST_METRIC_LIST <<- load_metric_list('host')
+    HOST_METRIC_LIST <<- load_metric_list('host', F)
     
     # TASK_METRIC_LIST <<- load_metric_list('task')
     
-    DOCKER_METRIC_LIST <<- load_metric_list('docker')
+    DOCKER_METRIC_LIST <<- load_metric_list('docker', F)
     
     updateSelectizeInput(
       session = session,
@@ -295,6 +295,14 @@ server <- function(input, output, session) {
   
   observeEvent(input$execute, {
     
+    updateSelectInput(session,
+                      "combo_DT_Metric",
+                      choices = colnames(data_corr()))
+    
+    updateSelectInput(session,
+                      "combo_metric",
+                      choices = colnames(data_corr()))
+    
     output$correlation_plot <- renderD3heatmap({
       
       d3heatmap(data_corr(), colors = "Blues", scale = "none",
@@ -303,14 +311,6 @@ server <- function(input, output, session) {
       
       
     })
-    
-    updateSelectInput(session,
-                      "combo_DT_Metric",
-                      choices = rownames(data_corr()))
-    
-    updateSelectInput(session,
-                      "combo_metric",
-                      choices = rownames(data_corr()))
    
   })
   
@@ -333,25 +333,36 @@ server <- function(input, output, session) {
                          groupby = groupby,
                          host_list = host_list,
                          metric_list = metric_list,
-                         AGENT_ID())
+                         AGENT_ID()) %>% 
+      as.data.table()
     
     bdd <- (mtx %>% nrow() * 0.7) %>% as.integer()
     # print(bdd)
-    mtx %>% 
-      select_if(~ sum(is.na(.)) < bdd) %>% 
-      subset(complete.cases(.)) %>% 
-      select_if(~ sd(., na.rm = T) != 0)
-    
+    # browser()
+
+    mtx[, .SD, .SDcols = (mtx[, lapply(.SD, function(x) sd(x, na.rm = T) != 0 &
+                                               sum(is.na(x)) <= bdd)] %>%
+                               unlist() %>%
+                               which())] %>%
+      .[, lapply(.SD, function(x) na.approx(x, na.rm = F) %>% na.fill('extend')),
+       .SDcols = 2:ncol(.)] %>% 
+      cbind(time = mtx$time)
+      
   })
   
   
   data_corr <- reactive({
+    # browser()
+    # corr_mtx <- 
+      multiple_metrics() %>% 
+      .[, -ncol(multiple_metrics())] %>% 
+      .[, lapply(.SD, function(x) scale(x, center = T, scale = T))] %>% 
+      cor(use = 'pairwise.complete.obs')# %>% 
+      # na.fill(0)
     
-    multiple_metrics() %>% 
-      select(-time) %>%
-      as.matrix() %>%
-      standardization() %>% 
-      cor(use = 'pairwise.complete.obs')
+    # rownames(corr_mtx) <- colnames(corr_mtx)
+    # 
+    # corr_mtx
     
   })
   
@@ -360,7 +371,7 @@ server <- function(input, output, session) {
     
     if (input$combo_DT_Metric != "") {
       # browser()
-      dt <- data.table(Metrics = rownames(data_corr()),
+      dt <- data.table(Metrics = colnames(data_corr()),
                        Correlation = round(data_corr()[, input$combo_DT_Metric], 4),
                        absCorr = abs(round(data_corr()[, input$combo_DT_Metric], 4)))
       
@@ -379,21 +390,21 @@ server <- function(input, output, session) {
     output$similar_plot <- renderPlot({
       
       if (input$combo_metric != "") {
-        
-        dt <- data.table(Metrics = rownames(data_corr()),
+        # browser()
+        dt <- data.table(Metrics = colnames(data_corr()),
                          Correlation = round(data_corr()[, input$combo_metric], 4),
                          absCorr = abs(round(data_corr()[, input$combo_metric], 4)))
         
         setorder(dt, -absCorr)
-        
         # browser()
         mtx <- multiple_metrics() %>%
           select(c(time, dt$Metrics[1:min(10, nrow(dt))])) %>%
-          # na.omit() %>% 
+          # na.omit() %>%
           gather(grouping, y, -1) %>% 
           as.data.frame()
         
-        mtx$grouping <- factor(mtx$grouping, levels = dt$Metrics[1:min(10, nrow(dt))])
+        mtx$grouping <- factor(mtx$grouping,
+                               levels = dt$Metrics[1:min(10, nrow(dt))])
         
         mtx %>% 
           horizon.panel.ggplot(dt$Correlation[1:min(10, nrow(dt))])

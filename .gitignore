@@ -6,3 +6,6 @@ www/*
 Model
 !www/custom.css
 *.json
+test
+internal.conf
+*.csv

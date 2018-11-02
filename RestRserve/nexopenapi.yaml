@@ -1,0 +1,419 @@
+openapi: 3.0.1
+info:
+  title: RestRserve OpenAPI
+  version: '0.1'
+  description: 'Prediction, anomaly detection, metric association'
+  contact:
+    name: nexcloud
+    email: support@nexclipper.com
+    url: 'https://www.nexcloud.co.kr'
+servers:
+  - url: /v0
+tags:
+  - name: metric association
+    description: return association between metrics
+  - name: forecast metric
+    description: return forecast data
+  - name: detect anomaly metric
+    description: return anomaly
+  - name: check health
+    description: health check
+paths:
+  /correlation:
+    post:
+      tags:
+        - metric association
+      description: get correlation matrix between metrics
+      parameters:
+        - name: agent_id
+          description: agent_id
+          in: header
+          schema:
+            type: integer
+          required: true
+        - name: key
+          description: key name to save to the influxdb
+          in: header
+          schema:
+            type: integer
+          example: 817340112
+          required: true
+        - name: start_time
+          description: select start time
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: period
+          description: 'select period to train model, default : 6 days'
+          in: query
+          schema:
+            type: string
+          example: 10d
+          required: true
+        - name: groupby
+          description: 'select time to group by, default : 1 hour'
+          in: query
+          schema:
+            type: string
+          example: 1h
+          required: true
+      requestBody:
+        description: >-
+          A JSON object containing several measurements(table) with several
+          metrics
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                host:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    host_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                host_disk:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - used_percent
+                    host_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                    mount:
+                      format: array
+                      example:
+                        - /
+                        - /var
+                host_net:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - rxbyte
+                        - txbyte
+                    host_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                    interface:
+                      format: array
+                      example:
+                        - eth0
+                        - docker0
+                docker_network:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - rx_bytes
+                        - tx_bytes
+                    host_ip:
+                      format: array
+                      example:
+                        - 192.168.0.168
+                    interface:
+                      format: array
+                      example:
+                        - eth0
+                    dname:
+                      format: array
+                      example:
+                        - influxdb.131a06b9-afee-11e8-ae9f-aae0d7e58657
+                docker_container:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    host_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                    dname:
+                      format: array
+                      example:
+                        - /Nexclipper-Agent
+        required: true
+      responses:
+        '204':
+          description: no return
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 204
+                  data: ''
+        default:
+          description: no return
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 204
+                  data: ''
+  /forecast:
+    post:
+      tags:
+        - forecast metric
+      description: Prediction for host or docker metric
+      parameters:
+        - name: agent_id
+          description: agent_id
+          in: header
+          schema:
+            type: integer
+          required: true
+        - name: key
+          description: key name to save to the influxdb
+          in: header
+          schema:
+            type: integer
+          example: 817340112
+          required: true
+        - name: host_ip
+          description: insert host ip as measurement is related to host or docker
+          in: query
+          schema:
+            type: string
+          example: 192.168.0.165
+          required: true
+        - name: start_time
+          description: select start time
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: measurement
+          description: >-
+            one of host, host_disk, host_net, docker_container,
+            docker_network
+          in: query
+          schema:
+            type: string
+          example: host
+          required: true
+        - name: metric
+          description: select metric to predict
+          in: query
+          schema:
+            type: string
+          example: cpu_used_percent
+          required: true
+        - name: period
+          description: 'select period to train model, default : 6 days'
+          in: query
+          schema:
+            type: string
+          example: 7d
+          required: true
+        - name: p_period
+          description: 'select period to predict, default : 2 days'
+          in: query
+          schema:
+            type: string
+          example: 2d
+          required: true
+        - name: groupby
+          description: 'select time to group by, default : 1 hour'
+          in: query
+          schema:
+            type: string
+          example: 1h
+          required: true
+      requestBody:
+        description: A JSON object containing additional condition
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mount:
+                  format: string
+                  description: >-
+                    available when metric related to disk. select mount path.
+                    default : null. if you want mount path : / or /var, insert
+                    total or var. 
+                  example:
+                    - null
+                hostIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+                dname:
+                  format: string
+                  description: >-
+                    name of docker container. available when measurement is
+                    host_net.
+                  example:
+                    - null
+                dockerIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+        required: false
+      responses:
+        '204':
+          description: no return
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 204
+                  data: ''
+  /anomaly:
+    post:
+      tags:
+        - detect anomaly of metric
+      description: Detection anomaly for host or docker metric
+      parameters:
+        - name: agent_id
+          description: agent_id
+          in: header
+          schema:
+            type: integer
+          required: true
+        - name: key
+          description: key name to save to the influxdb
+          in: header
+          schema:
+            type: integer
+          example: 817340112
+          required: true
+        - name: host_ip
+          description: insert host ip as measurement is related to host or docker
+          in: query
+          schema:
+            type: string
+          example: 192.168.0.165
+          required: true
+        - name: start_time
+          description: select start time
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: measurement
+          description: >-
+            one of host, host_disk, host_net, docker_container,
+            docker_network
+          in: query
+          schema:
+            type: string
+          example: host
+          required: true
+        - name: metric
+          description: select metric to predict
+          in: query
+          schema:
+            type: string
+          example: cpu_used_percent
+          required: true
+        - name: period
+          description: 'select period to train model, default : 6 days'
+          in: query
+          schema:
+            type: string
+          example: 7d
+          required: true
+        - name: groupby
+          description: 'select time to group by, default : 1 hour'
+          in: query
+          schema:
+            type: string
+          example: 1h
+          required: true
+      requestBody:
+        description: A JSON object containing additional condition
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mount:
+                  format: string
+                  description: >-
+                    available when metric related to disk. select mount path.
+                    default : null. if you want mount path : / or /var, insert
+                    total or var. 
+                  example:
+                    - null
+                hostIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+                dname:
+                  format: string
+                  description: >-
+                    name of docker container. available when measurement is
+                    host_net.
+                  example:
+                    - null
+                dockerIF:
+                  format: string
+                  description: >-
+                    interface of host, which is related to host network metric.
+                    available when measurement is host_net.
+                  example:
+                    - null
+        required: false
+      responses:
+        '204':
+          description: no return
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 204
+                  data: ''
+  /check:
+    get:
+      tags:
+        - check health
+      description: check health
+      responses:
+        '200':
+          description: good health
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: ''
+                example:
+                  status: 200
+                  data: 'Running'
