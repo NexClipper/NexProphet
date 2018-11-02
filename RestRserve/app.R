@@ -21,7 +21,7 @@ MYSQL_PORT <- MYSQL_ENV['MYSQL_PORT'] %>% as.integer()
 #----
 
 #### MYSQL ####
-write_init_to_mysql <- function(agent_id, key_, start_time) {
+write_init_to_mysql <- function(agent_id, key_) {
   
   con <- dbConnect(MySQL(),
                    user = MYSQL_USER,
@@ -32,7 +32,7 @@ write_init_to_mysql <- function(agent_id, key_, start_time) {
   
   info <- data.frame('agent_id' = agent_id,
                      'key_id' = key_,
-                     'start_time' = start_time,
+                     'start_time' = Sys.time(),
                      'status' = 199
   )
   
@@ -72,7 +72,7 @@ FORECAST <- function(request, response) {
   
   request_body <- request$body %>% rawToChar()
   
-  write_init_to_mysql(agent_id, key_, start_time)
+  write_init_to_mysql(agent_id, key_)
   
   cmd <- "Rscript forecast.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --p_period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, p_period,
@@ -113,7 +113,7 @@ ANOMALY <- function(request, response) {
   
   request_body <- request$body %>% rawToChar()
   
-  write_init_to_mysql(agent_id, key_, start_time)
+  write_init_to_mysql(agent_id, key_)
   
   cmd <- "Rscript anomaly.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, groupby,
@@ -148,7 +148,7 @@ CORRELATION <- function(request, response) {
   
   request_body <- request$body %>% rawToChar()
   
-  write_init_to_mysql(agent_id, key_, start_time)
+  write_init_to_mysql(agent_id, key_)
   
   cmd <- "Rscript correlation.R --agent_id '%s' --key '%s' --period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
     sprintf(agent_id, key_, period, groupby, start_time, request_body)
