@@ -14,7 +14,7 @@ tags:
     description: return association between metrics
   - name: forecast metric
     description: return forecast data
-  - name: detect anomaly metric
+  - name: detect anomaly of metric
     description: return anomaly
   - name: check health
     description: health check
@@ -32,7 +32,7 @@ paths:
             type: integer
           required: true
         - name: key
-          description: key name to save to the influxdb
+          description: table name to save to the influxdb
           in: header
           schema:
             type: integer
@@ -45,7 +45,7 @@ paths:
             type: string
           required: true
         - name: period
-          description: 'select period to train model, default : 6 days'
+          description: 'select period, default : 10 days'
           in: query
           schema:
             type: string
