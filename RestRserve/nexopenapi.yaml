@@ -152,6 +152,54 @@ paths:
                       format: array
                       example:
                         - /Nexclipper-Agent
+                node:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    node_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                task:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    node_ip:
+                      format: array
+                      example:
+                        - 192.168.0.167
+                        - 192.168.0.168
+                    E_ID:
+                      format: array
+                      example:
+                        - redis.40b455b0-e17a-11e8-ae5d-8ac1dc5733cc
+                        - influxdb.28755d4d-e17a-11e8-ae5d-8ac1dc5733cc
+                network:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - in_bytes
+                        - out_bytes
+                    node_ip:
+                      format: array
+                      example:
+                        - 192.168.0.165
+                        - 192.168.0.166
+                    IF:
+                      format: array
+                      example:
+                        - null
         required: true
       responses:
         '204':
@@ -209,7 +257,7 @@ paths:
         - name: measurement
           description: >-
             one of host, host_disk, host_net, docker_container,
-            docker_network
+            docker_network, node, task, network
           in: query
           schema:
             type: string
@@ -277,6 +325,20 @@ paths:
                   description: >-
                     interface of host, which is related to host network metric.
                     available when measurement is host_net.
+                  example:
+                    - null
+                E_ID:
+                  format: string
+                  description: >-
+                    executor_id of task, which is related to task metric.
+                    available when measurement is task.
+                  example:
+                    - null
+                IF:
+                  format: string
+                  description: >-
+                    interface of network, which is related to network metric.
+                    available when measurement is network.
                   example:
                     - null
         required: false
@@ -389,6 +451,20 @@ paths:
                     available when measurement is host_net.
                   example:
                     - null
+                E_ID:
+                  format: string
+                  description: >-
+                    executor_id of task, which is related to task metric.
+                    available when measurement is task.
+                  example:
+                    - null
+                IF:
+                  format: string
+                  description: >-
+                    interface of network, which is related to network metric.
+                    available when measurement is network.
+                  example:
+                    - null
         required: false
       responses:
         '204':
@@ -416,4 +492,4 @@ paths:
                   $ref: ''
                 example:
                   status: 200
-                  data: 'Running'
+                  data: 'success'

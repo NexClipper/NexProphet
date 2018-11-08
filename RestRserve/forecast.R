@@ -49,19 +49,31 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
   
   agent_id <- agent_id %>% as.integer()
   
-  switch(measurement,
-         'host' = load_host(agent_id, host_ip, metric, period, groupby, start_time),
-         'host_disk' = load_host_disk(agent_id, host_ip, metric, period, groupby, start_time,
-                                      arg$mount),
-         'host_net' = load_host_net(agent_id, host_ip, metric, period, groupby, start_time,
-                                    arg$hostIF),
-         # 'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
-         #                                    arg$pname),
-         'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, start_time,
-                                                    arg$dname),
-         'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, start_time,
-                                                arg$dname, arg$dockerIF)) %>% 
-    .[!is.na(y)] %>% return()
+  dt_ <- switch(measurement,
+                'host' = load_host(agent_id, host_ip, metric, period, groupby, start_time),
+                'host_disk' = load_host_disk(agent_id, host_ip, metric, period, groupby, start_time,
+                                             arg$mount),
+                'host_net' = load_host_net(agent_id, host_ip, metric, period, groupby, start_time,
+                                           arg$hostIF),
+                'node' = load_node(agent_id, host_ip, metric, period, groupby, start_time),
+                'task' = load_task(agent_id, host_ip, metric, period, groupby, start_time, arg$E_ID),
+                'network' = load_network(agent_id, host_ip, metric, period, groupby, start_time, arg$IF),
+                # 'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
+                #                                    arg$pname),
+                'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, start_time,
+                                                           arg$dname),
+                'docker_network' = load_docker_network(agent_id, host_ip, metric, period, groupby, start_time,
+                                                       arg$dname, arg$dockerIF))
+  
+  if (is.null(dt_)) {
+    
+    return(NULL)
+    
+  } else {
+    
+    dt_[, y := na.approx(y)] %>% return()
+    
+  }
   
 }
 
@@ -276,6 +288,130 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time
 }
 
 
+load_node <- function(agent_id, host_ip, metric, period, groupby, start_time) {
+  #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='7d';groupby='1h'
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  query <- "select mean(%s) as y
+            from node
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s'
+            group by time(%s)" %>% 
+    sprintf(metric,
+            agent_id,
+            start_time, period,
+            host_ip,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% return()
+  
+}
+
+
+load_task <- function(agent_id, host_ip, metric, period, groupby, start_time, executor_id) {
+  #agent_id=27;host_ip='192.168.0.168';executor_id='influxdb.28755d4d-e17a-11e8-ae5d-8ac1dc5733cc';metric='cpu_used_percent';period='7d';groupby='1h'
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  query <- "select mean(%s) as y
+            from task
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s' and
+                  executor_id = '%s'
+            group by time(%s)" %>% 
+    sprintf(metric,
+            agent_id,
+            start_time, period,
+            host_ip,
+            executor_id,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% return()
+  
+}
+
+
+load_network <- function(agent_id, host_ip, metric, period, groupby, start_time, interface) {
+  #agent_id=27;host_ip='192.168.0.165';metric='in_bytes';period='7d';groupby='1h';interface='null'
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  query <- "select mean(%s) as y
+            from network
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s' and
+                  interface = '%s'
+            group by time(%s)" %>% 
+    sprintf(metric,
+            agent_id,
+            start_time, period,
+            host_ip,
+            interface,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% return()
+  
+}
+
+
 # load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
 #   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';pname='mysqld'
 #   con <- connect()
@@ -423,11 +559,17 @@ print('########################')
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
                       groupby, start_time, key, request_body) {
-  #agent_id=27;measurement='host';host_ip='192.168.0.165';metric='cpu_used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';key='forecast_618827342'
-  #agent_id=27;measurement='host_disk';host_ip='192.168.0.165';metric='used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';mount='/';key='forecast_618827342'
-  #agent_id=27;measurement='host_disk';host_ip='192.168.0.169';metric='used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';mount='/';key='forecast_618827342'
+  #agent_id=27;measurement='host';host_ip='192.168.0.169';metric='cpu_used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';key='618827342';request_body="\"{'mount':'null'}\""
   res <- load_single_metric(agent_id, measurement, host_ip, metric,
                             period, groupby, start_time, request_body)
+  
+  if (is.null(res)) {
+    
+    update_key_id_to_mysql(agent_id, key, 404, 'not found')
+    
+    return()
+    
+  }
   
   result <- forecasting(res, groupby, predicted_period,
                         changepoint.prior.scale = 0.1)

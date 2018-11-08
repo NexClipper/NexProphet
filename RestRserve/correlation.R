@@ -141,6 +141,67 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     
   }
   
+  # node
+  if (!is.null(arg$node)) {
+    
+    node <- load_nodes(agent_id, arg$node, period, groupby, start_time)
+    
+    if (!is.null(node)) {
+      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- node[whole_data]
+        
+      } else {
+        
+        whole_data <- node
+        
+      }
+    }
+    
+  }
+    
+  # task
+  if (!is.null(arg$task)) {
+    
+    task <- load_tasks(agent_id, arg$task, period, groupby, start_time)
+    
+    if (!is.null(task)) {
+      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- task[whole_data]
+        
+      } else {
+        
+        whole_data <- task
+        
+      }
+    }
+    
+  }
+    
+  # network
+  if (!is.null(arg$network)) {
+    
+    network <- load_networks(agent_id, arg$network, period, groupby, start_time)
+    
+    if (!is.null(network)) {
+      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- network[whole_data]
+        
+      } else {
+        
+        whole_data <- network
+        
+      }
+    }
+    
+  }
+    
+  
   # host process
   # holding,,,
   # if (!is.null(arg$host_process)) {
@@ -207,11 +268,29 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
                             arg$docker_network$metric,
                             arg$docker_network$dname,
                             arg$docker_network$interface) %>% 
+    .[, .(name = paste(V1, V2, V3, V4, sep = '__'))] %>% 
+    .$name
+  
+  node_cols <- CJ(arg$node$node_ip,
+                  arg$node$metric) %>% 
+    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
+    .$name
+  
+  task_cols <- CJ(arg$task$node_ip,
+                  arg$task$metric,
+                  arg$task$E_ID) %>% 
+    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
+    .$name
+  
+  network_cols <- CJ(arg$network$node_ip,
+                     arg$network$metric,
+                     arg$network$interface) %>% 
     .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
     .$name
   
   before_cols <- c(host_disk_cols, host_cols, host_net_cols,
-                   docker_container_cols, docker_network_cols)
+                   docker_container_cols, docker_network_cols,
+                   node_cols, task_cols, network_cols)
   
   after_cols <- colnames(dt_processed)
   
@@ -252,20 +331,16 @@ load_docker_containers <- function(agent_id, request, period, groupby, start_tim
     sprintf(metric) %>%
     paste(collapse = ', ')
   
-  host_ip_for_query <- "host_ip = '%s'" %>% 
-    sprintf(host_ip) %>%
-    paste(collapse = ' or ')
+  host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  dname_for_query <- "task_id = '%s'" %>% 
-    sprintf(dname) %>%
-    paste(collapse = ' or ')
+  dname_for_query <- paste(dname, collapse = '|')
   
   query <- "select %s
             from docker_container
             where agent_id = '%s' and
                   time > '%s' - %s and
-                  (%s) and
-                  (%s)
+                  host_ip =~ /%s/ and
+                  task_id =~ /%s/
             group by time(%s), host_ip, task_id" %>% 
     sprintf(metric_for_query,
             agent_id,
@@ -324,25 +399,19 @@ load_docker_networks <- function(agent_id, request, period, groupby, start_time)
     sprintf(metric) %>%
     paste(collapse = ', ')
   
-  host_ip_for_query <- "host_ip = '%s'" %>% 
-    sprintf(host_ip) %>%
-    paste(collapse = ' or ')
+  host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  dname_for_query <- "task_id = '%s'" %>% 
-    sprintf(dname) %>%
-    paste(collapse = ' or ')
+  dname_for_query <- paste(dname, collapse = '|')
   
-  interface_for_query <- "interface = '%s'" %>% 
-    sprintf(interface) %>%
-    paste(collapse = ' or ')
+  interface_for_query <- paste(interface, collapse = '|')
   
   query <- "select %s
             from docker_network
             where agent_id = '%s' and
                   time > '%s' - %s and
-                  (%s) and 
-                  (%s) and
-                  (%s)
+                  host_ip =~ /%s/ and 
+                  task_id =~ /%s/ and
+                  interface =~ /%s/
             group by time(%s), host_ip, task_id, interface" %>% 
     sprintf(metric_for_query,
             agent_id,
@@ -399,15 +468,13 @@ load_hosts <- function(agent_id, request, period, groupby, start_time) {
     sprintf(metric) %>%
     paste(collapse = ', ')
   
-  host_ip_for_query <- "host_ip = '%s'" %>% 
-    sprintf(host_ip) %>%
-    paste(collapse = ' or ')
+  host_ip_for_query <- paste(host_ip, collapse = '|')
   
   query <- "select %s
             from host
             where agent_id = '%s' and
                   time > '%s' - %s and
-                  (%s)
+                  host_ip =~ /%s/
             group by time(%s), host_ip" %>% 
     sprintf(metric_for_query,
             agent_id,
@@ -463,20 +530,16 @@ load_host_disks <- function(agent_id, request, period, groupby, start_time) {
     sprintf(metric) %>%
     paste(collapse = ', ')
   
-  host_ip_for_query <- "host_ip = '%s'" %>% 
-    sprintf(host_ip) %>%
-    paste(collapse = ' or ')
+  host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  mount_for_query <- "mount_name = '%s'" %>% 
-    sprintf(mount) %>%
-    paste(collapse = ' or ')
+  mount_for_query <- paste(mount, collapse = '|')
   
   query <- "select %s
             from host_disk
             where agent_id = '%s' and
                   time > '%s' - %s and
-                  (%s) and
-                  (%s)
+                  host_ip =~ /%s/ and
+                  mount_name =~ /%s/
             group by time(%s), host_ip, mount_name" %>% 
     sprintf(metric_for_query,
             agent_id,
@@ -553,6 +616,198 @@ load_host_nets <- function(agent_id, request, period, groupby, start_time) {
             start_time, period,
             host_ip_for_query,
             interface_for_query,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>%
+    melt(id.vars = 1:3,
+         measure.vars = 4:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(host_ip, metric, interface, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
+    return()
+  
+}
+
+
+load_nodes <- function(agent_id, request, period, groupby, start_time) {
+  #agent_id=27;node_ip=c('192.168.0.165', '192.168.0.166');metric=c('cpu_used_percent', 'mem_used_percent');period='7d';groupby='1h'
+  #request <- node_ip, metric
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  host_ip <- request$node_ip
+  
+  metric <- request$metric
+  
+  metric_for_query <- paste('mean(%s) as', metric) %>% 
+    sprintf(metric) %>%
+    paste(collapse = ', ')
+  
+  node_ip_for_query <- paste(node_ip, collapse = '|')
+  
+  query <- "select %s
+            from node
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip =~ /%s/
+            group by time(%s), node_ip" %>% 
+    sprintf(metric_for_query,
+            agent_id,
+            start_time, period,
+            node_ip_for_query,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% 
+    melt(id.vars = 1:2,
+         measure.vars = 3:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(node_ip, metric, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
+    return()
+  
+}
+
+
+load_tasks <- function(agent_id, request, period, groupby, start_time) {
+  #agent_id=27;node_ip=c('192.168.0.165', '192.168.0.168');metric=c('cpu_used_percent', 'mem_used_percent');period='6d';groupby='1h';E_ID=c('kafka__9ac45849-069f-4653-a05e-993f211e83ee', 'nexcloud_hostapi.50287b23-e17a-11e8-ae5d-8ac1dc5733cc')
+  #request <- node_ip, metric, executor_id
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  host_ip <- request$node_ip
+  
+  metric <- request$metric
+  
+  E_ID <- request$E_ID
+  
+  metric_for_query <- paste('mean(%s) as', metric) %>% 
+    sprintf(metric) %>%
+    paste(collapse = ', ')
+  
+  node_ip_for_query <- paste(node_ip, collapse = '|')
+  
+  E_ID_for_query <- paste(E_ID, collapse = '|')
+  
+  query <- "select %s
+            from task
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  executor_id =~ /%s/ and
+                  node_ip =~ /%s/
+            group by time(%s), node_ip, executor_id" %>% 
+    sprintf(metric_for_query,
+            agent_id,
+            start_time, period,
+            E_ID_for_query,
+            node_ip_for_query,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% 
+    melt(id.vars = 1:3,
+         measure.vars = 4:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(node_ip, metric, executor_id, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
+    return()
+  
+}
+
+
+load_networks <- function(agent_id, request, period, groupby, start_time) {
+  #agent_id=27;host_ip=c('192.168.0.165', '192.168.0.166');metric=c('in_bytes', 'out_bytes');period='7d';groupby='1h';interface=c('null')
+  #request <- host_ip, metric, interface
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  node_ip <- request$node_ip
+  
+  metric <- request$metric
+  
+  IF <- request$IF
+  
+  metric_for_query <- paste('mean(%s) as', metric) %>% 
+    sprintf(metric) %>%
+    paste(collapse = ', ')
+  
+  node_ip_for_query <- paste(node_ip, collapse = '|')
+  
+  IF_for_query <- paste(IF, collapse = '|')
+  
+  query <- "select %s
+            from network
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip =~ /%s/ and
+                  interface =~ /%s/
+            group by time(%s), node_ip, interface" %>% 
+    sprintf(metric_for_query,
+            agent_id,
+            start_time, period,
+            node_ip_for_query,
+            IF_for_query,
             groupby)
   
   cat('\n', query, '\n\n')

@@ -170,8 +170,7 @@ CORRELATION <- function(request, response) {
 
 HEALTHCHECK <- function(request, response) {
   
-  response$body = data.frame('status' = 200,
-                             'data' = 'Running') %>% toJSON()
+  response$body = "\"{'status':200, 'data':'success'}\""
   
   response$content_type = "text/plain"
   
