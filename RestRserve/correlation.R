@@ -158,10 +158,8 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   #   }
   #   
   # }
-  if (!is.null(whole_data)) {
+  if (!is.null(whole_data) & (ncol(whole_data) != 1)) {
     
-    if (ncol(whole_data) != 1) {
-      
       dt_processed <- pre_processing(whole_data)
       
     } else {
@@ -169,12 +167,6 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
       update_key_id_to_mysql(agent_id, key_, 404, 'not found'); return()
       
     }
-    
-  } else {
-    
-    update_key_id_to_mysql(agent_id, key_, 404, 'not found'); return()
-    
-  }
   
   cor_mtx <- cor(dt_processed) %>% 
     as.data.table()
@@ -189,7 +181,37 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   write_result_to_influx(cor_mtx, key_)
   
   # comparing before pre-processing with after
-  before_cols <- colnames(whole_data) %>% setdiff('ds')
+  host_disk_cols <- CJ(arg$host_disk$host_ip,
+                       arg$host_disk$metric,
+                       arg$host_disk$mount) %>% 
+    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>%
+    .$name
+  
+  host_cols <- CJ(arg$host$host_ip, arg$host$metric) %>% 
+    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
+    .$name
+  
+  host_net_cols <- CJ(arg$host_net$host_ip,
+                      arg$host_net$metric,
+                      arg$host_net$interface) %>% 
+    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
+    .$name
+  
+  docker_container_cols <- CJ(arg$docker_container$host_ip,
+                              arg$docker_container$metric,
+                              arg$docker_container$dname) %>% 
+    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
+    .$name
+  
+  docker_network_cols <- CJ(arg$docker_network$host_ip,
+                            arg$docker_network$metric,
+                            arg$docker_network$dname,
+                            arg$docker_network$interface) %>% 
+    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
+    .$name
+  
+  before_cols <- c(host_disk_cols, host_cols, host_net_cols,
+                   docker_container_cols, docker_network_cols)
   
   after_cols <- colnames(dt_processed)
   
@@ -201,7 +223,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     
     diff_cols <- before_cols %>% setdiff(after_cols)
     
-    message <- paste(diff_cols, sep = ', ') %>% 
+    message <- paste0('{', paste(diff_cols, collapse = ', '), '}') %>% 
       paste('are excluded.')
     
     update_key_id_to_mysql(agent_id, key_, 206, message)
