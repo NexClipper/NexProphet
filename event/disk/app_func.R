@@ -256,7 +256,7 @@ save_result_mysql <- function(dt_,
     unlist()
   
   target_ip <- key_[1]
-  browser()
+  
   host_name <- key_[2] %>% is.null() %>% ifelse('NoName', key_[2])
   
   mount_name <- key_[3]
