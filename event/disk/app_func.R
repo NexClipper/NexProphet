@@ -275,7 +275,7 @@ save_result_mysql <- function(dt_,
     as_datetime(tz = timezone) %>% 
     as.character()
   
-  contents <- "[IP: %s, Path: %s] The disk usage %s%% for Host will exceed %s at %s" %>% 
+  contents <- "[IP: %s, Path: %s] The disk usage %s%% for Host will exceed %s%% at %s" %>% 
     sprintf(target_ip, mount_name, current_usage, threshold, predicted_time)
   
   info <- data.frame('agent_id' = agent_id,
