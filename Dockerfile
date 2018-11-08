@@ -28,8 +28,6 @@ COPY Source/install_pkg/01.R .
 
 RUN Rscript 01.R
 
-RUN apt-get install -y git
-
 RUN apt-get install -y vim
 
 RUN rm -f 00.R 01.R
