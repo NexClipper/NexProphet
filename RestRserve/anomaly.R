@@ -14,28 +14,15 @@ INFLUX_DB <- INFLUX_ENV['INFLUX_DB']
 #----
 
 #### DB CONNECTION ####
-connect <- function() {
-  
-  con <- influx_connection(host = INFLUX_HOST,
-                           port = INFLUX_PORT)
-  
-  dbname <- INFLUX_DB
-  
-  conn <- list(connector = con, dbname = dbname)
-  
-  return(conn)
-  
-}
+CONN <- influx_connection(host = INFLUX_HOST,
+                          port = INFLUX_PORT)
+
 #----
 
 #### DB WRITE ####
 write_result_to_influx <- function(dt_) {
   
-  con <- connect()
-  
-  connector <- con$connector
-  
-  influx_write(dt_, connector, 'nexclipper_ai', 'anomaly',
+  influx_write(dt_, CONN, 'nexclipper_ai', 'anomaly',
                time_col = 'ds', tag_cols = c('key', 'agent_id', 'anomaly'))
   
 }
@@ -85,12 +72,6 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
 
 load_docker_container <- function(agent_id, host_ip, metric, period, groupby, start_time, dname) {
   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';start_time='2018-10-04 10:31:05';dname='/Nexclipper-Agent'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from docker_container
             where agent_id = '%s' and
@@ -107,9 +88,10 @@ load_docker_container <- function(agent_id, host_ip, metric, period, groupby, st
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -127,12 +109,6 @@ load_docker_container <- function(agent_id, host_ip, metric, period, groupby, st
 
 load_docker_network <- function(agent_id, host_ip, metric, period, groupby, start_time, dname, interface) {
   #agent_id=27;host_ip='192.168.0.165';metric='rx_bytes';period=6;groupby='1h';unit='0';dname='nexcloud_nexclipperui.081024c1-c2f2-11e8-8aa1-aae0d7e58657';interface='eth0'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from docker_network
             where agent_id = '%s' and
@@ -151,9 +127,10 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, star
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -171,12 +148,6 @@ load_docker_network <- function(agent_id, host_ip, metric, period, groupby, star
 
 load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period=6;groupby='1h';unit='0'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from host
             where agent_id = '%s' and
@@ -191,9 +162,10 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -211,12 +183,6 @@ load_host <- function(agent_id, host_ip, metric, period, groupby, start_time) {
 
 load_host_disk <- function(agent_id, host_ip, metric, period, groupby, start_time, mount) {
   #agent_id=27;host_ip='192.168.0.165';metric='used_percent';period=6;groupby='1h';unit='0';mount='/'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from host_disk
             where agent_id = '%s' and
@@ -233,9 +199,10 @@ load_host_disk <- function(agent_id, host_ip, metric, period, groupby, start_tim
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -253,12 +220,6 @@ load_host_disk <- function(agent_id, host_ip, metric, period, groupby, start_tim
 
 load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time, interface) {
   #agent_id=27;host_ip='192.168.0.165';metric='rxbyte';period=6;groupby='1h';unit='0';interface='veth99a298c8'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from host_net
             where agent_id = '%s' and
@@ -275,9 +236,10 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -295,12 +257,6 @@ load_host_net <- function(agent_id, host_ip, metric, period, groupby, start_time
 
 load_node <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='7d';groupby='1h'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
   from node
   where agent_id = '%s' and
@@ -315,9 +271,10 @@ load_node <- function(agent_id, host_ip, metric, period, groupby, start_time) {
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -335,19 +292,13 @@ load_node <- function(agent_id, host_ip, metric, period, groupby, start_time) {
 
 load_task <- function(agent_id, host_ip, metric, period, groupby, start_time, executor_id) {
   #agent_id=27;host_ip='192.168.0.168';executor_id='influxdb.28755d4d-e17a-11e8-ae5d-8ac1dc5733cc';metric='cpu_used_percent';period='7d';groupby='1h'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
-  from task
-  where agent_id = '%s' and
-  time > '%s' - %s and
-  node_ip = '%s' and
-  executor_id = '%s'
-  group by time(%s)" %>% 
+            from task
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s' and
+                  executor_id = '%s'
+            group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
             start_time, period,
@@ -357,9 +308,10 @@ load_task <- function(agent_id, host_ip, metric, period, groupby, start_time, ex
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -377,19 +329,13 @@ load_task <- function(agent_id, host_ip, metric, period, groupby, start_time, ex
 
 load_network <- function(agent_id, host_ip, metric, period, groupby, start_time, interface) {
   #agent_id=27;host_ip='192.168.0.165';metric='in_bytes';period='7d';groupby='1h';interface='null'
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
-  from network
-  where agent_id = '%s' and
-  time > '%s' - %s and
-  node_ip = '%s' and
-  interface = '%s'
-  group by time(%s)" %>% 
+            from network
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s' and
+                  interface = '%s'
+            group by time(%s)" %>% 
     sprintf(metric,
             agent_id,
             start_time, period,
@@ -399,9 +345,10 @@ load_network <- function(agent_id, host_ip, metric, period, groupby, start_time,
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -419,12 +366,6 @@ load_network <- function(agent_id, host_ip, metric, period, groupby, start_time,
 
 load_k8s_pod <- function(agent_id, node_ip, metric, period, groupby, start_time, namespace, pod) {
   #agent_id=5;node_ip='192.168.1.4';metric='cpu_used_percent';period='7d';groupby='1h';pod='kube-controller-manager-kubemaster';namespace='kube-system';
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from k8s_pod
             where agent_id = '%s' and
@@ -443,9 +384,10 @@ load_k8s_pod <- function(agent_id, node_ip, metric, period, groupby, start_time,
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
-                      query, return_xts = F,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
+                      query,
+                      return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
   
@@ -463,12 +405,6 @@ load_k8s_pod <- function(agent_id, node_ip, metric, period, groupby, start_time,
 
 load_k8s_node <- function(agent_id, node_ip, metric, period, groupby, start_time) {
   #agent_id=5;node_ip='192.168.1.4';metric='cpu_used_percent';period='7d';groupby='1h';pod='kube-controller-manager-kubemaster';namespace='kube-system';
-  con <- connect()
-  
-  connector <- con$connector
-  
-  dbname <- con$dbname
-  
   query <- "select mean(%s) as y
             from k8s_node
             where agent_id = '%s' and
@@ -483,8 +419,8 @@ load_k8s_node <- function(agent_id, node_ip, metric, period, groupby, start_time
   
   cat('\n', query, '\n\n')
   
-  res <- influx_query(connector,
-                      dbname,
+  res <- influx_query(CONN,
+                      INFLUX_DB,
                       query, return_xts = F,
                       simplifyList = T)[[1]] %>% 
     as.data.table()
