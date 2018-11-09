@@ -200,6 +200,46 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     }
     
   }
+  
+  # k8s_pod
+  if (!is.null(arg$k8s_pod)) {
+    
+    k8s_pod <- load_k8s_pods(agent_id, arg$k8s_pod, period, groupby, start_time)
+    
+    if (!is.null(k8s_pod)) {
+      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- k8s_pod[whole_data]
+        
+      } else {
+        
+        whole_data <- k8s_pod
+        
+      }
+    }
+    
+  }
+  
+  # k8s_node
+  if (!is.null(arg$k8s_node)) {
+    
+    k8s_node <- load_k8s_nodes(agent_id, arg$k8s_node, period, groupby, start_time)
+    
+    if (!is.null(k8s_node)) {
+      
+      if (!is.null(whole_data)) {
+        
+        whole_data <- k8s_node[whole_data]
+        
+      } else {
+        
+        whole_data <- k8s_node
+        
+      }
+    }
+    
+  }
     
   
   # host process
@@ -288,9 +328,22 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
     .$name
   
+  k8s_pod_cols <- CJ(arg$k8s_pod$node_ip,
+                     arg$k8s_pod$metric,
+                     arg$k8s_pod$namespace,
+                     arg$k8s_pod$pod) %>% 
+    .[, .(name = paste(V1, V2, V3, V4, sep = '__'))] %>% 
+    .$name
+  
+  k8s_node_cols <- CJ(arg$k8s_node$node_ip,
+                      arg$k8s_node$metric) %>% 
+    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
+    .$name
+  
   before_cols <- c(host_disk_cols, host_cols, host_net_cols,
                    docker_container_cols, docker_network_cols,
-                   node_cols, task_cols, network_cols)
+                   node_cols, task_cols, network_cols,
+                   k8s_pod_cols, k8s_node_cols)
   
   after_cols <- colnames(dt_processed)
   
@@ -843,6 +896,140 @@ load_networks <- function(agent_id, request, period, groupby, start_time) {
     return()
   
 }
+
+
+load_k8s_pods <- function(agent_id, request, period, groupby, start_time) {
+  #agent_id=5;node_ip=c('192.168.1.5', '192.168.1.6');metric=c('cpu_used_percent', 'mem_used_percent');period='7d';groupby='1h';namespace=c('default', 'kube-system');pod=c('datadog-agent-wxxfs', 'weave-net-zzk8g')
+  #request <- host_ip, metric, interface
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  node_ip <- request$node_ip
+  
+  metric <- request$metric
+  
+  namespace <- request$namespace
+  
+  pod <- request$pod
+  
+  metric_for_query <- paste('mean(%s) as', metric) %>% 
+    sprintf(metric) %>%
+    paste(collapse = ', ')
+  
+  node_ip_for_query <- paste(node_ip, collapse = '|')
+  
+  namespace_for_query <- paste(namespace, collapse = '|')
+  
+  pod_for_query <- paste(pod, collapse = '|')
+  
+  query <- "select %s
+            from k8s_pod
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip =~ /%s/ and
+                  namespace =~ /%s/ and
+                  pod =~ /%s/
+            group by time(%s), node_ip, namespace, pod" %>% 
+    sprintf(metric_for_query,
+            agent_id,
+            start_time, period,
+            node_ip_for_query,
+            namespace_for_query,
+            pod_for_query,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% 
+    melt(id.vars = 1:4,
+         measure.vars = 5:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(node_ip, metric, namespace, pod, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
+    return()
+  
+}
+
+
+load_k8s_nodes <- function(agent_id, request, period, groupby, start_time) {
+  #agent_id=5;node_ip=c('192.168.1.5', '192.168.1.6');metric=c('cpu_used_percent', 'mem_used_percent');period='7d';groupby='1h';
+  #request <- host_ip, metric, interface
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  node_ip <- request$node_ip
+  
+  metric <- request$metric
+  
+  metric_for_query <- paste('mean(%s) as', metric) %>% 
+    sprintf(metric) %>%
+    paste(collapse = ', ')
+  
+  node_ip_for_query <- paste(node_ip, collapse = '|')
+  
+  query <- "select %s
+            from k8s_node
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip =~ /%s/
+            group by time(%s), node_ip" %>% 
+    sprintf(metric_for_query,
+            agent_id,
+            start_time, period,
+            node_ip_for_query,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>%
+    melt(id.vars = 1:2,
+         measure.vars = 3:ncol(.),
+         variable.name = 'metric',
+         value.name = 'y') %>% 
+    .[, key := paste(node_ip, metric, sep = '__')] %>%
+    .[, c('ds', 'key', 'y')] %>% 
+    dcast(ds ~ key,
+          value.var = 'y') %>%
+    return()
+  
+}
+
+
 
 
 # load_host_processes <- function(agent_id, request, period, groupby, start_time) {

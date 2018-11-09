@@ -199,7 +199,43 @@ paths:
                     IF:
                       format: array
                       example:
-                        - "null"
+                        - "."
+                k8s_pod:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    node_ip:
+                      format: array
+                      example:
+                        - 192.168.1.5
+                        - 192.168.1.6
+                    namespace:
+                      format: array
+                      example:
+                        - default
+                        - kube-system
+                    pod:
+                      format: array
+                      example:
+                        - datadog-agent-wxxfs
+                        - weave-net-zzk8g
+                k8s_node:
+                  format: json
+                  properties:
+                    metric:
+                      format: array
+                      example:
+                        - cpu_used_percent
+                        - mem_used_percent
+                    node_ip:
+                      format: array
+                      example:
+                        - 192.168.1.5
+                        - 192.168.1.6
         required: true
       responses:
         '204':
@@ -257,7 +293,7 @@ paths:
         - name: measurement
           description: >-
             one of host, host_disk, host_net, docker_container,
-            docker_network, node, task, network
+            docker_network, node, task, network, k8s_pod, k8s_node
           in: query
           schema:
             type: string
@@ -301,44 +337,49 @@ paths:
                 mount:
                   format: string
                   description: >-
-                    available when metric related to disk. select mount path.
-                    default : null. if you want mount path : / or /var, insert
-                    total or var. 
+                    mount path of host. available when measurement is host_disk.
                   example:
                     - null
                 hostIF:
                   format: string
                   description: >-
-                    interface of host, which is related to host network metric.
-                    available when measurement is host_net.
+                    interface of host. available when measurement is host_net.
                   example:
                     - null
                 dname:
                   format: string
                   description: >-
-                    name of docker container. available when measurement is
-                    host_net.
+                    name of docker container. available when measurement is host_net.
                   example:
                     - null
                 dockerIF:
                   format: string
                   description: >-
-                    interface of host, which is related to host network metric.
-                    available when measurement is host_net.
+                    interface of docker. available when measurement is docker_network.
                   example:
                     - null
                 E_ID:
                   format: string
                   description: >-
-                    executor_id of task, which is related to task metric.
-                    available when measurement is task.
+                    executor_id of task. available when measurement is task.
                   example:
                     - null
                 IF:
                   format: string
                   description: >-
-                    interface of network, which is related to network metric.
-                    available when measurement is network.
+                    interface of network. available when measurement is network.
+                  example:
+                    - null
+                namespace:
+                  format: string
+                  description: >-
+                    namespace of k8s. available when measurement is k8s_pod.
+                  example:
+                    - null
+                pod:
+                  format: string
+                  description: >-
+                    pod name of k8s. available when measurement is k8s_pod.
                   example:
                     - null
         required: false
@@ -425,44 +466,49 @@ paths:
                 mount:
                   format: string
                   description: >-
-                    available when metric related to disk. select mount path.
-                    default : null. if you want mount path : / or /var, insert
-                    total or var. 
+                    mount path of host. available when measurement is host_disk.
                   example:
                     - null
                 hostIF:
                   format: string
                   description: >-
-                    interface of host, which is related to host network metric.
-                    available when measurement is host_net.
+                    interface of host. available when measurement is host_net.
                   example:
                     - null
                 dname:
                   format: string
                   description: >-
-                    name of docker container. available when measurement is
-                    host_net.
+                    name of docker container. available when measurement is host_net.
                   example:
                     - null
                 dockerIF:
                   format: string
                   description: >-
-                    interface of host, which is related to host network metric.
-                    available when measurement is host_net.
+                    interface of docker. available when measurement is docker_network.
                   example:
                     - null
                 E_ID:
                   format: string
                   description: >-
-                    executor_id of task, which is related to task metric.
-                    available when measurement is task.
+                    executor_id of task. available when measurement is task.
                   example:
                     - null
                 IF:
                   format: string
                   description: >-
-                    interface of network, which is related to network metric.
-                    available when measurement is network.
+                    interface of network. available when measurement is network.
+                  example:
+                    - null
+                namespace:
+                  format: string
+                  description: >-
+                    namespace of k8s. available when measurement is k8s_pod.
+                  example:
+                    - null
+                pod:
+                  format: string
+                  description: >-
+                    pod name of k8s. available when measurement is k8s_pod.
                   example:
                     - null
         required: false

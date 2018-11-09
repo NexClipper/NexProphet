@@ -36,7 +36,7 @@ write_result_to_influx <- function(dt_) {
   connector <- con$connector
   
   influx_write(dt_, connector, 'nexclipper_ai', 'anomaly',
-               time_col = 'ds', tag_cols = c('key', 'anomaly'))
+               time_col = 'ds', tag_cols = c('key', 'agent_id', 'anomaly'))
   
 }
 #----
@@ -60,6 +60,9 @@ load_single_metric <- function(agent_id, measurement, host_ip, metric,
                                    arg$E_ID),
                 'network' = load_network(agent_id, host_ip, metric, period, groupby, start_time,
                                          arg$IF),
+                'k8s_pod' = load_k8s_pod(agent_id, host_ip, metric, period, groupby, start_time,
+                                         arg$namespace, arg$pod),
+                'k8s_node' = load_k8s_node(agent_id, host_ip, metric, period, groupby, start_time),
                 # 'host_process' = load_host_process(agent_id, host_ip, metric, period, groupby, start_time,
                 #                                    arg$pname),
                 'docker_container' = load_docker_container(agent_id, host_ip, metric, period, groupby, start_time,
@@ -412,6 +415,90 @@ load_network <- function(agent_id, host_ip, metric, period, groupby, start_time,
     setkey(ds) %>% return()
   
 }
+
+
+load_k8s_pod <- function(agent_id, node_ip, metric, period, groupby, start_time, namespace, pod) {
+  #agent_id=5;node_ip='192.168.1.4';metric='cpu_used_percent';period='7d';groupby='1h';pod='kube-controller-manager-kubemaster';namespace='kube-system';
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  query <- "select mean(%s) as y
+            from k8s_pod
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s' and
+                  namespace = '%s' and
+                  pod = '%s'
+            group by time(%s)" %>% 
+    sprintf(metric,
+            agent_id,
+            start_time, period,
+            node_ip,
+            namespace,
+            pod,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% return()
+  
+}
+
+
+load_k8s_node <- function(agent_id, node_ip, metric, period, groupby, start_time) {
+  #agent_id=5;node_ip='192.168.1.4';metric='cpu_used_percent';period='7d';groupby='1h';pod='kube-controller-manager-kubemaster';namespace='kube-system';
+  con <- connect()
+  
+  connector <- con$connector
+  
+  dbname <- con$dbname
+  
+  query <- "select mean(%s) as y
+            from k8s_node
+            where agent_id = '%s' and
+                  time > '%s' - %s and
+                  node_ip = '%s'
+            group by time(%s)" %>% 
+    sprintf(metric,
+            agent_id,
+            start_time, period,
+            node_ip,
+            groupby)
+  
+  cat('\n', query, '\n\n')
+  
+  res <- influx_query(connector,
+                      dbname,
+                      query, return_xts = F,
+                      simplifyList = T)[[1]] %>% 
+    as.data.table()
+  
+  if (!('time' %in% names(res)))
+    
+    return(NULL)
+  
+  res %>% 
+    .[, -1:-4] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(ds) %>% return()
+  
+}
 # load_host_process <- function(agent_id, host_ip, metric, period, groupby, start_time, pname) {
 #   #agent_id=27;host_ip='192.168.0.165';metric='cpu_used_percent';period='6d';groupby='1h';pname='mysqld'
 #   con <- connect()
@@ -532,7 +619,7 @@ detection_ <- function(agent_id, measurement, host_ip,
   
   result <- anomalyDetection(res, groupby, changepoint.prior.scale = 0.1)
   
-  result[, key := key]
+  result[, (c('key', 'agent_id')) := list(key, agent_id)]
   
   write_result_to_influx(result)
   
