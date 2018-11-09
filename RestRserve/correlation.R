@@ -282,78 +282,17 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   write_result_to_influx(cor_mtx, key_)
   
   # comparing before pre-processing with after
-  host_disk_cols <- CJ(arg$host_disk$host_ip,
-                       arg$host_disk$metric,
-                       arg$host_disk$mount) %>% 
-    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>%
-    .$name
-  
-  host_cols <- CJ(arg$host$host_ip, arg$host$metric) %>% 
-    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
-    .$name
-  
-  host_net_cols <- CJ(arg$host_net$host_ip,
-                      arg$host_net$metric,
-                      arg$host_net$interface) %>% 
-    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
-    .$name
-  
-  docker_container_cols <- CJ(arg$docker_container$host_ip,
-                              arg$docker_container$metric,
-                              arg$docker_container$dname) %>% 
-    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
-    .$name
-  
-  docker_network_cols <- CJ(arg$docker_network$host_ip,
-                            arg$docker_network$metric,
-                            arg$docker_network$dname,
-                            arg$docker_network$interface) %>% 
-    .[, .(name = paste(V1, V2, V3, V4, sep = '__'))] %>% 
-    .$name
-  
-  node_cols <- CJ(arg$node$node_ip,
-                  arg$node$metric) %>% 
-    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
-    .$name
-  
-  task_cols <- CJ(arg$task$node_ip,
-                  arg$task$metric,
-                  arg$task$E_ID) %>% 
-    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
-    .$name
-  
-  network_cols <- CJ(arg$network$node_ip,
-                     arg$network$metric,
-                     arg$network$IF) %>% 
-    .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
-    .$name
-  
-  k8s_pod_cols <- CJ(arg$k8s_pod$node_ip,
-                     arg$k8s_pod$metric,
-                     arg$k8s_pod$namespace,
-                     arg$k8s_pod$pod) %>% 
-    .[, .(name = paste(V1, V2, V3, V4, sep = '__'))] %>% 
-    .$name
-  
-  k8s_node_cols <- CJ(arg$k8s_node$node_ip,
-                      arg$k8s_node$metric) %>% 
-    .[, .(name = paste(V1, V2, sep = '__'))] %>% 
-    .$name
-  
-  before_cols <- c(host_disk_cols, host_cols, host_net_cols,
-                   docker_container_cols, docker_network_cols,
-                   node_cols, task_cols, network_cols,
-                   k8s_pod_cols, k8s_node_cols)
-  
+  before_cols <- colnames(whole_data) %>% setdiff('ds')
+    
   after_cols <- colnames(dt_processed)
   
-  if (length(before_cols) == length(after_cols)) {
+  diff_cols <- before_cols %>% setdiff(after_cols)
+  
+  if (length(diff_cols) == 0) {
     
     update_key_id_to_mysql(agent_id, key_, 200, 'Success')
     
   } else {
-    
-    diff_cols <- before_cols %>% setdiff(after_cols)
     
     message <- paste0('{', paste(diff_cols, collapse = ', '), '}') %>% 
       paste('are excluded.')
@@ -655,20 +594,19 @@ load_host_nets <- function(agent_id, request, period, groupby, start_time) {
     sprintf(metric) %>%
     paste(collapse = ', ')
   
-  host_ip_for_query <- "host_ip = '%s'" %>% 
-    sprintf(host_ip) %>%
-    paste(collapse = ' or ')
+  host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  interface_for_query <- "interface = '%s'" %>% 
-    sprintf(interface) %>%
-    paste(collapse = ' or ')
+  # interface_for_query <- "interface = '%s'" %>% 
+  #   sprintf(interface) %>%
+  #   paste(collapse = ' or ')
+  interface_for_query <- paste(interface, collapse = '|')
   
   query <- "select %s
             from host_net
             where agent_id = '%s' and
                   time > '%s' - %s and
-                  (%s) and
-                  (%s)
+                  host_ip =~ /%s/ and
+                  interface =~ /%s/
             group by time(%s), host_ip, interface" %>% 
     sprintf(metric_for_query,
             agent_id,
