@@ -199,7 +199,8 @@ paths:
                     IF:
                       format: array
                       example:
-                        - "."
+                        - eth0
+                        - docker0
                 k8s_pod:
                   format: json
                   properties:
