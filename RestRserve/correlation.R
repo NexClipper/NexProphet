@@ -1026,7 +1026,8 @@ option_list <- list(
 opt = parse_args(OptionParser(option_list = option_list))
 
 print('########METRIC ASSOCIATION########')
-opt %>% unlist() %>% print()
+opt[-6] %>% unlist() %>% print()
+opt[[6]] %>% fromJSON(simplifyDataFrame = F) %>% unlist() %>% print()
 print('##################################')
 #-----
 

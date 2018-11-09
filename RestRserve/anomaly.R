@@ -533,7 +533,8 @@ option_list <- list(
 opt = parse_args(OptionParser(option_list = option_list))
 
 print('########ANOMALY########')
-opt %>% unlist() %>% print()
+opt[-9] %>% unlist() %>% print()
+opt[[9]] %>% fromJSON(simplifyDataFrame = F) %>% unlist() %>% print()
 print('########################')
 #----
 

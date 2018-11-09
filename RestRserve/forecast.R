@@ -540,7 +540,8 @@ option_list <- list(
 opt = parse_args(OptionParser(option_list = option_list))
 
 print('########FORECAST########')
-opt %>% unlist() %>% print()
+opt[-10] %>% unlist() %>% print()
+opt[[10]] %>% fromJSON(simplifyDataFrame = F) %>% unlist() %>% print()
 print('########################')
 #----
 
