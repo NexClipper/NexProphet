@@ -284,7 +284,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
   
   network_cols <- CJ(arg$network$node_ip,
                      arg$network$metric,
-                     arg$network$interface) %>% 
+                     arg$network$IF) %>% 
     .[, .(name = paste(V1, V2, V3, sep = '__'))] %>% 
     .$name
   
@@ -333,7 +333,9 @@ load_docker_containers <- function(agent_id, request, period, groupby, start_tim
   
   host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  dname_for_query <- paste(dname, collapse = '|')
+  dname_for_query <- dname %>%
+    str_replace('/', '') %>% 
+    paste(collapse = '|')
   
   query <- "select %s
             from docker_container
@@ -401,7 +403,9 @@ load_docker_networks <- function(agent_id, request, period, groupby, start_time)
   
   host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  dname_for_query <- paste(dname, collapse = '|')
+  dname_for_query <- dname %>%
+    str_replace('/', '') %>% 
+    paste(collapse = '|')
   
   interface_for_query <- paste(interface, collapse = '|')
   
@@ -532,14 +536,16 @@ load_host_disks <- function(agent_id, request, period, groupby, start_time) {
   
   host_ip_for_query <- paste(host_ip, collapse = '|')
   
-  mount_for_query <- paste(mount, collapse = '|')
+  mount_for_query <- "mount_name = '%s'" %>% 
+    sprintf(mount) %>% 
+    paste(collapse = ' or ')
   
   query <- "select %s
             from host_disk
             where agent_id = '%s' and
                   time > '%s' - %s and
                   host_ip =~ /%s/ and
-                  mount_name =~ /%s/
+                  (%s)
             group by time(%s), host_ip, mount_name" %>% 
     sprintf(metric_for_query,
             agent_id,
@@ -656,7 +662,7 @@ load_nodes <- function(agent_id, request, period, groupby, start_time) {
   
   dbname <- con$dbname
   
-  host_ip <- request$node_ip
+  node_ip <- request$node_ip
   
   metric <- request$metric
   
@@ -716,7 +722,7 @@ load_tasks <- function(agent_id, request, period, groupby, start_time) {
   
   dbname <- con$dbname
   
-  host_ip <- request$node_ip
+  node_ip <- request$node_ip
   
   metric <- request$metric
   
@@ -786,7 +792,7 @@ load_networks <- function(agent_id, request, period, groupby, start_time) {
   
   metric <- request$metric
   
-  IF <- request$IF
+  interface <- request$IF
   
   metric_for_query <- paste('mean(%s) as', metric) %>% 
     sprintf(metric) %>%
@@ -794,7 +800,7 @@ load_networks <- function(agent_id, request, period, groupby, start_time) {
   
   node_ip_for_query <- paste(node_ip, collapse = '|')
   
-  IF_for_query <- paste(IF, collapse = '|')
+  interface_for_query <- paste(interface, collapse = '|')
   
   query <- "select %s
             from network
@@ -807,7 +813,7 @@ load_networks <- function(agent_id, request, period, groupby, start_time) {
             agent_id,
             start_time, period,
             node_ip_for_query,
-            IF_for_query,
+            interface_for_query,
             groupby)
   
   cat('\n', query, '\n\n')
@@ -830,7 +836,7 @@ load_networks <- function(agent_id, request, period, groupby, start_time) {
          measure.vars = 4:ncol(.),
          variable.name = 'metric',
          value.name = 'y') %>% 
-    .[, key := paste(host_ip, metric, interface, sep = '__')] %>%
+    .[, key := paste(node_ip, metric, interface, sep = '__')] %>%
     .[, c('ds', 'key', 'y')] %>% 
     dcast(ds ~ key,
           value.var = 'y') %>%
