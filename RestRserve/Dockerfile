@@ -47,5 +47,7 @@ COPY . analytics
 
 WORKDIR analytics
 
+RUN chmod o+w .
+
 CMD Rscript app.R
 
