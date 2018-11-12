@@ -510,8 +510,7 @@ forecasting <- function(tb_, groupby, predicted_period,
                                   freq = freq,
                                   include_history = F)
   
-  pred_result <- predict(model, future) %>%
-    select(ds, yhat_lower, yhat_upper, yhat) %>% 
+  pred_result <- predict(model, future) %>% 
     as.data.table()
   
   if (nrow(pred_result) > 1000)
@@ -549,7 +548,7 @@ print('########################')
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
                       groupby, start_time, key, request_body) {
-  #agent_id=27;measurement='host';host_ip='192.168.0.169';metric='cpu_used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';key='618827342';request_body="\"{'mount':'null'}\""
+  #agent_id=27;measurement='host';host_ip='192.168.0.168';metric='cpu_used_percent';period='30d';predicted_period='30d';groupby='1h';start_time='2018-11-12 02:00:00';key='618827342';request_body="\"{'mount':'null'}\""
   res <- load_single_metric(agent_id, measurement, host_ip, metric,
                             period, groupby, start_time, request_body)
   
@@ -564,7 +563,7 @@ forecast_ <- function(agent_id, measurement, host_ip,
   result <- forecasting(res, groupby, predicted_period,
                         changepoint.prior.scale = 0.1)
   
-  result[, (c('key', 'agent_id')) := list(key, agent_id)]
+  result[, (c('key', 'agent_id', 'year', 'day', 'week', 'hour')) := list(key, agent_id, year(ds), day(ds), wday(ds), hour(ds))]
   
   write_result_to_influx(result)
   
