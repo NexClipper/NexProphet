@@ -526,25 +526,29 @@ load_model <- function(tb_,
     
     res <- dbGetQuery(con, query)
     
-    filename <- tempfile('', '')
+    new_filename <- tempfile('', '')
     
-    dir.name <-  paste0("model", filename, '.rdata')
+    new_dir.name <-  paste0("model", new_filename, '.rdata')
     
     model <- prophet(tb_,
                      changepoint.prior.scale = changepoint.prior.scale)
     
-    save(model, file = dir.name)
+    save(model, file = new_dir.name)
     
     if (nrow(res) > 0) {
       
       id <- res$id %>% tail(1)
+      
+      filename <- res$filename %>% tail(1)
+      
+      dir.name <-  paste0("model", filename, '.rdata')
       
       if (file.exists(dir.name)) file.remove(dir.name)
       
       query <- "update nexclipper_anomaly_model
                 set filename = '%s'
                 where id = '%s'" %>% 
-        sprintf(filename, id)
+        sprintf(new_filename, id)
       
       cat('\n', query, '\n\n')
       
