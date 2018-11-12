@@ -280,8 +280,7 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
     
   } else {
     
-    message <- paste0('{', paste(diff_cols, collapse = ', '), '}') %>% 
-      paste('are excluded.')
+    message <- paste(diff_cols, collapse = ', ')
     
     update_key_id_to_mysql(agent_id, key_, 206, message)
     
