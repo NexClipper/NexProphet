@@ -4,13 +4,25 @@ source('02.R')
 source('app_func.R')
 
 #### ENVIRONMENT VARIABLE ####
-INFLUX_ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB'))
+ENV <- Sys.getenv(c('INFLUX_HOST', 'INFLUX_PORT', 'INFLUX_DB',
+                           'MYSQL_USER', 'MYSQL_PW', 'MYSQL_DB',
+                           'MYSQL_HOST', 'MYSQL_PORT'))
 
-INFLUX_HOST <- INFLUX_ENV['INFLUX_HOST']
+INFLUX_HOST <- ENV['INFLUX_HOST']
 
-INFLUX_PORT <- INFLUX_ENV['INFLUX_PORT'] %>% as.integer()
+INFLUX_PORT <- ENV['INFLUX_PORT'] %>% as.integer()
 
-INFLUX_DB <- INFLUX_ENV['INFLUX_DB']
+INFLUX_DB <- ENV['INFLUX_DB']
+
+MYSQL_USER <- ENV['MYSQL_USER']
+
+MYSQL_PW <- ENV['MYSQL_PW']
+
+MYSQL_DB <- ENV['MYSQL_DB']
+
+MYSQL_HOST <- ENV['MYSQL_HOST']
+
+MYSQL_PORT <- ENV['MYSQL_PORT'] %>% as.integer()
 #----
 
 #### DB CONNECTION ####
@@ -479,13 +491,131 @@ load_k8s_node <- function(agent_id, node_ip, metric, period, groupby, start_time
 #     setkey(ds) %>% return()
 #   
 # }
+load_model <- function(tb_,
+                       agent_id, measurement, host_ip,
+                       metric, remake, request_body,
+                       changepoint.prior.scale) {
+  
+  arg <- request_body %>% fromJSON(simplifyDataFrame = F)
+  
+  agent_id <- agent_id %>% as.integer()
+  
+  con <- dbConnect(MySQL(),
+                   user = MYSQL_USER,
+                   password = MYSQL_PW,
+                   dbname = MYSQL_DB,
+                   host = MYSQL_HOST,
+                   port = MYSQL_PORT)
+  
+  if (remake == TRUE) {
+    
+    filename <- tempfile('', '')
+    
+    dir.name <-  paste0("model", filename, '.rds')
+    
+    model <- prophet(tb_,
+                     changepoint.prior.scale = changepoint.prior.scale)
+    
+    dir.create(dir.name, recursive = T)
+    
+    save(model, file = dir.name)
+    
+    info <- data.frame('agent_id' = agent_id,
+                       'measurement' = measurement,
+                       'host_ip' = host_ip,
+                       'metric' = metric,
+                       'mount' = arg$mount,
+                       'hostIF' = arg$hostIF,
+                       'dname' = arg$dname,
+                       'dockerIF' = arg$dockerIF,
+                       'E_ID' = arg$E_ID,
+                       'interface' = arg$IF,
+                       'filename' = filename)
+    
+    print(info)
+    
+    dbWriteTable(con, info)
+    
+    dbCommit(con)
+    
+  } else {
+    
+    query <- "select filename
+              from nexclipper_anomaly_model
+              where agent_id = '%s' and
+                    measurement = '%s' and
+                    host_ip = '%s' and
+                    metric = '%s' and
+                    mount = '%s' and
+                    hostIF = '%s' and
+                    dname = '%s' and
+                    dockerIF = '%s' and
+                    E_ID = '%s' and
+                    interface = '%s'" %>% 
+      sprintf(agent_id, measurement, host_ip, arg$mount, arg$hostIF,
+              arg$dname, arg$dockerIF, arg$E_ID, arg$IF)
+    
+    cat('\n', query, '\n\n')
+    
+    res <- dbGetQuery(con, query)
+    
+    if (nrow(res) == 0) {
+      
+      filename <- tempfile('', '')
+      
+      dir.name <-  paste0("model", filename, '.rds')
+      
+      model <- prophet(tb_,
+                       changepoint.prior.scale = changepoint.prior.scale)
+      
+      dir.create(dir.name, recursive = T)
+      
+      save(model, file = dir.name)
+      
+      info <- data.frame('agent_id' = agent_id,
+                         'measurement' = measurement,
+                         'host_ip' = host_ip,
+                         'metric' = metric,
+                         'mount' = arg$mount,
+                         'hostIF' = arg$hostIF,
+                         'dname' = arg$dname,
+                         'dockerIF' = arg$dockerIF,
+                         'E_ID' = arg$E_ID,
+                         'interface' = arg$IF,
+                         'filename' = filename)
+      
+      print(info)
+      
+      dbWriteTable(con, info)
+      
+      dbCommit(con)
+      
+    } else {
+      
+      filename <- res$filename %>% tail(1)
+      
+      model <- paste0('model', filename, '.rds') %>% 
+        load(filename)
+      
+    }
+    
+  }
+  
+  dbDisconnect(con)
+  
+  return(model)
+  
+}
 
-
-anomalyDetection <- function(tb_, groupby,
+anomalyDetection <- function(tb_, groupby, 
+                             agent_id, measurement, host_ip,
+                             metric, remake, request_body,
                              changepoint.prior.scale = 0.01) {
   
-  model <- prophet(tb_,
-                   changepoint.prior.scale = changepoint.prior.scale)
+  model <- load_model(tb_,
+                      agent_id, measurement, host_ip,
+                      metric, remake, request_body,
+                      changepoint.prior.scale)
   
   unit_ <- str_extract(groupby, '[:alpha:]')
   
@@ -527,21 +657,22 @@ option_list <- list(
   make_option(c("-g", "--groupby"), action = "store", type = 'character'),
   make_option(c("-t", "--start_time"), action = "store", type = 'character'),
   make_option(c("-k", "--key"), action = "store", type = 'character'),
+  make_option(c("-r", "--remake"), action = "store", type = 'character'),
   make_option(c("-req", "--request_body"), action = "store", type = 'character')
 )
 
 opt = parse_args(OptionParser(option_list = option_list))
 
 print('########ANOMALY########')
-opt[-9] %>% unlist() %>% print()
-opt[[9]] %>% fromJSON(simplifyDataFrame = F) %>% unlist() %>% print()
+opt[-10] %>% unlist() %>% print()
+opt[[10]] %>% fromJSON(simplifyDataFrame = F) %>% unlist() %>% print()
 print('########################')
 #----
 
 #### EXECUTION ####
 detection_ <- function(agent_id, measurement, host_ip,
                        metric, period, groupby,
-                       start_time, key, request_body) {
+                       start_time, key, remake, request_body) {
   #agent_id=27;measurement='host';host_ip='192.168.0.169';metric='cpu_used_percent';period='7d';predicted_period='2d';groupby='1h';start_time='2018-10-05 16:04:27';key='618827342';request_body="\"{'mount':'null'}\""
   res <- load_single_metric(agent_id, measurement, host_ip, metric,
                             period, groupby, start_time, request_body)
@@ -554,7 +685,9 @@ detection_ <- function(agent_id, measurement, host_ip,
     
   }
   
-  result <- anomalyDetection(res, groupby, changepoint.prior.scale = 0.1)
+  result <- anomalyDetection(res, groupby, 
+                             agent_id, measurement, host_ip,
+                             metric, remake, request_body)
   
   result[, (c('key', 'agent_id')) := list(key, agent_id)]
   
@@ -566,7 +699,7 @@ detection_ <- function(agent_id, measurement, host_ip,
 
 detection_(opt$agent_id, opt$measurement, opt$host_ip,
            opt$metric, opt$period, opt$groupby,
-           opt$start_time, opt$key, opt$request_body)
+           opt$start_time, opt$key, opt$remake, opt$request_body)
 #----
 
 
