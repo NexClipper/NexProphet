@@ -111,13 +111,15 @@ ANOMALY <- function(request, response) {
   
   start_time <- request$query$start_time
   
+  remake <- request$query$remake
+  
   request_body <- request$body %>% rawToChar()
   
   write_init_to_mysql(agent_id, key_)
   
-  cmd <- "Rscript anomaly.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --groupby '%s' --start_time '%s' --request_body '%s'" %>%
+  cmd <- "Rscript anomaly.R --agent_id '%s' --key '%s' --measurement '%s' --host_ip '%s' --metric '%s' --period '%s' --groupby '%s' --start_time '%s' --remake '%s' --request_body '%s'" %>%
     sprintf(agent_id, key_, measurement, host_ip, metric, period, groupby,
-            start_time, request_body)
+            start_time, remake, request_body)
 
   system(cmd, wait = F)
   
