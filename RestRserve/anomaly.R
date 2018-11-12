@@ -509,6 +509,23 @@ load_model <- function(tb_,
   
   if (as.logical(remake) == TRUE) {
     
+    query <- "select id, filename
+              from nexclipper_anomaly_model
+              where agent_id = '%s' and
+                    measurement = '%s' and
+                    host_ip = '%s' and
+                    metric = '%s' and
+                    mount = '%s' and
+                    hostIF = '%s' and
+                    dname = '%s' and
+                    dockerIF = '%s' and
+                    E_ID = '%s' and
+                    interface = '%s'" %>% 
+      sprintf(agent_id, measurement, host_ip, metric, arg$mount, arg$hostIF,
+              arg$dname, arg$dockerIF, arg$E_ID, arg$IF)
+    
+    res <- dbGetQuery(con, query)
+    
     filename <- tempfile('', '')
     
     dir.name <-  paste0("model", filename, '.rdata')
@@ -518,28 +535,51 @@ load_model <- function(tb_,
     
     save(model, file = dir.name)
     
-    info <- data.frame('agent_id' = agent_id,
-                       'measurement' = measurement,
-                       'host_ip' = host_ip,
-                       'metric' = metric,
-                       'mount' = arg$mount,
-                       'hostIF' = arg$hostIF,
-                       'dname' = arg$dname,
-                       'dockerIF' = arg$dockerIF,
-                       'E_ID' = arg$E_ID,
-                       'interface' = arg$IF,
-                       'filename' = filename,
-                       stringsAsFactors = F)
-    
-    print(info)
-    
-    dbWriteTable(con, 
-                 name = 'nexclipper_anomaly_model', 
-                 value = info,
-                 row.names = F,
-                 append = T)
-    
-    dbCommit(con)
+    if (nrow(res) > 0) {
+      
+      id <- res$id %>% tail(1)
+      
+      filename <- res$filename %>% tail(1)
+      
+      dir.name <- paste0('./model', filename, '.rdata')
+      
+      if (file.exists(dir.name)) file.remove(dir.name)
+      
+      query <- "update nexclipper_anomaly_model
+                set filename = '%s'
+                where id = '%s'" %>% 
+        sprintf(filename, id)
+      
+      dbGetQuery(con, query)
+      
+      print('Update filename!')
+      
+    } else {
+      
+      info <- data.frame('agent_id' = agent_id,
+                         'measurement' = measurement,
+                         'host_ip' = host_ip,
+                         'metric' = metric,
+                         'mount' = arg$mount,
+                         'hostIF' = arg$hostIF,
+                         'dname' = arg$dname,
+                         'dockerIF' = arg$dockerIF,
+                         'E_ID' = arg$E_ID,
+                         'interface' = arg$IF,
+                         'filename' = filename,
+                         stringsAsFactors = F)
+      
+      print(info)
+      
+      dbWriteTable(con, 
+                   name = 'nexclipper_anomaly_model', 
+                   value = info,
+                   row.names = F,
+                   append = T)
+      
+      dbCommit(con)
+      
+    }
     
   } else {
     
@@ -557,8 +597,6 @@ load_model <- function(tb_,
                     interface = '%s'" %>% 
       sprintf(agent_id, measurement, host_ip, metric, arg$mount, arg$hostIF,
               arg$dname, arg$dockerIF, arg$E_ID, arg$IF)
-    
-    cat('\n', query, '\n\n')
     
     res <- dbGetQuery(con, query)
     
@@ -603,6 +641,8 @@ load_model <- function(tb_,
       filename <- paste0('./model', filename, '.rdata')
       
       load(filename)
+      
+      print('Re-Use model!')
       
     }
     
