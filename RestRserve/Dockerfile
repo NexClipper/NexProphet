@@ -43,13 +43,13 @@ RUN Rscript 02.R
 
 RUN apt-get install -y vim
 
-RUN mkdir model
-
-RUN chmod 777 .
-
 COPY . analytics
 
 WORKDIR analytics
+
+RUN chmod 777 .
+
+RUN mkdir model
 
 CMD Rscript app.R
 
