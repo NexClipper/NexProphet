@@ -507,16 +507,14 @@ load_model <- function(tb_,
                    host = MYSQL_HOST,
                    port = MYSQL_PORT)
   
-  if (remake == TRUE) {
+  if (as.logical(remake) == TRUE) {
     
     filename <- tempfile('', '')
     
-    dir.name <-  paste0("model", filename, '.rds')
+    dir.name <-  paste0("model", filename, '.rdata')
     
     model <- prophet(tb_,
                      changepoint.prior.scale = changepoint.prior.scale)
-    
-    dir.create(dir.name, recursive = T)
     
     save(model, file = dir.name)
     
@@ -530,11 +528,16 @@ load_model <- function(tb_,
                        'dockerIF' = arg$dockerIF,
                        'E_ID' = arg$E_ID,
                        'interface' = arg$IF,
-                       'filename' = filename)
+                       'filename' = filename,
+                       stringsAsFactors = F)
     
     print(info)
     
-    dbWriteTable(con, info)
+    dbWriteTable(con, 
+                 name = 'nexclipper_anomaly_model', 
+                 value = info,
+                 row.names = F,
+                 append = T)
     
     dbCommit(con)
     
@@ -552,7 +555,7 @@ load_model <- function(tb_,
                     dockerIF = '%s' and
                     E_ID = '%s' and
                     interface = '%s'" %>% 
-      sprintf(agent_id, measurement, host_ip, arg$mount, arg$hostIF,
+      sprintf(agent_id, measurement, host_ip, metric, arg$mount, arg$hostIF,
               arg$dname, arg$dockerIF, arg$E_ID, arg$IF)
     
     cat('\n', query, '\n\n')
@@ -563,12 +566,10 @@ load_model <- function(tb_,
       
       filename <- tempfile('', '')
       
-      dir.name <-  paste0("model", filename, '.rds')
+      dir.name <-  paste0("model", filename, '.rdata')
       
       model <- prophet(tb_,
                        changepoint.prior.scale = changepoint.prior.scale)
-      
-      dir.create(dir.name, recursive = T)
       
       save(model, file = dir.name)
       
@@ -582,11 +583,16 @@ load_model <- function(tb_,
                          'dockerIF' = arg$dockerIF,
                          'E_ID' = arg$E_ID,
                          'interface' = arg$IF,
-                         'filename' = filename)
+                         'filename' = filename,
+                         stringsAsFactors = F)
       
       print(info)
       
-      dbWriteTable(con, info)
+      dbWriteTable(con, 
+                   name = 'nexclipper_anomaly_model', 
+                   value = info,
+                   row.names = F,
+                   append = T)
       
       dbCommit(con)
       
@@ -594,8 +600,9 @@ load_model <- function(tb_,
       
       filename <- res$filename %>% tail(1)
       
-      model <- paste0('model', filename, '.rds') %>% 
-        load(filename)
+      filename <- paste0('./model', filename, '.rdata')
+      
+      load(filename)
       
     }
     

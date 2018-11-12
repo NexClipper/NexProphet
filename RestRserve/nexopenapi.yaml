@@ -457,6 +457,15 @@ paths:
             type: string
           example: 1h
           required: true
+        - name: remake
+          description: 're-modeling or not; TRUE or FALSE'
+          in: query
+          schema:
+            type: string
+            enum: 
+              - TRUE
+              - FALSE
+          required: true
       requestBody:
         description: A JSON object containing additional condition
         content:
@@ -469,49 +478,49 @@ paths:
                   description: >-
                     mount path of host. available when measurement is host_disk.
                   example:
-                    - null
+                    - "null"
                 hostIF:
                   format: string
                   description: >-
                     interface of host. available when measurement is host_net.
                   example:
-                    - null
+                    - "null"
                 dname:
                   format: string
                   description: >-
                     name of docker container. available when measurement is host_net.
                   example:
-                    - null
+                    - "null"
                 dockerIF:
                   format: string
                   description: >-
                     interface of docker. available when measurement is docker_network.
                   example:
-                    - null
+                    - "null"
                 E_ID:
                   format: string
                   description: >-
                     executor_id of task. available when measurement is task.
                   example:
-                    - null
+                    - "null"
                 IF:
                   format: string
                   description: >-
                     interface of network. available when measurement is network.
                   example:
-                    - null
+                    - "null"
                 namespace:
                   format: string
                   description: >-
                     namespace of k8s. available when measurement is k8s_pod.
                   example:
-                    - null
+                    - "null"
                 pod:
                   format: string
                   description: >-
                     pod name of k8s. available when measurement is k8s_pod.
                   example:
-                    - null
+                    - "null"
         required: false
       responses:
         '204':
