@@ -550,6 +550,8 @@ load_model <- function(tb_,
                 where id = '%s'" %>% 
         sprintf(filename, id)
       
+      print(query)
+      
       dbGetQuery(con, query)
       
       print('Update filename!')
@@ -600,7 +602,11 @@ load_model <- function(tb_,
     
     res <- dbGetQuery(con, query)
     
-    if (nrow(res) == 0) {
+    filename <- res$filename %>% tail(1)
+    
+    dir.name <- paste0('./model', filename, '.rdata')
+    
+    if (nrow(res) == 0 | !file.exists(dir.name)) {
       
       filename <- tempfile('', '')
       
@@ -638,9 +644,9 @@ load_model <- function(tb_,
       
       filename <- res$filename %>% tail(1)
       
-      filename <- paste0('./model', filename, '.rdata')
+      dir.name <- paste0('./model', filename, '.rdata')
       
-      load(filename)
+      load(dir.name)
       
       print('Re-Use model!')
       
