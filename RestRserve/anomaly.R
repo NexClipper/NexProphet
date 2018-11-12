@@ -539,10 +539,6 @@ load_model <- function(tb_,
       
       id <- res$id %>% tail(1)
       
-      filename <- res$filename %>% tail(1)
-      
-      dir.name <- paste0('./model', filename, '.rdata')
-      
       if (file.exists(dir.name)) file.remove(dir.name)
       
       query <- "update nexclipper_anomaly_model
@@ -550,7 +546,7 @@ load_model <- function(tb_,
                 where id = '%s'" %>% 
         sprintf(filename, id)
       
-      print(query)
+      cat('\n', query, '\n\n')
       
       dbGetQuery(con, query)
       
