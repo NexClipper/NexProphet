@@ -568,7 +568,7 @@ load_model <- function(tb_,
                          'dockerIF' = arg$dockerIF,
                          'E_ID' = arg$E_ID,
                          'interface' = arg$IF,
-                         'filename' = filename,
+                         'filename' = new_filename,
                          stringsAsFactors = F)
       
       print(info)
