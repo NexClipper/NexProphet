@@ -255,6 +255,8 @@ get_corr_mtx <- function(agent_id, period, groupby, start_time, key_,
       
     }
   
+  if (nrow(dt_processed) == 0) update_key_id_to_mysql(agent_id, key_, 404, 'not found'); return()
+  
   cor_mtx <- cor(dt_processed) %>% 
     as.data.table()
   

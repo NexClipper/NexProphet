@@ -548,7 +548,7 @@ print('########################')
 forecast_ <- function(agent_id, measurement, host_ip,
                       metric, period, predicted_period,
                       groupby, start_time, key, request_body) {
-  #agent_id=27;measurement='host';host_ip='192.168.0.168';metric='cpu_used_percent';period='30d';predicted_period='30d';groupby='1h';start_time='2018-11-12 02:00:00';key='618827342';request_body="\"{'mount':'null'}\""
+  #agent_id=27;measurement='host';host_ip='192.168.0.165';metric='cpu_used_percent';period='7d';predicted_period='6d';groupby='1s';start_time='2018-11-12 02:00:00';key='618827342';request_body="\"{'mount':'null'}\""
   res <- load_single_metric(agent_id, measurement, host_ip, metric,
                             period, groupby, start_time, request_body)
   
