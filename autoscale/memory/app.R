@@ -279,18 +279,6 @@ server <- function(input, output, session) {
     
     gbm <- h2o.getModel(sortedGrid@model_ids[[1]])
     
-    # dir.name <- paste("../../Model",
-    #                   'autoscale',
-    #                   'memory',
-    #                   paste0('agent_id_', AGENT_ID()),
-    #                   sep = '/')
-    
-    # model.dir <- tempfile('', dir.name())
-    
-    # filename <- paste(dir.name, dir(dir.name), sep = '/')
-    
-    # if (!is_empty(dir(dir.name()))) unlink(modelFile.name(), T)
-    
     if (!file.exists(dir.name())) dir.create(dir.name(), recursive = T)    
     
     h2o.saveModel(object = gbm,
