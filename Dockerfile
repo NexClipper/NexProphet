@@ -20,4 +20,6 @@ COPY Source/install_pkg .
 RUN Rscript 00.R && \
     rm -f 00.R
 
+RUN apt-get install -y default-jre
+
 COPY . .
