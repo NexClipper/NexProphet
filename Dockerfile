@@ -6,7 +6,8 @@ RUN apt-get -y update && \
                        libxml2-dev \
 		       libmariadbclient-dev \
 		       libv8-3.14-dev \
-		       vim
+		       vim \
+		       default-jre
 
 RUN rm -rf /srv/shiny-server && \
     mkdir /srv/shiny-server
@@ -19,7 +20,5 @@ COPY Source/install_pkg .
 
 RUN Rscript 00.R && \
     rm -f 00.R
-
-RUN apt-get install -y default-jre
 
 COPY . .
