@@ -8,14 +8,6 @@ INFLUX_DBNAME <- 'nexclipper'
 
 HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'
 
-INFLUX_ADDRESS <- '192.168.0.162'
-
-INFLUX_PORT <- 10091
-
-INFLUX_DBNAME <- 'nexclipper'
-
-HOSTAPI_ADDRESS <- '192.168.0.168:18805'
-
 #----
 
 #### COMMON FUNCTION ####
