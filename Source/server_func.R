@@ -8,6 +8,14 @@ INFLUX_DBNAME <- 'nexclipper'
 
 HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'
 
+INFLUX_ADDRESS <- '192.168.0.162'
+
+INFLUX_PORT <- 10091
+
+INFLUX_DBNAME <- 'nexclipper'
+
+HOSTAPI_ADDRESS <- '192.168.0.168:18805'
+
 #----
 
 #### COMMON FUNCTION ####
@@ -959,3 +967,124 @@ horizon.panel.ggplot <- function(df, add_text=NULL) {
     )
   
 }
+
+
+#### AUTOSCALE ####
+load_data_for_autoscale_memory <- function(agent_id, period, groupby, windows = 4) {
+  #agent_id=27;period='30d';groupby='15m';windows=4
+  connector <- connect()
+  
+  con <- connector$connector
+  
+  dbname <- connector$dbname
+  
+  query <- "select mean(mem_used_percent) as y
+            from docker_container
+            where agent_id = '%s' and
+                  time > now() - %s
+            group by time(%s), host_ip, task_id" %>% 
+    sprintf(agent_id, period, groupby)
+  
+  cat('\n', query, '\n')
+  
+  influx_query(con,
+               dbname,
+               query,
+               return_xts = F,
+               simplifyList = T)[[1]] %>% 
+    as.data.table() %>% 
+    .[, -1:-3] %>% 
+    setnames('time', 'ds') %>% 
+    setkey(host_ip, task_id, ds) %>% 
+    .[, y := na.locf(y),
+      by = c('host_ip', 'task_id')] %>% 
+    .[, y := (y - min(y)) / (max(y) - min(y) + 1e-6),
+      by = c('host_ip', 'task_id')] %>% 
+    .[, ds := as_datetime(ds, tz = 'UTC')] %>% 
+    .[, .(ds, key = paste(task_id, host_ip, sep = '/-/'), y)] %>% 
+    setkey(key, ds) %>% 
+    makeSimpleLagVars('y', group = 'key', lags = seq(1, windows * 12, by = 2)) %>% 
+    makeLagRatioVars('y', group = 'key', lags = seq(1, windows * 4, by = 2)) %>% 
+    makeWindowFuncVars('y', group = "key",
+                       windows = c(windows * 12, windows * 12 * 2, windows * 12 * 4),
+                       func = max,
+                       prefix = "lagMax_") %>% 
+    .[complete.cases(.)] %>%
+    .[, YMax__ := rollapply(shift(y, 4, type = "lead"),
+                            4,
+                            fill = NA, align = "right", partial = T, max, na.rm = T),
+      by = key] %>%
+    .[, Y := ifelse(YMax__ > .8, 'Y', 'N')] %>%
+    .[, c('YMax__', 'Y', 'ds') := list(NULL,
+                                       as.factor(Y),
+                                       as.character(ds))] %>% 
+  return()
+  
+}
+
+
+makeSimpleLagVars <- function(data,  y, group,
+                              lags = 1:3, prefix = "lag_", y_shift = 0 ) {
+  
+  # y shift parameter setting  
+  if(y_shift >= 0) {
+    type = "lag"
+  } else {
+    type = "lead"
+    y_shift = abs(y_shift)
+  }
+  
+  data %>% 
+    .[, ynew__ := shift(y, n = y_shift, type = type), by = group] %>% 
+    .[, (paste0(prefix, str_pad(lags, width = 2, pad = "0"))) := lapply(lags, function(n) shift(ynew__, n, type = 'lag')), by = group] %>% 
+    .[, ynew__ := NULL] %>% 
+    return()
+  
+}
+
+
+makeLagRatioVars <- function(data,  y, group,
+                             lags = 1:3, prefix = "cr_", y_shift = 0) {
+  
+  # y shift parameter setting  
+  if(y_shift >= 0) {
+    type = "lag"
+  } else {
+    type = "lead"
+    y_shift = abs(y_shift)
+  }
+  
+  data %>%  
+    .[, ynew__ := shift(y, n = y_shift, type = type),
+      by = group] %>% 
+    .[, (paste0(prefix, str_pad(lags, width = 2, pad = "0"))) := lapply(lags,
+                                                                        function(n) ynew__ / shift(ynew__, n, type = "lag") - 1),
+      by = group] %>% 
+    .[, ynew__ := NULL] %>% 
+    return()
+  
+}
+
+
+makeWindowFuncVars <- function(data,  y, group,
+                               windows = c(3,5), func = mean, prefix = "mv_", y_shift = 0, partial = T) {
+  
+  # y shift parameter setting  
+  if(y_shift >= 0) {
+    type = "lag"
+  } else {
+    type = "lead"
+    y_shift = abs(y_shift)
+  }
+  
+  data %>% copy() %>% 
+    .[, ynew__ := shift(y, n = y_shift, type = type),
+      by = group] %>% 
+    .[, (paste0(prefix, str_pad(windows, width = 2, pad = "0"))) := lapply(windows, function(wd) rollapply(ynew__, wd,  fill = NA, align = "right", partial = partial, func, na.rm = T)),
+      by = group] %>% 
+    .[, ynew__ := NULL] %>% 
+    return()
+  
+}
+
+
