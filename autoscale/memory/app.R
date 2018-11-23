@@ -187,7 +187,7 @@ server <- function(input, output, session) {
       
     } else {
       
-      if (!is_empty(dir.name())) {
+      if (file.exists(dir.name())) {
         
         h2o.removeAll()
         
