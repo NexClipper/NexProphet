@@ -171,6 +171,12 @@ server <- function(input, output, session) {
     
   })
   
+  model_name <- eventReactive(dir.name(), {
+    
+    file.path(dir.name(), "best_model")
+    
+  })
+  
   modelFile.name <- eventReactive(dir.name(), {
     
     paste(dir.name(), dir(dir.name()), sep = "/")
@@ -191,7 +197,7 @@ server <- function(input, output, session) {
         
         h2o.removeAll()
         
-        model <- h2o.loadModel(modelFile.name())
+        model <- h2o.loadModel(model_name())
         
         H_memory <- as.h2o(memory())
         
@@ -281,10 +287,14 @@ server <- function(input, output, session) {
     
     if (!file.exists(dir.name())) dir.create(dir.name(), recursive = T)    
     
-    h2o.saveModel(object = gbm,
-                  path = dir.name(),
-                  force = T)
+    model_dir <- h2o.saveModel(object = gbm,
+                               path = dir.name(),
+                               force = T)
     
+    # model_name() <- file.path(dir.name(), "best_model") # destination file name at the same folder location
+    
+    file.rename(model_dir, model_name())
+   
     sendSweetAlert(
       session = session,
       title = "Finish modeling!",
