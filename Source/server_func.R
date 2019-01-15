@@ -1,12 +1,12 @@
 #### ENVIRONMENT VARIABLE ####
 
-INFLUX_ADDRESS <- 'influxdb.marathon.l4lb.thisdcos.directory'
+INFLUX_ADDRESS <- 'influx.nexclipper'
 
-INFLUX_PORT <- 8086
+INFLUX_PORT <- 8087
 
 INFLUX_DBNAME <- 'nexclipper'
 
-HOSTAPI_ADDRESS <- 'nexcloudhostapi.marathon.l4lb.thisdcos.directory:10100'
+HOSTAPI_ADDRESS <- 'host.nexclipper:10100'
 
 #----
 

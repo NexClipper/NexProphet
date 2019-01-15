@@ -3,7 +3,7 @@
 uid = "admin"
 password = "password"
 dbname = "defaultdb"
-host = "mysql.marathon.l4lb.thisdcos.directory"
+host = "mysql.nexclipper"
 port = 3306
 
 con <- dbConnect(MySQL(), 
